@@ -15,7 +15,7 @@ pub struct QmDevice
     syspath: String,
     vendor_id: String,
     device_id: String,
-    driver: String,
+    drv_name: String,
 }
 
 fn mj_mn_from_devnum(dnum: u64) -> (u32, u32)
@@ -56,7 +56,7 @@ impl QmDevice
                 syspath: String::from(pdev.syspath().to_str().unwrap()),
                 vendor_id: String::from(&pciid[0..4]),
                 device_id: String::from(&pciid[5..9]),
-                driver: String::from(pdev.driver().unwrap().to_str().unwrap()),
+                drv_name: String::from(pdev.driver().unwrap().to_str().unwrap()),
             };
 
             if qmd.drm_card.starts_with("/dev/dri/render") {
