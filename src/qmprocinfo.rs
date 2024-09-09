@@ -41,7 +41,7 @@ pub fn find_drm_fds_for_pid_tree_at(base_pid: &String) -> Result<Vec<PathBuf>>
 
         let iter = pbuf.read_dir();
         if let Err(err) = iter {
-            debug!("DBG: error reading dir {:?}: {:?}", pbuf, err);
+            debug!("Error reading dir {:?}: {:?}", pbuf, err);
             pbuf.pop();
             continue;
         }
@@ -49,7 +49,7 @@ pub fn find_drm_fds_for_pid_tree_at(base_pid: &String) -> Result<Vec<PathBuf>>
         let mut iter = iter.unwrap();
         while let Some(item) = iter.next() {
             if let Err(err) = item {
-                debug!("DBG: error reading dir {:?}: {:?}", pbuf, err);
+                debug!("Error reading dir {:?}: {:?}", pbuf, err);
                 pbuf.pop();
                 continue;
             }
@@ -57,7 +57,7 @@ pub fn find_drm_fds_for_pid_tree_at(base_pid: &String) -> Result<Vec<PathBuf>>
             let etp = item.unwrap().path();
             let res = is_drm_fd(&etp);
             if let Err(err) = res {
-                debug!("DBG: error checking if {:?} is a DRM fd: {:?}", etp, err);
+                debug!("Error checking if {:?} is a DRM fd: {:?}", etp, err);
                 pbuf.pop();
                 continue;
             }
