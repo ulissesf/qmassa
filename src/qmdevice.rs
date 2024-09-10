@@ -33,7 +33,7 @@ fn mj_mn_from_devnum(dnum: u64) -> (u32, u32)
 
 impl QmDevice
 {
-    pub fn get_devices() -> Result<Vec<QmDevice>>
+    pub fn find_devices() -> Result<Vec<QmDevice>>
     {
         let mut devs:Vec<QmDevice> = Vec::new();
         let mut rend:Vec<QmDevice> = Vec::new();

@@ -22,7 +22,7 @@ fn main() -> Result<()>
     let args = Args::parse();
     let base_pid = args.pid.unwrap();
 
-    for qmd in QmDevice::get_devices().context("Failed to find DRM devices")? {
+    for qmd in QmDevice::find_devices().context("Failed to find DRM devices")? {
         println!("{:#?}", qmd);
     }
 
