@@ -5,6 +5,7 @@ use clap::Parser;
 mod qmdevice;
 use qmdevice::QmDevice;
 
+mod qmdriver;
 mod qmprocinfo;
 
 

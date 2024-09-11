@@ -2,20 +2,23 @@ use anyhow::Result;
 use libc;
 use udev;
 
+use crate::qmdriver::{self, QmDriver};
+
 
 #[derive(Debug)]
 pub struct QmDevice
 {
-    subsystem: String,
-    drm_card: String,
-    drm_card_devnum: (u32, u32),
-    drm_render: String,
-    drm_render_devnum: (u32, u32),
-    sysname: String,            // same as PCI_SLOT_NAME
-    syspath: String,
-    vendor_id: String,
-    device_id: String,
-    drv_name: String,
+    pub subsystem: String,
+    pub drm_card: String,
+    pub drm_card_devnum: (u32, u32),
+    pub drm_render: String,
+    pub drm_render_devnum: (u32, u32),
+    pub sysname: String,            // same as PCI_SLOT_NAME
+    pub syspath: String,
+    pub vendor_id: String,
+    pub device_id: String,
+    pub drv_name: String,
+    pub driver: Box<dyn QmDriver>,
 }
 
 fn mj_mn_from_devnum(dnum: u64) -> (u32, u32)
@@ -46,6 +49,7 @@ impl QmDevice
              let pdev = d.parent().unwrap();
              let pciid = pdev.property_value("PCI_ID").unwrap().to_str().unwrap();
 
+             let dname = String::from(pdev.driver().unwrap().to_str().unwrap());
              let qmd = QmDevice {
                 subsystem: String::from(d.subsystem().unwrap().to_str().unwrap()),
                 drm_card: String::from(d.devnode().unwrap().to_str().unwrap()),
@@ -56,7 +60,8 @@ impl QmDevice
                 syspath: String::from(pdev.syspath().to_str().unwrap()),
                 vendor_id: String::from(&pciid[0..4]),
                 device_id: String::from(&pciid[5..9]),
-                drv_name: String::from(pdev.driver().unwrap().to_str().unwrap()),
+                driver: qmdriver::find_driver(dname.as_str()),
+                drv_name: dname,
             };
 
             if qmd.drm_card.starts_with("/dev/dri/render") {
@@ -71,6 +76,7 @@ impl QmDevice
                 if rd.syspath == cd.syspath {
                     cd.drm_render = rd.drm_card.clone();
                     cd.drm_render_devnum = rd.drm_card_devnum;
+                    cd.driver.add_device(cd);
                     break;
                 }
             }
