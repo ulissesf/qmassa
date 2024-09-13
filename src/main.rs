@@ -5,9 +5,6 @@ use clap::Parser;
 mod qmdevice;
 use qmdevice::QmDevice;
 
-mod qmdriver;
-mod qmprocinfo;
-
 
 #[derive(Parser, Debug)]
 #[command(version, about, long_about = None)]
@@ -23,13 +20,9 @@ fn main() -> Result<()>
     let args = Args::parse();
     let base_pid = args.pid.unwrap();
 
-    for qmd in QmDevice::find_devices().context("Failed to find DRM devices")? {
-        println!("{:#?}", qmd);
-    }
-
-    for fd in qmprocinfo::find_drm_fds_for_pid_tree_at(&base_pid)
-        .with_context(|| format!("Failed to find DRM fds for pid tree from {}", base_pid))? {
-        println!("DRM fd: {:#?}", fd);
+    let qmds = QmDevice::find_devices().context("Failed to find DRM devices")?;
+    for d in qmds {
+        println!("{:#?}", d);
     }
 
     Ok(())
