@@ -40,9 +40,8 @@ impl<'b> QmProcInfo<'b>
         Ok(chids)
     }
 
-    pub fn get_drm_fdinfo_stats<'a>(&'a mut self, qmds: &'b Vec<QmDevice>) -> Result<()>
+    pub fn get_drm_fdinfo_stats<'a>(&'a mut self, done: &'a mut HashMap<(u32,u32),bool>, qmds: &'b Vec<QmDevice>) -> Result<()>
     {
-        let mut done = HashMap::new();
         let fdpath = self.pidpbuf.join("fd");
         let infopath = self.pidpbuf.join("fdinfo");
 
@@ -96,6 +95,7 @@ impl<'b> QmProcInfo<'b>
     {
         let mut pstats: Vec<QmProcInfo> = Vec::new();
         let mut pidq = VecDeque::from([base_pid.clone(),]);
+        let mut done: HashMap<(u32,u32),bool> = HashMap::new();
 
         while !pidq.is_empty() {
             let npid = pidq.pop_front().unwrap();
@@ -109,7 +109,7 @@ impl<'b> QmProcInfo<'b>
             let mut nstat = nstat.unwrap();
 
             // search and parse all DRM fdinfo from npid process
-            if let Err(err) = nstat.get_drm_fdinfo_stats(qmds) {
+            if let Err(err) = nstat.get_drm_fdinfo_stats(&mut done, qmds) {
                 debug!("ERR: failed to get fdinfo usage stats from {:?}: {:?}", npid, err);
                 continue;
             }
