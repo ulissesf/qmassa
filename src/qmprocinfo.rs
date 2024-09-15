@@ -64,7 +64,7 @@ impl<'b> QmProcInfo<'b>
             let info = QmDrmFdinfo::from_drm_fdinfo(&ipath, qmd)?;
 
             if done.contains_key(&(mn, info.id)) {
-                debug!("Repeated DRM client for minor {:?} and ID {:?}", mn, info.id);
+                debug!("Repeated DRM client: pid={:?}, comm={:?}, fdinfo={:?}, minor={:?}, drm-client-id={:?}", self.pid, self.comm, info.path, mn, info.id);
                 continue;
             }
 
