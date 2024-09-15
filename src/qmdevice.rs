@@ -14,6 +14,7 @@ pub struct QmDevice
     pub vendor_id: String,
     pub device_id: String,
     pub drv_name: String,
+    // TODO: add type either integrated or discrete
 }
 
 fn mj_mn_from_devnum(dnum: u64) -> (u32, u32)
