@@ -8,7 +8,7 @@ use qmdevice::QmDevice;
 mod qmdrmfdinfo;
 
 mod qmprocinfo;
-use qmprocinfo::QmProcUsageStats;
+use qmprocinfo::QmProcInfo;
 
 
 #[derive(Parser, Debug)]
@@ -32,7 +32,7 @@ fn main() -> Result<()>
 
     // TODO: make sure qmds.len > 0
 
-    let pst = QmProcUsageStats::from_pid_tree(&base_pid)
+    let pst = QmProcInfo::from_pid_tree(&base_pid, &qmds)
         .with_context(|| format!("Failed to get proc data from tree at {:?}", base_pid))?;
     println!("{:#?}", pst);
 

@@ -5,6 +5,8 @@ use std::fs;
 use anyhow::Result;
 use libc;
 
+use crate::qmdevice::QmDevice;
+
 
 #[derive(Debug)]
 pub struct QmDrmEngine
@@ -43,7 +45,7 @@ impl QmDrmEngine
     pub fn new(eng_name: &str) -> QmDrmEngine
     {
         QmDrmEngine {
-            name: eng_name.to_string().clone(),
+            name: eng_name.to_string(),
             ..Default::default()
         }
     }
@@ -89,26 +91,28 @@ impl QmDrmMemRegion
     pub fn new(memreg_name: &str) -> QmDrmMemRegion
     {
         QmDrmMemRegion {
-            name: memreg_name.to_string().clone(),
+            name: memreg_name.to_string(),
             ..Default::default()
         }
     }
 }
 
 #[derive(Debug)]
-pub struct QmDrmFdinfo
+pub struct QmDrmFdinfo<'b>
 {
+    pub qmdev: Option<&'b QmDevice>,
     pub path: PathBuf,
     pub id: u32,
     pub engines: Vec<QmDrmEngine>,
     pub mem_regions: Vec<QmDrmMemRegion>,
 }
 
-impl Default for QmDrmFdinfo
+impl Default for QmDrmFdinfo<'_>
 {
-    fn default() -> QmDrmFdinfo
+    fn default() -> QmDrmFdinfo<'static>
     {
         QmDrmFdinfo {
+            qmdev: None,
             path: PathBuf::new(),
             id: 0,
             engines: Vec::new(),
@@ -117,7 +121,7 @@ impl Default for QmDrmFdinfo
     }
 }
 
-impl QmDrmFdinfo
+impl QmDrmFdinfo<'_>
 {
     pub fn is_drm_fd(file: &Path, minor: &mut u32) -> Result<bool>
     {
@@ -238,7 +242,7 @@ impl QmDrmFdinfo
         Ok(())
     }
 
-    pub fn from_drm_fdinfo(fdinfo: &PathBuf) -> Result<QmDrmFdinfo>
+    pub fn from_drm_fdinfo<'a,'b>(fdinfo: &'a PathBuf, qmd: &'b QmDevice) -> Result<QmDrmFdinfo<'b>>
     {
         let lines: Vec<_> = fs::read_to_string(fdinfo)?
             .lines()
@@ -246,6 +250,7 @@ impl QmDrmFdinfo
             .collect();
 
         let mut info = QmDrmFdinfo {
+            qmdev: Some(qmd),
             path: PathBuf::from(fdinfo),
             ..Default::default()
         };
@@ -258,7 +263,7 @@ impl QmDrmFdinfo
                 continue;
             }
 
-            // TODO?: check if pdev and driver match ones in qmd
+            // TODO ?: check if pdev and driver match ones in qmd
 
             if k.starts_with("drm-client-id") {
                 info.id = v.parse()?;
@@ -289,7 +294,7 @@ impl QmDrmFdinfo
             } else if k.starts_with("drm-active-") {
                 let mrn = &k["drm-active-".len()..];
                 info.update_mem_region(MemRegKvType::KvActive, mrn, v)?;
-            }    
+            }
         }
 
         Ok(info)

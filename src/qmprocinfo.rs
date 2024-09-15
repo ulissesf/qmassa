@@ -5,19 +5,20 @@ use std::fs;
 use anyhow::Result;
 use log::debug;
 
+use crate::qmdevice::QmDevice;
 use crate::qmdrmfdinfo::QmDrmFdinfo;
 
 
 #[derive(Debug)]
-pub struct QmProcUsageStats
+pub struct QmProcInfo<'b>
 {
     pub pid: u32,
     pub comm: String,
     pub pidpbuf: PathBuf,
-    pub stats: Vec<QmDrmFdinfo>,
+    pub stats: Vec<QmDrmFdinfo<'b>>,
 }
 
-impl QmProcUsageStats
+impl<'b> QmProcInfo<'b>
 {
     fn find_children_procs(&self) -> Result<VecDeque<String>>
     {
@@ -39,7 +40,7 @@ impl QmProcUsageStats
         Ok(chids)
     }
 
-    pub fn get_drm_fdinfo_stats(&mut self) -> Result<()>
+    pub fn get_drm_fdinfo_stats<'a>(&'a mut self, qmds: &'b Vec<QmDevice>) -> Result<()>
     {
         let mut done = HashMap::new();
         let fdpath = self.pidpbuf.join("fd");
@@ -53,8 +54,15 @@ impl QmProcUsageStats
                 continue;
             }
 
+            let mut qmd: &QmDevice = &qmds[0];
+            for d in qmds {
+                if d.devnum.1 == mn {
+                    qmd = &d;
+                }
+            }
+
             let ipath = infopath.join(et.path().file_name().unwrap());
-            let info = QmDrmFdinfo::from_drm_fdinfo(&ipath)?;
+            let info = QmDrmFdinfo::from_drm_fdinfo(&ipath, qmd)?;
 
             if done.contains_key(&(mn, info.id)) {
                 debug!("Repeated DRM client for minor {:?} and ID {:?}", mn, info.id);
@@ -68,9 +76,9 @@ impl QmProcUsageStats
         Ok(())
     }
 
-    pub fn from_pid(npid: &String) -> Result<QmProcUsageStats>
+    pub fn from_pid<'a>(npid: &'a String) -> Result<QmProcInfo<'b>>
     {
-         let mut qmps = QmProcUsageStats {
+         let mut qmps = QmProcInfo {
              pid: npid.parse()?,
              comm: String::from(""),
              pidpbuf: Path::new("/proc").join(npid.as_str()),
@@ -84,16 +92,16 @@ impl QmProcUsageStats
          Ok(qmps)
     }
 
-    pub fn from_pid_tree(base_pid: &String) -> Result<Vec<QmProcUsageStats>>
+    pub fn from_pid_tree(base_pid: &'b String, qmds: &'b Vec<QmDevice>) -> Result<Vec<QmProcInfo<'b>>>
     {
-        let mut pstats: Vec<QmProcUsageStats> = Vec::new();
+        let mut pstats: Vec<QmProcInfo> = Vec::new();
         let mut pidq = VecDeque::from([base_pid.clone(),]);
 
         while !pidq.is_empty() {
             let npid = pidq.pop_front().unwrap();
 
             // new npid process usage stats
-            let nstat = QmProcUsageStats::from_pid(&npid);
+            let nstat = QmProcInfo::from_pid(&npid);
             if let Err(err) = nstat {
                 debug!("ERR: Couldn't get data for process {:?}: {:?}", npid, err);
                 continue;
@@ -101,7 +109,7 @@ impl QmProcUsageStats
             let mut nstat = nstat.unwrap();
 
             // search and parse all DRM fdinfo from npid process
-            if let Err(err) = nstat.get_drm_fdinfo_stats() {
+            if let Err(err) = nstat.get_drm_fdinfo_stats(qmds) {
                 debug!("ERR: failed to get fdinfo usage stats from {:?}: {:?}", npid, err);
                 continue;
             }
