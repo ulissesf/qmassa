@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use anyhow::Result;
 use libc;
 use udev;
@@ -32,9 +34,9 @@ fn mj_mn_from_devnum(dnum: u64) -> (u32, u32)
 
 impl QmDevice
 {
-    pub fn find_devices() -> Result<Vec<QmDevice>>
+    pub fn find_devices() -> Result<HashMap<u32, QmDevice>>
     {
-        let mut devs:Vec<QmDevice> = Vec::new();
+        let mut devs:HashMap<u32, QmDevice> = HashMap::new();
 
         let mut enumerator = udev::Enumerator::new()?;
         enumerator.match_subsystem("drm")?;
@@ -55,7 +57,7 @@ impl QmDevice
                 drv_name: String::from(pdev.driver().unwrap().to_str().unwrap())
             };
 
-            devs.push(qmd);
+            devs.insert(qmd.devnum.1, qmd);
         }
 
         Ok(devs)

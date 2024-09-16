@@ -5,8 +5,6 @@ use std::fs;
 use anyhow::Result;
 use libc;
 
-use crate::qmdevice::QmDevice;
-
 
 #[derive(Debug)]
 pub struct QmDrmEngine
@@ -98,21 +96,21 @@ impl QmDrmMemRegion
 }
 
 #[derive(Debug)]
-pub struct QmDrmFdinfo<'b>
+pub struct QmDrmFdinfo
 {
-    pub qmdev: Option<&'b QmDevice>,
+    pub drm_minor: u32,
     pub path: PathBuf,
     pub id: u32,
     pub engines: Vec<QmDrmEngine>,
     pub mem_regions: Vec<QmDrmMemRegion>,
 }
 
-impl Default for QmDrmFdinfo<'_>
+impl Default for QmDrmFdinfo
 {
-    fn default() -> QmDrmFdinfo<'static>
+    fn default() -> QmDrmFdinfo
     {
         QmDrmFdinfo {
-            qmdev: None,
+            drm_minor: 0,
             path: PathBuf::new(),
             id: 0,
             engines: Vec::new(),
@@ -121,7 +119,7 @@ impl Default for QmDrmFdinfo<'_>
     }
 }
 
-impl QmDrmFdinfo<'_>
+impl QmDrmFdinfo
 {
     pub fn is_drm_fd(file: &Path, minor: &mut u32) -> Result<bool>
     {
@@ -242,7 +240,7 @@ impl QmDrmFdinfo<'_>
         Ok(())
     }
 
-    pub fn from_drm_fdinfo<'a,'b>(fdinfo: &'a PathBuf, qmd: &'b QmDevice) -> Result<QmDrmFdinfo<'b>>
+    pub fn from_drm_fdinfo(fdinfo: &PathBuf, d_minor: u32) -> Result<QmDrmFdinfo>
     {
         let lines: Vec<_> = fs::read_to_string(fdinfo)?
             .lines()
@@ -250,7 +248,7 @@ impl QmDrmFdinfo<'_>
             .collect();
 
         let mut info = QmDrmFdinfo {
-            qmdev: Some(qmd),
+            drm_minor: d_minor,
             path: PathBuf::from(fdinfo),
             ..Default::default()
         };
@@ -262,8 +260,6 @@ impl QmDrmFdinfo<'_>
             if !k.starts_with("drm-") {
                 continue;
             }
-
-            // TODO ?: check if pdev and driver match ones in qmd
 
             if k.starts_with("drm-client-id") {
                 info.id = v.parse()?;
