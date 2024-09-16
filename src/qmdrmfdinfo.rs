@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::os::linux::fs::MetadataExt;
 use std::fs;
@@ -101,8 +102,8 @@ pub struct QmDrmFdinfo
     pub drm_minor: u32,
     pub path: PathBuf,
     pub id: u32,
-    pub engines: Vec<QmDrmEngine>,
-    pub mem_regions: Vec<QmDrmMemRegion>,
+    pub engines: HashMap<String, QmDrmEngine>,
+    pub mem_regions: HashMap<String, QmDrmMemRegion>,
 }
 
 impl Default for QmDrmFdinfo
@@ -113,8 +114,8 @@ impl Default for QmDrmFdinfo
             drm_minor: 0,
             path: PathBuf::new(),
             id: 0,
-            engines: Vec::new(),
-            mem_regions: Vec::new(),
+            engines: HashMap::new(),
+            mem_regions: HashMap::new(),
         }
     }
 }
@@ -141,26 +142,14 @@ impl QmDrmFdinfo
         Ok(false)
     }
 
-    fn find_engine(&mut self, eng_name: &str) -> Option<&mut QmDrmEngine>
-    {
-        for eng in &mut self.engines {
-            if eng.name == eng_name {
-                return Some(eng);
-            }
-        }
-        None
-    }
-
     fn update_engine(&mut self, kv_type: EngKvType, eng_name: &str, val: &str) -> Result<()>
     {
         let eng: &mut QmDrmEngine;
-        if let Some(res) = self.find_engine(eng_name) {
-            eng = res;
-        } else {
-            self.engines.push(QmDrmEngine::new(eng_name));
-            let last = self.engines.len()-1;
-            eng = &mut self.engines[last];
+
+        if !self.engines.contains_key(eng_name) {
+            self.engines.insert(eng_name.to_string(), QmDrmEngine::new(eng_name));
         }
+        eng = self.engines.get_mut(eng_name).unwrap();
 
         match kv_type {
             EngKvType::KvCapacity => {
@@ -181,16 +170,6 @@ impl QmDrmFdinfo
         Ok(())
     }
 
-    fn find_mem_region(&mut self, mr_name: &str) -> Option<&mut QmDrmMemRegion>
-    {
-        for mr in &mut self.mem_regions {
-            if mr.name == mr_name {
-                return Some(mr);
-            }
-        }
-        None
-    }
-
     fn mul_from_unit(unit: &str) -> u64
     {
         match unit {
@@ -204,13 +183,11 @@ impl QmDrmFdinfo
     fn update_mem_region(&mut self, kv_type: MemRegKvType, mr_name: &str, val: &str) -> Result<()>
     {
         let mrg: &mut QmDrmMemRegion;
-        if let Some(res) = self.find_mem_region(mr_name) {
-            mrg = res;
-        } else {
-            self.mem_regions.push(QmDrmMemRegion::new(mr_name));
-            let last = self.mem_regions.len()-1;
-            mrg = &mut self.mem_regions[last];
+
+        if !self.mem_regions.contains_key(mr_name) {
+            self.mem_regions.insert(mr_name.to_string(), QmDrmMemRegion::new(mr_name));
         }
+        mrg = self.mem_regions.get_mut(mr_name).unwrap();
 
         let dt: Vec<&str> = val.split_whitespace().collect();
         let nr: u64 = dt[0].parse()?;
