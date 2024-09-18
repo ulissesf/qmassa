@@ -238,7 +238,7 @@ impl QmDrmClients
             for fdi in fdinfos {
                 if let Some(cliref) = QmDrmClients::map_has_client(&mut ninfos, fdi.drm_minor, fdi.client_id) {
                     cliref.shared_procs.push((nproc.clone(), fdi.path));
-                    debug!("INF: repeated client/drm fd info: proc={:?}, drm-minor={:?}, drm-client-id={:?}", nproc, fdi.drm_minor, fdi.client_id);
+                    debug!("INF: repeated drm client/fd info: proc={:?}, drm-minor={:?}, drm-client-id={:?}", nproc, fdi.drm_minor, fdi.client_id);
                     continue;
                 }
 
