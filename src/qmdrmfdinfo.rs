@@ -50,7 +50,7 @@ impl QmDrmEngine
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct QmDrmMemRegion
 {
     pub name: String,
@@ -100,8 +100,8 @@ impl QmDrmMemRegion
 pub struct QmDrmFdinfo
 {
     pub drm_minor: u32,
+    pub client_id: u32,
     pub path: PathBuf,
-    pub id: u32,
     pub engines: HashMap<String, QmDrmEngine>,
     pub mem_regions: HashMap<String, QmDrmMemRegion>,
 }
@@ -112,8 +112,8 @@ impl Default for QmDrmFdinfo
     {
         QmDrmFdinfo {
             drm_minor: 0,
+            client_id: 0,
             path: PathBuf::new(),
-            id: 0,
             engines: HashMap::new(),
             mem_regions: HashMap::new(),
         }
@@ -217,7 +217,7 @@ impl QmDrmFdinfo
         Ok(())
     }
 
-    pub fn from_drm_fdinfo(fdinfo: &PathBuf, d_minor: u32) -> Result<QmDrmFdinfo>
+    pub fn from(fdinfo: &PathBuf, d_minor: u32) -> Result<QmDrmFdinfo>
     {
         let lines: Vec<_> = fs::read_to_string(fdinfo)?
             .lines()
@@ -238,8 +238,10 @@ impl QmDrmFdinfo
                 continue;
             }
 
+            // TODO?: parse driver & pdev and check against udev info?
+
             if k.starts_with("drm-client-id") {
-                info.id = v.parse()?;
+                info.client_id = v.parse()?;
             } else if k.starts_with("drm-engine-capacity-") {
                 let en = &k["drm-engine-capacity-".len()..];
                 info.update_engine(EngKvType::KvCapacity, en, v)?;

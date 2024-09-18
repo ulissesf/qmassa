@@ -3,12 +3,12 @@ use env_logger;
 use clap::Parser;
 
 mod qmdevice;
-use qmdevice::QmDevice;
-
-mod qmdrmfdinfo;
-
 mod qmprocinfo;
-use qmprocinfo::QmProcInfo;
+mod qmdrmfdinfo;
+mod qmdrmclients;
+
+use qmdevice::QmDevice;
+use qmdrmclients::QmDrmClients;
 
 
 #[derive(Parser, Debug)]
@@ -32,9 +32,9 @@ fn main() -> Result<()>
 
     // TODO: make sure qmds.len > 0
 
-    let pst = QmProcInfo::from_pid_tree(&base_pid)
-        .with_context(|| format!("Failed to get proc data from tree at {:?}", base_pid))?;
-    println!("{:#?}", pst);
+    let mut clis = QmDrmClients::from_pid_tree(base_pid.as_str());
+    let infos = clis.refresh();
+    println!("{:#?}", infos);
 
     // TODO: add text-based UI
 
