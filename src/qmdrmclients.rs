@@ -258,11 +258,10 @@ impl QmDrmClients
         Ok(())
     }
 
-    pub fn refresh(&mut self) -> Result<&HashMap<u32, Vec<QmDrmClientInfo>>>
+    pub fn refresh(&mut self) -> Result<()>
     {
        self.scan_pid_tree()?;
-
-       Ok(&self.infos)
+       Ok(())
     }
 
     pub fn from_pid_tree(at_pid: &str) -> QmDrmClients

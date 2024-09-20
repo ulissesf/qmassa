@@ -6,9 +6,11 @@ mod qmdevice;
 mod qmprocinfo;
 mod qmdrmfdinfo;
 mod qmdrmclients;
+mod app;
 
 use qmdevice::QmDevice;
 use qmdrmclients::QmDrmClients;
+use app::App;
 
 
 #[derive(Parser, Debug)]
@@ -16,6 +18,9 @@ use qmdrmclients::QmDrmClients;
 struct Args {
     #[arg(short, long, default_value = "1")]
     pid: Option<String>,
+
+    #[arg(short, long, default_value = "50")]
+    ms_interval: Option<u64>,
 }
 
 fn main() -> Result<()>
@@ -24,19 +29,18 @@ fn main() -> Result<()>
 
     let args = Args::parse();
     let base_pid = args.pid.unwrap();
+    let ms_interval = args.ms_interval.unwrap();
 
     // TODO: if base_pid == 1 && not root, scan all current user processes
 
     let qmds = QmDevice::find_devices().context("Failed to find DRM devices")?;
-    println!("{:#?}", qmds);
-
-    // TODO: make sure qmds.len > 0
-
+    if qmds.len() == 0 {
+        anyhow::bail!("ERR: no DRM devices found");
+    }
     let mut clis = QmDrmClients::from_pid_tree(base_pid.as_str());
-    let infos = clis.refresh();
-    println!("{:#?}", infos);
 
-    // TODO: add text-based UI
+    let mut app = App::new(&qmds, &mut clis, ms_interval);
+    app.run()?;
 
     Ok(())
 }
