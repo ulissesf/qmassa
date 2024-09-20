@@ -261,6 +261,11 @@ impl QmDrmClients
     pub fn refresh(&mut self) -> Result<()>
     {
        self.scan_pid_tree()?;
+
+       for cli in self.infos.values_mut() {
+           cli.sort_by(|a, b| a.client_id.cmp(&b.client_id));
+       }
+
        Ok(())
     }
 
