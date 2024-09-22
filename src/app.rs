@@ -154,7 +154,7 @@ impl App<'_>
             .block(Block::new().borders(Borders::BOTTOM)),
             procmem_hdr);
 
-        let infos = self.clis.device_clients(&qmd.minor()).unwrap();
+        let infos = self.clis.device_active_clients(&qmd.minor());
         let engs = infos[0].engines();
         let mut widths = Vec::new();
         let mut texts = Vec::new();
@@ -263,7 +263,7 @@ impl App<'_>
 
         while !self.exit {
             self.clis.refresh()?;
-            debug!("{:#?}", self.clis.infos);
+            debug!("{:#?}", self.clis.infos());
             terminal.draw(|frame| self.draw(frame))?;
             self.handle_events()?;
             thread::sleep(ival);

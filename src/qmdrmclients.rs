@@ -148,6 +148,28 @@ impl QmDrmClientInfo
         res
     }
 
+    pub fn is_active(&self) -> bool
+    {
+        let acum = &self.engs_acum;
+        if acum.acum_time > 0 ||
+            acum.acum_cycles > 0 ||
+            acum.acum_total_cycles > 0 {
+            return true;
+        }
+
+        for mr in self.mem_regions.values() {
+            if mr.total > 0 ||
+                mr.shared > 0 ||
+                mr.resident > 0 ||
+                mr.purgeable > 0 ||
+                mr.active > 0 {
+                return true;
+            }
+        }
+
+        false
+    }
+
     pub fn update(&mut self, pinfo: QmProcInfo, fdi: QmDrmFdinfo)
     {
         self.proc = pinfo;  // fd might be shared
@@ -206,7 +228,7 @@ impl QmDrmClientInfo
 pub struct QmDrmClients
 {
     pub base_pid: String,
-    pub infos: HashMap<u32, Vec<QmDrmClientInfo>>,
+    infos: HashMap<u32, Vec<QmDrmClientInfo>>,
 }
 
 impl QmDrmClients
@@ -329,6 +351,21 @@ impl QmDrmClients
        Ok(())
     }
 
+    pub fn device_active_clients(&self, dev: &u32) -> Vec<&QmDrmClientInfo>
+    {
+        let mut res: Vec<&QmDrmClientInfo> = Vec::new();
+
+        if let Some(infos) = self.infos.get(dev) {
+            for cli in infos.iter() {
+                if cli.is_active() {
+                    res.push(cli);
+                }
+            }
+        }
+
+        res
+    }
+
     pub fn device_clients(&self, dev: &u32) -> Option<&Vec<QmDrmClientInfo>>
     {
         self.infos.get(dev)
@@ -340,6 +377,11 @@ impl QmDrmClients
         res.sort();
 
         res
+    }
+
+    pub fn infos(&self) -> &HashMap<u32, Vec<QmDrmClientInfo>>
+    {
+        &self.infos
     }
 
     pub fn from_pid_tree(at_pid: &str) -> QmDrmClients
