@@ -9,9 +9,7 @@ use ratatui::{
     layout::{Alignment, Constraint, Layout, Rect},
     style::{Style, Stylize},
     text::{Line, Text},
-    widgets::{
-        block::Title, Block, Borders,
-        BorderType, Row, Table, Bar, BarChart, BarGroup},
+    widgets::{block::Title, Block, Borders, BorderType, Row, Table, Gauge},
     DefaultTerminal, Frame
 };
 
@@ -84,27 +82,32 @@ impl App<'_>
         Table::new(rows, widths).column_spacing(1)
     }
 
-    fn client_engines(&self, cli: &QmDrmClientInfo) -> BarChart
+    fn render_client_engines(&self, cli: &QmDrmClientInfo, frame: &mut Frame, area: Rect)
     {
-        let mut bars: Vec<Bar> = Vec::new();
+        let mut gauges: Vec<Gauge> = Vec::new();
         for eng in cli.engines() {
-            bars.push(Bar::default().value(
-                    cli.eng_utilization(eng, self.ms_ival).round() as u64));
+            gauges.push(Gauge::default()
+                .use_unicode(true)
+                .ratio(cli.eng_utilization(eng, self.ms_ival)/100.0));
         }
 
-        BarChart::default()
-            .bar_width(7)
-            .bar_gap(2)
-            .label_style(Style::new().white())
-            .data(BarGroup::default().bars(&bars))
-            .max(100)
+        let mut constrs = Vec::new();
+        let len = cli.engines().len();
+        for _ in 0..len {
+            constrs.push(Constraint::Percentage((100/len).try_into().unwrap()));
+        }
+        let places = Layout::horizontal(constrs).split(area);
+
+        for (g, a) in gauges.iter().zip(places.iter()) {
+            frame.render_widget(g, *a);
+        }
     }
 
-    fn render_qmd_clients(&self, qmd: &QmDevice, frame: &mut Frame, area: Rect)
+    fn render_qmd_clients(&self, qmd: &QmDevice, infos: &Vec<&QmDrmClientInfo>, frame: &mut Frame, area: Rect)
     {
         let [dev_bar, stats_area] = Layout::vertical([
             Constraint::Length(1),
-            Constraint::Min(5),
+            Constraint::Min(3),
         ]).areas(area);
 
         let dev_title = Title::from(Line::from(vec![
@@ -160,7 +163,6 @@ impl App<'_>
                 ),
             procmem_hdr);
 
-        let infos = self.clis.device_active_clients(&qmd.minor());
         let engs = infos[0].engines();
         let mut widths = Vec::new();
         let mut texts = Vec::new();
@@ -179,12 +181,12 @@ impl App<'_>
 
         let mut constrs = Vec::new();
         for _ in 0..infos.len() {
-            constrs.push(Constraint::Max(5));
+            constrs.push(Constraint::Length(2));
         }
         let clis_area = Layout::vertical(constrs).split(data_area);
 
         let sep_constrs = [
-            Constraint::Min(4),
+            Constraint::Length(1),
             Constraint::Length(1),
         ];
         for (cli, area) in infos.iter().zip(clis_area.iter()) {
@@ -194,7 +196,7 @@ impl App<'_>
                 .areas(cli_area);
 
             frame.render_widget(self.client_procmem(cli), procmem_area);
-            frame.render_widget(self.client_engines(cli), engines_area);
+            self.render_client_engines(cli, frame, engines_area);
             frame.render_widget(Block::new().borders(Borders::BOTTOM), sep_bar);
         }
     }
@@ -230,15 +232,23 @@ impl App<'_>
             status_bar,
         );
 
-        let qmdks = self.clis.devices();
+        let mut all_infos = Vec::new();
         let mut constrs = Vec::new();
-         for _ in 0..qmdks.len() {
-            constrs.push(Constraint::Min(6));
+        for d in self.clis.devices() {
+            let inf = self.clis.device_active_clients(d);
+            if inf.len() > 0 {
+                all_infos.push((self.qmds.get(d).unwrap(), inf));
+                constrs.push(Constraint::Min(4));
+            }
         }
-        let areas = Layout::vertical(constrs).split(main_area);
+        if all_infos.len() == 0 {
+            return;
+        }
 
-        for (dkey, area) in qmdks.iter().zip(areas.iter()) {
-            self.render_qmd_clients(self.qmds.get(dkey).unwrap(), frame, *area);
+        let areas = Layout::vertical(constrs).split(main_area);
+        for (dev_info, area) in all_infos.iter().zip(areas.iter()) {
+            let (qmd, infos) = dev_info;
+            self.render_qmd_clients(qmd, infos, frame, *area);
         }
     }
 
