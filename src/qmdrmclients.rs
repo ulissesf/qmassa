@@ -362,6 +362,7 @@ impl QmDrmClients
                 }
             }
         }
+        res.sort_by(|a, b| a.client_id.cmp(&b.client_id));
 
         res
     }
