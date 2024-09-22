@@ -79,7 +79,9 @@ impl App<'_>
                     .alignment(Alignment::Center),
         ])];
 
-        Table::new(rows, widths).column_spacing(1)
+        Table::new(rows, widths)
+            .column_spacing(1)
+            .style(Style::new().white().on_black())
     }
 
     fn render_client_engines(&self, cli: &QmDrmClientInfo, frame: &mut Frame, area: Rect)
@@ -88,7 +90,9 @@ impl App<'_>
         for eng in cli.engines() {
             gauges.push(Gauge::default()
                 .use_unicode(true)
-                .ratio(cli.eng_utilization(eng, self.ms_ival)/100.0));
+                .ratio(cli.eng_utilization(eng, self.ms_ival)/100.0)
+                .style(Style::new().white().on_black())
+                .gauge_style(Style::new().white().on_black()));
         }
 
         let mut constrs = Vec::new();
@@ -105,11 +109,6 @@ impl App<'_>
 
     fn render_qmd_clients(&self, qmd: &QmDevice, infos: &Vec<&QmDrmClientInfo>, frame: &mut Frame, area: Rect)
     {
-        let [dev_bar, stats_area] = Layout::vertical([
-            Constraint::Length(1),
-            Constraint::Min(3),
-        ]).areas(area);
-
         let dev_title = Title::from(Line::from(vec![
             " Dev=".into(),
             qmd.devnode.clone().into(),
@@ -120,22 +119,20 @@ impl App<'_>
             ", Sysname=".into(),
             qmd.sysname.clone().into(),
             " ".into(),
-        ]));
-        frame.render_widget(
-            Block::new()
-                .borders(Borders::TOP)
-                .border_type(BorderType::Double)
-                .style(Style::new().magenta().bold())
-                .title(dev_title.alignment(Alignment::Left)),
-            dev_bar,
-        );
+        ]).magenta().bold().on_black());
+        let dev_block = Block::new()
+            .borders(Borders::ALL)
+            .border_type(BorderType::Double)
+            .border_style(Style::new().white().bold().on_black())
+            .title(dev_title.alignment(Alignment::Left));
+        let stats_area = dev_block.inner(area);
+        frame.render_widget(dev_block, area);
 
         // render DRM clients stats
         let [hdr_area, data_area] = Layout::vertical([
             Constraint::Length(1),
             Constraint::Min(2),
         ]).areas(stats_area);
-
         let data_constrs = [
             Constraint::Percentage(45),
             Constraint::Percentage(55),
@@ -143,39 +140,39 @@ impl App<'_>
         let [procmem_hdr, engines_hdr] = Layout::horizontal(
             data_constrs).areas(hdr_area);
 
-        let widths = vec![
-            Constraint::Min(6),
-            Constraint::Min(11),
-            Constraint::Min(6),
-            Constraint::Min(6),
-        ];
         let texts = vec![
             Text::from("PID").alignment(Alignment::Center),
             Text::from("CMD").alignment(Alignment::Center),
             Text::from("MEM").alignment(Alignment::Center),
             Text::from("RSS").alignment(Alignment::Center),
         ];
+        let widths = vec![
+            Constraint::Min(6),
+            Constraint::Min(11),
+            Constraint::Min(6),
+            Constraint::Min(6),
+        ];
         frame.render_widget(Table::new([Row::new(texts)], widths)
             .column_spacing(1)
             .block(Block::new()
                 .borders(Borders::NONE)
-                .style(Style::new().on_dark_gray())
+                .style(Style::new().white().bold().on_dark_gray())
                 ),
             procmem_hdr);
 
         let engs = infos[0].engines();
-        let mut widths = Vec::new();
         let mut texts = Vec::new();
+        let mut widths = Vec::new();
         for e in &engs {
+            texts.push(Text::from(e.as_str()).alignment(Alignment::Center));
             widths.push(Constraint::Percentage(
                     (100/engs.len()).try_into().unwrap()));
-            texts.push(Text::from(e.as_str()).alignment(Alignment::Center));
         }
         frame.render_widget(Table::new([Row::new(texts)], widths)
             .column_spacing(1)
             .block(Block::new()
                 .borders(Borders::NONE)
-                .style(Style::new().on_dark_gray())
+                .style(Style::new().white().bold().on_dark_gray())
                 ),
             engines_hdr);
 
@@ -197,7 +194,10 @@ impl App<'_>
 
             frame.render_widget(self.client_procmem(cli), procmem_area);
             self.render_client_engines(cli, frame, engines_area);
-            frame.render_widget(Block::new().borders(Borders::BOTTOM), sep_bar);
+            frame.render_widget(Block::new()
+                .borders(Borders::BOTTOM)
+                .border_style(Style::new().white().on_black()),
+                sep_bar);
         }
     }
 
@@ -210,24 +210,24 @@ impl App<'_>
         ]).areas(frame.area());
 
         let prog_name = Title::from(Line::from(vec![
-            " qmassa! ".blue().bold(),  // TODO: add version
+            " qmassa! ".blue().bold().on_black(),  // TODO: add version
         ]));
         let instr = Title::from(Line::from(vec![
-            " <Q>:".white().bold(),
-            " Quit ".white().bold(),
+            " <Q>:".white().bold().on_black(),
+            " Quit ".white().bold().on_black(),
         ]));
 
         frame.render_widget(
             Block::new().borders(Borders::TOP)
                 .border_type(BorderType::Thick)
-                .style(Style::new().cyan().bold())
+                .border_style(Style::new().cyan().bold().on_black())
                 .title(prog_name.alignment(Alignment::Center)),
             title_bar,
         );
         frame.render_widget(
             Block::new().borders(Borders::TOP)
                 .border_type(BorderType::Thick)
-                .style(Style::new().cyan().bold())
+                .border_style(Style::new().cyan().bold().on_black())
                 .title(instr.alignment(Alignment::Right)),
             status_bar,
         );
