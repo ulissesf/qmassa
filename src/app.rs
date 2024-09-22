@@ -108,7 +108,7 @@ impl App<'_>
         ]).areas(area);
 
         let dev_title = Title::from(Line::from(vec![
-            "Dev=".into(),
+            " Dev=".into(),
             qmd.devnode.clone().into(),
             ", PCI_ID=".into(),
             qmd.vendor_id.clone().into(),
@@ -119,14 +119,17 @@ impl App<'_>
             " ".into(),
         ]));
         frame.render_widget(
-            Block::new().borders(Borders::TOP)
+            Block::new()
+                .borders(Borders::TOP)
+                .border_type(BorderType::Double)
+                .style(Style::new().magenta().bold())
                 .title(dev_title.alignment(Alignment::Left)),
             dev_bar,
         );
 
         // render DRM clients stats
         let [hdr_area, data_area] = Layout::vertical([
-            Constraint::Length(2),
+            Constraint::Length(1),
             Constraint::Min(2),
         ]).areas(stats_area);
 
@@ -151,7 +154,10 @@ impl App<'_>
         ];
         frame.render_widget(Table::new([Row::new(texts)], widths)
             .column_spacing(1)
-            .block(Block::new().borders(Borders::BOTTOM)),
+            .block(Block::new()
+                .borders(Borders::NONE)
+                .style(Style::new().on_dark_gray())
+                ),
             procmem_hdr);
 
         let infos = self.clis.device_active_clients(&qmd.minor());
@@ -165,7 +171,10 @@ impl App<'_>
         }
         frame.render_widget(Table::new([Row::new(texts)], widths)
             .column_spacing(1)
-            .block(Block::new().borders(Borders::BOTTOM)),
+            .block(Block::new()
+                .borders(Borders::NONE)
+                .style(Style::new().on_dark_gray())
+                ),
             engines_hdr);
 
         let mut constrs = Vec::new();
@@ -202,19 +211,21 @@ impl App<'_>
             " qmassa! ".blue().bold(),  // TODO: add version
         ]));
         let instr = Title::from(Line::from(vec![
-            " Quit: ".into(),
-            "<Q> ".red().bold(),
+            " <Q>:".white().bold(),
+            " Quit ".white().bold(),
         ]));
 
         frame.render_widget(
             Block::new().borders(Borders::TOP)
                 .border_type(BorderType::Thick)
+                .style(Style::new().cyan().bold())
                 .title(prog_name.alignment(Alignment::Center)),
             title_bar,
         );
         frame.render_widget(
             Block::new().borders(Borders::TOP)
                 .border_type(BorderType::Thick)
+                .style(Style::new().cyan().bold())
                 .title(instr.alignment(Alignment::Right)),
             status_bar,
         );
@@ -233,7 +244,7 @@ impl App<'_>
 
     fn handle_key_event(&mut self, key_event: KeyEvent) {
         match key_event.code {
-            KeyCode::Char('q') => {
+            KeyCode::Char('q') | KeyCode::Char('Q') => {
                 self.exit = true;
             },
             _ => {}
