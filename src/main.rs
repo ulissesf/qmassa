@@ -1,5 +1,6 @@
 use anyhow::{Context, Result};
 use env_logger;
+use log::debug;
 use clap::Parser;
 
 mod qmdevice;
@@ -37,8 +38,9 @@ fn main() -> Result<()>
     if qmds.len() == 0 {
         anyhow::bail!("ERR: no DRM devices found");
     }
-    let mut clis = QmDrmClients::from_pid_tree(base_pid.as_str());
+    debug!("{:#?}", qmds);
 
+    let mut clis = QmDrmClients::from_pid_tree(base_pid.as_str());
     let mut app = App::new(&qmds, &mut clis, ms_interval);
     app.run()?;
 

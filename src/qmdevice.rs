@@ -34,6 +34,16 @@ fn mj_mn_from_devnum(dnum: u64) -> (u32, u32)
 
 impl QmDevice
 {
+    pub fn major(&self) -> u32
+    {
+        self.devnum.0
+    }
+
+    pub fn minor(&self) -> u32
+    {
+        self.devnum.1
+    }
+
     pub fn find_devices() -> Result<HashMap<u32, QmDevice>>
     {
         let mut devs:HashMap<u32, QmDevice> = HashMap::new();

@@ -88,6 +88,66 @@ impl Default for QmDrmClientInfo
 
 impl QmDrmClientInfo
 {
+    pub fn total_mem(&self) -> u64
+    {
+        let mut tot:u64 = 0;
+        for reg in self.mem_regions.values() {
+            tot += reg.total;
+        }
+
+        tot
+    }
+
+    pub fn resident_mem(&self) -> u64
+    {
+        let mut tot:u64 = 0;
+        for reg in self.mem_regions.values() {
+            tot += reg.resident;
+        }
+
+        tot
+    }
+
+    pub fn eng_utilization(&self, eng: &String, interval: u64) -> f64
+    {
+        if !self.engs_last.contains_key(eng) {
+            return 0.0;
+        }
+        if self.nr_updates < 2 {
+            return 0.0;
+        }
+
+        let acum = &self.engs_acum;
+        if acum.acum_time == 0 && acum.acum_total_cycles == 0 {
+            return 0.0;
+        }
+
+        let ed = self.engs_delta.get(eng).unwrap();
+        let cap = self.engs_last.get(eng).unwrap().capacity as f64;
+
+        let mut res: f64 = 0.0;
+        if acum.acum_total_cycles > 0 {
+            res = (ed.delta_cycles as f64 * 100.0) /
+                (ed.delta_total_cycles as f64 * cap);
+        } else if acum.acum_time > 0 {
+            res = ((ed.delta_time as f64 / 1000000.0) * 100.0) /
+                (interval as f64 * cap);
+        }
+
+        if res > 100.0 {
+            res = 100.0;
+        }
+        res
+    }
+
+    pub fn engines(&self) -> Vec<&String>
+    {
+        let mut res: Vec<&String> = self.engs_delta.keys().collect::<Vec<&_>>();
+        res.sort();
+
+        res
+    }
+
     pub fn update(&mut self, pinfo: QmProcInfo, fdi: QmDrmFdinfo)
     {
         self.proc = pinfo;  // fd might be shared
@@ -267,6 +327,19 @@ impl QmDrmClients
        }
 
        Ok(())
+    }
+
+    pub fn device_clients(&self, dev: &u32) -> Option<&Vec<QmDrmClientInfo>>
+    {
+        self.infos.get(dev)
+    }
+
+    pub fn devices(&self) -> Vec<&u32>
+    {
+        let mut res: Vec<&u32> = self.infos.keys().collect::<Vec<&_>>();
+        res.sort();
+
+        res
     }
 
     pub fn from_pid_tree(at_pid: &str) -> QmDrmClients
