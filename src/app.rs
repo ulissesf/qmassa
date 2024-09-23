@@ -235,12 +235,12 @@ impl App<'_>
         let mut constrs = Vec::new();
         for d in self.clis.devices() {
             let inf = self.clis.device_active_clients(d);
-            if inf.len() > 0 {
+            if !inf.is_empty() {
                 all_infos.push((self.qmds.get(d).unwrap(), inf));
                 constrs.push(Constraint::Min(4));
             }
         }
-        if all_infos.len() == 0 {
+        if all_infos.is_empty() {
             return;
         }
 

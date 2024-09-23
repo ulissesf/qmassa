@@ -35,7 +35,7 @@ fn main() -> Result<()>
     // TODO: if base_pid == 1 && not root, scan all current user processes
 
     let qmds = QmDevice::find_devices().context("Failed to find DRM devices")?;
-    if qmds.len() == 0 {
+    if qmds.is_empty() {
         anyhow::bail!("ERR: no DRM devices found");
     }
     debug!("{:#?}", qmds);
