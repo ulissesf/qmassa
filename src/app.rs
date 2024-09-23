@@ -89,10 +89,9 @@ impl App<'_>
         let mut gauges: Vec<Gauge> = Vec::new();
         for eng in cli.engines() {
             gauges.push(Gauge::default()
-                .use_unicode(true)
-                .ratio(cli.eng_utilization(eng, self.ms_ival)/100.0)
                 .style(Style::new().white().on_black())
-                .gauge_style(Style::new().white().on_black()));
+                .ratio(cli.eng_utilization(eng, self.ms_ival)/100.0));
+                // FIXME: account for keypress altering interval
         }
 
         let mut constrs = Vec::new();
