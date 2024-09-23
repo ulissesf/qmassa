@@ -1,5 +1,5 @@
 use std::collections::HashMap;
-use std::{thread, time};
+use std::time;
 
 use anyhow::Result;
 use log::debug;
@@ -261,11 +261,9 @@ impl App<'_>
         }
     }
 
-    fn handle_events(&mut self) -> Result<()>
+    fn handle_events(&mut self, ival: time::Duration) -> Result<()>
     {
-        let ztime = time::Duration::from_millis(0);
-
-        while event::poll(ztime)? {
+        if event::poll(ival)? {
             match event::read()? {
                 Event::Key(key_event)
                     if key_event.kind == KeyEventKind::Press => {
@@ -281,13 +279,11 @@ impl App<'_>
     fn do_run(&mut self, terminal: &mut DefaultTerminal) -> Result<()>
     {
         let ival = time::Duration::from_millis(self.ms_ival);
-
         while !self.exit {
             self.clis.refresh()?;
             debug!("{:#?}", self.clis.infos());
             terminal.draw(|frame| self.draw(frame))?;
-            self.handle_events()?;
-            thread::sleep(ival);
+            self.handle_events(ival)?;
         }
 
         Ok(())
