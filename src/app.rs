@@ -212,12 +212,13 @@ impl App<'_>
         ]).areas(frame.area());
 
         let prog_name = Title::from(Line::from(vec![
-            " qmassa! ".blue().bold().on_black(),  // TODO: add version
-        ]));
+            " qmassa! v".into(),
+            env!("CARGO_PKG_VERSION").into(),
+            " ".into(),])
+            .style(Style::new().blue().bold().on_black()));
         let instr = Title::from(Line::from(vec![
-            " <Q>:".white().bold().on_black(),
-            " Quit ".white().bold().on_black(),
-        ]));
+            " <Q>: Quit ".into(),])
+            .style(Style::new().white().bold().on_black()));
 
         frame.render_widget(
             Block::new().borders(Borders::TOP)
