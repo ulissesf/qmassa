@@ -20,7 +20,7 @@ struct Args {
     #[arg(short, long, default_value = "1")]
     pid: Option<String>,
 
-    #[arg(short, long, default_value = "50")]
+    #[arg(short, long, default_value = "500")]
     ms_interval: Option<u64>,
 }
 

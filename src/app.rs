@@ -22,6 +22,7 @@ pub struct App<'a>
     qmds: &'a HashMap<u32, QmDevice>,
     clis: &'a mut QmDrmClients,
     ms_ival: u64,
+    last_update: time::Instant,
     exit: bool,
 }
 
@@ -33,6 +34,7 @@ impl App<'_>
             qmds: qmdevs,
             clis: clients,
             ms_ival: interval,
+            last_update: time::Instant::now(),
             exit: false,
         }
     }
@@ -86,12 +88,13 @@ impl App<'_>
 
     fn render_client_engines(&self, cli: &QmDrmClientInfo, frame: &mut Frame, area: Rect)
     {
+        let ms_elapsed = self.last_update.elapsed().as_millis() as u64;
+
         let mut gauges: Vec<Gauge> = Vec::new();
         for eng in cli.engines() {
             gauges.push(Gauge::default()
                 .style(Style::new().white().on_black())
-                .ratio(cli.eng_utilization(eng, self.ms_ival)/100.0));
-                // FIXME: account for keypress altering interval
+                .ratio(cli.eng_utilization(eng, ms_elapsed)/100.0));
         }
 
         let mut constrs = Vec::new();
@@ -281,7 +284,11 @@ impl App<'_>
         while !self.exit {
             self.clis.refresh()?;
             debug!("{:#?}", self.clis.infos());
+
+            let now = time::Instant::now();
             terminal.draw(|frame| self.draw(frame))?;
+            self.last_update = now;
+
             self.handle_events(ival)?;
         }
 
