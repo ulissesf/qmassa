@@ -28,17 +28,6 @@ pub struct App<'a>
 
 impl App<'_>
 {
-    pub fn new<'a>(qmdevs: &'a HashMap<u32, QmDevice>, clients: &'a mut QmDrmClients, interval: u64) -> App<'a>
-    {
-        App {
-            qmds: qmdevs,
-            clis: clients,
-            ms_ival: interval,
-            last_update: time::Instant::now(),
-            exit: false,
-        }
-    }
-
     fn short_mem_string(val: u64) -> String
     {
         let mut nval: u64 = val;
@@ -112,15 +101,13 @@ impl App<'_>
     fn render_qmd_clients(&self, qmd: &QmDevice, infos: &Vec<&QmDrmClientInfo>, frame: &mut Frame, area: Rect)
     {
         let dev_title = Title::from(Line::from(vec![
-            " Dev=".into(),
-            qmd.devnode.clone().into(),
-            ", PCI_ID=".into(),
-            qmd.vendor_id.clone().into(),
-            ":".into(),
-            qmd.device_id.clone().into(),
-            ", Sysname=".into(),
-            qmd.sysname.clone().into(),
             " ".into(),
+            qmd.vendor.clone().into(),
+            " ".into(),
+            qmd.device.clone().into(),
+            " (".into(),
+            qmd.devnode.clone().into(),
+            ") ".into(),
         ]).magenta().bold().on_black());
         let dev_block = Block::new()
             .borders(Borders::ALL)
@@ -303,5 +290,16 @@ impl App<'_>
         ratatui::restore();
 
         res
+    }
+
+    pub fn new<'a>(qmdevs: &'a HashMap<u32, QmDevice>, clients: &'a mut QmDrmClients, interval: u64) -> App<'a>
+    {
+        App {
+            qmds: qmdevs,
+            clis: clients,
+            ms_ival: interval,
+            last_update: time::Instant::now(),
+            exit: false,
+        }
     }
 }

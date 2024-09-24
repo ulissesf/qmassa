@@ -11,4 +11,4 @@ env_logger = "0.11.5"
 libc = "0.2.158"
 log = "0.4.22"
 ratatui = "0.28.1"
-udev = "0.9.0"
+udev = { version = "0.9.0", features = ["hwdb"] }
