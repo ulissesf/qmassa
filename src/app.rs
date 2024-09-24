@@ -102,10 +102,10 @@ impl App<'_>
     {
         let dev_title = Title::from(Line::from(vec![
             " ".into(),
-            qmd.vendor.clone().into(),
-            " ".into(),
             qmd.device.clone().into(),
             " (".into(),
+            qmd.vendor.clone().into(),
+            ", ".into(),
             qmd.devnode.clone().into(),
             ") ".into(),
         ]).magenta().bold().on_black());

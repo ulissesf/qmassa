@@ -90,7 +90,7 @@ impl QmDrmClientInfo
 {
     pub fn total_mem(&self) -> u64
     {
-        let mut tot:u64 = 0;
+        let mut tot: u64 = 0;
         for reg in self.mem_regions.values() {
             tot += reg.total;
         }
@@ -100,7 +100,7 @@ impl QmDrmClientInfo
 
     pub fn resident_mem(&self) -> u64
     {
-        let mut tot:u64 = 0;
+        let mut tot: u64 = 0;
         for reg in self.mem_regions.values() {
             tot += reg.resident;
         }

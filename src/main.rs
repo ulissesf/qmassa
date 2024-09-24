@@ -36,7 +36,7 @@ fn main() -> Result<()>
 
     let qmds = QmDevice::find_devices().context("Failed to find DRM devices")?;
     if qmds.is_empty() {
-        anyhow::bail!("ERR: no DRM devices found");
+        anyhow::bail!("No DRM devices found");
     }
     debug!("{:#?}", qmds);
 
