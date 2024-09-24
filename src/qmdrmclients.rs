@@ -155,14 +155,8 @@ impl QmDrmClientInfo
             return true;
         }
 
-        for mr in self.mem_regions.values() {
-            if mr.total > 0 ||
-                mr.shared > 0 ||
-                mr.resident > 0 ||
-                mr.purgeable > 0 ||
-                mr.active > 0 {
-                return true;
-            }
+        if self.total_mem() > 0 {
+            return true;
         }
 
         false
