@@ -167,26 +167,16 @@ impl App<'_>
 
         let mut constrs = Vec::new();
         for _ in 0..infos.len() {
-            constrs.push(Constraint::Length(2));
+            constrs.push(Constraint::Length(1));
         }
         let clis_area = Layout::vertical(constrs).split(data_area);
 
-        let sep_constrs = [
-            Constraint::Length(1),
-            Constraint::Length(1),
-        ];
         for (cli, area) in infos.iter().zip(clis_area.iter()) {
-            let [cli_area, sep_bar] = Layout::vertical(sep_constrs)
-                .areas(*area);
             let [procmem_area, engines_area] = Layout::horizontal(data_constrs)
-                .areas(cli_area);
+                .areas(*area);
 
             frame.render_widget(self.client_procmem(cli), procmem_area);
             self.render_client_engines(cli, frame, engines_area);
-            frame.render_widget(Block::new()
-                .borders(Borders::BOTTOM)
-                .border_style(Style::new().white().on_black()),
-                sep_bar);
         }
     }
 
@@ -233,7 +223,7 @@ impl App<'_>
             let inf = self.clis.device_active_clients(d);
             if !inf.is_empty() {
                 all_infos.push((self.qmds.get(d).unwrap(), inf));
-                constrs.push(Constraint::Min(4));
+                constrs.push(Constraint::Min(1));
             }
         }
         if all_infos.is_empty() {
