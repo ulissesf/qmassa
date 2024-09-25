@@ -202,9 +202,9 @@ impl App<'_>
             " qmassa! v".into(),
             env!("CARGO_PKG_VERSION").into(),
             " ".into(),])
-            .style(Style::new().blue().bold().on_black()));
+            .style(Style::new().light_blue().bold().on_black()));
         let instr = Title::from(Line::from(vec![
-            " <Q>: Quit ".into(),])
+            " (Q) Quit ".into(),])
             .style(Style::new().white().bold().on_black()));
 
         frame.render_widget(
@@ -213,6 +213,11 @@ impl App<'_>
                 .border_style(Style::new().cyan().bold().on_black())
                 .title(prog_name.alignment(Alignment::Center)),
             title_bar,
+        );
+        frame.render_widget(
+            Block::new().borders(Borders::NONE)
+            .style(Style::new().on_black()),
+            main_area,
         );
         frame.render_widget(
             Block::new().borders(Borders::TOP)
