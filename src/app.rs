@@ -14,13 +14,14 @@ use ratatui::{
 
 use crate::qmdrmdevices::{QmDrmDevices, QmDrmDeviceInfo};
 use crate::qmdrmclients::{QmDrmClients, QmDrmClientInfo};
+use crate::Args;
 
 
 pub struct App<'a>
 {
     qmds: &'a QmDrmDevices,
     clis: &'a mut QmDrmClients,
-    ms_ival: u64,
+    args: &'a Args,
     exit: bool,
 }
 
@@ -208,7 +209,11 @@ impl App<'_>
         let mut all_infos = Vec::new();
         let mut constrs = Vec::new();
         for d in self.clis.active_devices() {
-            let inf = self.clis.device_active_clients(d);
+            let inf = if self.args.all_clients {
+                self.clis.device_clients(d)
+            } else {
+                self.clis.device_active_clients(d)
+            };
             if !inf.is_empty() {
                 all_infos.push((self.qmds.device_info(d).unwrap(), inf));
                 constrs.push(Constraint::Min(1));
@@ -251,7 +256,7 @@ impl App<'_>
 
     fn do_run(&mut self, terminal: &mut DefaultTerminal) -> Result<()>
     {
-        let ival = time::Duration::from_millis(self.ms_ival);
+        let ival = time::Duration::from_millis(self.args.ms_interval.unwrap());
 
         while !self.exit {
             self.clis.refresh()?;
@@ -274,12 +279,12 @@ impl App<'_>
     }
 
     pub fn new<'a>(qmdevs: &'a QmDrmDevices,
-        clients: &'a mut QmDrmClients, interval: u64) -> App<'a>
+        clients: &'a mut QmDrmClients, args: &'a Args) -> App<'a>
     {
         App {
             qmds: qmdevs,
             clis: clients,
-            ms_ival: interval,
+            args: args,
             exit: false,
         }
     }

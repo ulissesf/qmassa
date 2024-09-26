@@ -364,13 +364,14 @@ impl QmDrmClients
        Ok(())
     }
 
-    pub fn device_active_clients(&self, dev: &String) -> Vec<&QmDrmClientInfo>
+    fn get_device_clients(&self,
+        dev: &String, only_active: bool) -> Vec<&QmDrmClientInfo>
     {
         let mut res: Vec<&QmDrmClientInfo> = Vec::new();
 
         if let Some(infos) = self.infos.get(dev) {
             for cli in infos.iter() {
-                if cli.is_active() {
+                if !only_active || cli.is_active() {
                     res.push(cli);
                 }
             }
@@ -379,9 +380,14 @@ impl QmDrmClients
         res
     }
 
-    pub fn device_clients(&self, dev: &String) -> Option<&Vec<QmDrmClientInfo>>
+    pub fn device_active_clients(&self, dev: &String) -> Vec<&QmDrmClientInfo>
     {
-        self.infos.get(dev)
+        self.get_device_clients(dev, true)
+    }
+
+    pub fn device_clients(&self, dev: &String) -> Vec<&QmDrmClientInfo>
+    {
+        self.get_device_clients(dev, false)
     }
 
     pub fn active_devices(&self) -> Vec<&String>
