@@ -1,15 +1,15 @@
-use anyhow::{Context, Result};
+use anyhow::{bail, Context, Result};
 use env_logger;
 use log::debug;
 use clap::Parser;
 
-mod qmdevice;
-mod qmprocinfo;
+mod qmdrmdevices;
 mod qmdrmfdinfo;
+mod qmprocinfo;
 mod qmdrmclients;
 mod app;
 
-use qmdevice::QmDevice;
+use qmdrmdevices::QmDrmDevices;
 use qmdrmclients::QmDrmClients;
 use app::App;
 
@@ -34,14 +34,15 @@ fn main() -> Result<()>
 
     // TODO: if base_pid == 1 && not root, scan all current user processes
 
-    let qmds = QmDevice::find_devices().context("Failed to find DRM devices")?;
+    let qmds = QmDrmDevices::find_devices()
+        .context("Failed to find DRM devices")?;
     if qmds.is_empty() {
-        anyhow::bail!("No DRM devices found");
+        bail!("No DRM devices found");
     }
     debug!("{:#?}", qmds);
 
-    let mut clis = QmDrmClients::from_pid_tree(base_pid.as_str());
-    let mut app = App::new(&qmds, &mut clis, ms_interval);
+    let mut qmclis = QmDrmClients::from_pid_tree(base_pid.as_str());
+    let mut app = App::new(&qmds, &mut qmclis, ms_interval);
     app.run()?;
 
     Ok(())

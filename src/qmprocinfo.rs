@@ -82,7 +82,7 @@ impl QmProcInfo
 
          let cpath = qmpi.proc_dir.join("comm");
          let cstr = fs::read_to_string(&cpath)?;
-         qmpi.comm = cstr.strip_suffix("\n").unwrap().to_string();
+         qmpi.comm.push_str(cstr.strip_suffix("\n").unwrap());
 
          Ok(qmpi)
     }

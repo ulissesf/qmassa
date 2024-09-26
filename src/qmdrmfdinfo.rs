@@ -99,6 +99,7 @@ impl QmDrmMemRegion
 #[derive(Debug)]
 pub struct QmDrmFdinfo
 {
+    pub pci_dev: String,
     pub drm_minor: u32,
     pub client_id: u32,
     pub path: PathBuf,
@@ -111,6 +112,7 @@ impl Default for QmDrmFdinfo
     fn default() -> QmDrmFdinfo
     {
         QmDrmFdinfo {
+            pci_dev: String::from(""),
             drm_minor: 0,
             client_id: 0,
             path: PathBuf::new(),
@@ -135,10 +137,12 @@ impl QmDrmFdinfo
             mj = libc::major(st_rdev);
             mn = libc::minor(st_rdev);
         }
+
         if st_mode & libc::S_IFMT == libc::S_IFCHR && mj == 226 {
             *minor = mn;
             return Ok(true);
         }
+
         Ok(false)
     }
 
@@ -238,9 +242,9 @@ impl QmDrmFdinfo
                 continue;
             }
 
-            // TODO?: parse driver & pdev and check against udev info?
-
-            if k.starts_with("drm-client-id") {
+            if k.starts_with("drm-pdev") {
+                info.pci_dev.push_str(v);
+            } else if k.starts_with("drm-client-id") {
                 info.client_id = v.parse()?;
             } else if k.starts_with("drm-engine-capacity-") {
                 let en = &k["drm-engine-capacity-".len()..];

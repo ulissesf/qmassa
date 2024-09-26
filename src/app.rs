@@ -1,4 +1,3 @@
-use std::collections::HashMap;
 use std::time;
 
 use anyhow::Result;
@@ -13,16 +12,15 @@ use ratatui::{
     DefaultTerminal, Frame
 };
 
-use crate::qmdevice::QmDevice;
+use crate::qmdrmdevices::{QmDrmDevices, QmDrmDeviceInfo};
 use crate::qmdrmclients::{QmDrmClients, QmDrmClientInfo};
 
 
 pub struct App<'a>
 {
-    qmds: &'a HashMap<u32, QmDevice>,
+    qmds: &'a QmDrmDevices,
     clis: &'a mut QmDrmClients,
     ms_ival: u64,
-    last_update: time::Instant,
     exit: bool,
 }
 
@@ -50,15 +48,8 @@ impl App<'_>
         vstr
     }
 
-    fn client_procmem(&self, cli: &QmDrmClientInfo) -> Table
+    fn client_procmem(&self, cli: &QmDrmClientInfo, widths: &Vec<Constraint>) -> Table
     {
-        let widths = [
-            Constraint::Min(6),
-            Constraint::Min(11),
-            Constraint::Min(6),
-            Constraint::Min(6),
-        ];
-
         let rows = [Row::new([
                 Text::from(cli.proc.pid.to_string())
                     .alignment(Alignment::Center),
@@ -68,6 +59,8 @@ impl App<'_>
                     .alignment(Alignment::Center),
                 Text::from(App::short_mem_string(cli.resident_mem()))
                     .alignment(Alignment::Center),
+                Text::from(cli.drm_minor.to_string())
+                    .alignment(Alignment::Center),
         ])];
 
         Table::new(rows, widths)
@@ -75,21 +68,14 @@ impl App<'_>
             .style(Style::new().white().on_black())
     }
 
-    fn render_client_engines(&self, cli: &QmDrmClientInfo, frame: &mut Frame, area: Rect)
+    fn render_client_engines(&self, cli: &QmDrmClientInfo,
+        constrs: &Vec<Constraint>, frame: &mut Frame, area: Rect)
     {
-        let ms_elapsed = self.last_update.elapsed().as_millis() as u64;
-
         let mut gauges: Vec<Gauge> = Vec::new();
         for eng in cli.engines() {
             gauges.push(Gauge::default()
                 .style(Style::new().white().on_black())
-                .ratio(cli.eng_utilization(eng, ms_elapsed)/100.0));
-        }
-
-        let mut constrs = Vec::new();
-        let len = cli.engines().len();
-        for _ in 0..len {
-            constrs.push(Constraint::Percentage((100/len).try_into().unwrap()));
+                .ratio(cli.eng_utilization(eng)/100.0));
         }
         let places = Layout::horizontal(constrs).split(area);
 
@@ -98,15 +84,16 @@ impl App<'_>
         }
     }
 
-    fn render_qmd_clients(&self, qmd: &QmDevice, infos: &Vec<&QmDrmClientInfo>, frame: &mut Frame, area: Rect)
+    fn render_qmd_clients(&self, qmd: &QmDrmDeviceInfo,
+        infos: &Vec<&QmDrmClientInfo>, frame: &mut Frame, area: Rect)
     {
         let dev_title = Title::from(Line::from(vec![
             " ".into(),
+            qmd.vendor.clone().into(),
+            " ".into(),
             qmd.device.clone().into(),
             " (".into(),
-            qmd.vendor.clone().into(),
-            ", ".into(),
-            qmd.devnode.clone().into(),
+            qmd.pci_dev.clone().into(),
             ") ".into(),
         ]).magenta().bold().on_black());
         let dev_block = Block::new()
@@ -120,11 +107,11 @@ impl App<'_>
         // render DRM clients stats
         let [hdr_area, data_area] = Layout::vertical([
             Constraint::Length(1),
-            Constraint::Min(2),
+            Constraint::Min(1),
         ]).areas(stats_area);
         let data_constrs = [
-            Constraint::Percentage(45),
-            Constraint::Percentage(55),
+            Constraint::Percentage(50),
+            Constraint::Percentage(50),
         ];
         let [procmem_hdr, engines_hdr] = Layout::horizontal(
             data_constrs).areas(hdr_area);
@@ -134,35 +121,35 @@ impl App<'_>
             Text::from("CMD").alignment(Alignment::Center),
             Text::from("MEM").alignment(Alignment::Center),
             Text::from("RSS").alignment(Alignment::Center),
+            Text::from("MIN").alignment(Alignment::Center),
         ];
-        let widths = vec![
+        let procmem_widths = vec![
             Constraint::Min(6),
             Constraint::Min(11),
             Constraint::Min(6),
             Constraint::Min(6),
+            Constraint::Min(4),
         ];
-        frame.render_widget(Table::new([Row::new(texts)], widths)
+        frame.render_widget(Table::new([Row::new(texts)], &procmem_widths)
             .column_spacing(1)
             .block(Block::new()
                 .borders(Borders::NONE)
-                .style(Style::new().white().bold().on_dark_gray())
-                ),
+                .style(Style::new().white().bold().on_dark_gray())),
             procmem_hdr);
 
         let engs = infos[0].engines();
         let mut texts = Vec::new();
-        let mut widths = Vec::new();
+        let mut eng_widths = Vec::new();
         for e in &engs {
             texts.push(Text::from(e.as_str()).alignment(Alignment::Center));
-            widths.push(Constraint::Percentage(
+            eng_widths.push(Constraint::Percentage(
                     (100/engs.len()).try_into().unwrap()));
         }
-        frame.render_widget(Table::new([Row::new(texts)], widths)
+        frame.render_widget(Table::new([Row::new(texts)], &eng_widths)
             .column_spacing(1)
             .block(Block::new()
                 .borders(Borders::NONE)
-                .style(Style::new().white().bold().on_dark_gray())
-                ),
+                .style(Style::new().white().bold().on_dark_gray())),
             engines_hdr);
 
         let mut constrs = Vec::new();
@@ -175,8 +162,9 @@ impl App<'_>
             let [procmem_area, engines_area] = Layout::horizontal(data_constrs)
                 .areas(*area);
 
-            frame.render_widget(self.client_procmem(cli), procmem_area);
-            self.render_client_engines(cli, frame, engines_area);
+            frame.render_widget(
+                self.client_procmem(cli, &procmem_widths), procmem_area);
+            self.render_client_engines(cli, &eng_widths, frame, engines_area);
         }
     }
 
@@ -219,10 +207,10 @@ impl App<'_>
 
         let mut all_infos = Vec::new();
         let mut constrs = Vec::new();
-        for d in self.clis.devices() {
+        for d in self.clis.active_devices() {
             let inf = self.clis.device_active_clients(d);
             if !inf.is_empty() {
-                all_infos.push((self.qmds.get(d).unwrap(), inf));
+                all_infos.push((self.qmds.device_info(d).unwrap(), inf));
                 constrs.push(Constraint::Min(1));
             }
         }
@@ -264,14 +252,12 @@ impl App<'_>
     fn do_run(&mut self, terminal: &mut DefaultTerminal) -> Result<()>
     {
         let ival = time::Duration::from_millis(self.ms_ival);
+
         while !self.exit {
             self.clis.refresh()?;
             debug!("{:#?}", self.clis.infos());
 
-            let now = time::Instant::now();
             terminal.draw(|frame| self.draw(frame))?;
-            self.last_update = now;
-
             self.handle_events(ival)?;
         }
 
@@ -287,13 +273,13 @@ impl App<'_>
         res
     }
 
-    pub fn new<'a>(qmdevs: &'a HashMap<u32, QmDevice>, clients: &'a mut QmDrmClients, interval: u64) -> App<'a>
+    pub fn new<'a>(qmdevs: &'a QmDrmDevices,
+        clients: &'a mut QmDrmClients, interval: u64) -> App<'a>
     {
         App {
             qmds: qmdevs,
             clis: clients,
             ms_ival: interval,
-            last_update: time::Instant::now(),
             exit: false,
         }
     }
