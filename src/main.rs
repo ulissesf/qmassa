@@ -30,11 +30,15 @@ pub struct Args {
 
     /// ms interval between updates
     #[arg(short, long, default_value = "500")]
-    ms_interval: Option<u64>,
+    ms_interval: u64,
 
     /// show all DRM clients [default: only active]
     #[arg(short, long, action = ArgAction::SetTrue)]
     all_clients: bool,
+
+    /// number of stats updates/iterations
+    #[arg(short, long, default_value = "-1")]
+    nr_iterations: i32,
 
     /// file to log to when RUST_LOG is used [default: stderr (if not tty) or qmassa-<pid>.log]
     #[arg(short, long)]

@@ -1,7 +1,6 @@
 use std::time;
 
 use anyhow::Result;
-use log::debug;
 
 use crossterm::event::{self, Event, KeyCode, KeyEvent, KeyEventKind};
 use ratatui::{
@@ -256,14 +255,21 @@ impl App<'_>
 
     fn do_run(&mut self, terminal: &mut DefaultTerminal) -> Result<()>
     {
-        let ival = time::Duration::from_millis(self.args.ms_interval.unwrap());
+        let ival = time::Duration::from_millis(self.args.ms_interval);
+        let max_iterations = self.args.nr_iterations;
+        let mut nr = 0;
 
         while !self.exit {
-            self.clis.refresh()?;
-            debug!("{:#?}", self.clis.infos());
+            if max_iterations >= 0 && nr == max_iterations {
+                self.exit = true;
+                break;
+            }
 
+            self.clis.refresh()?;
             terminal.draw(|frame| self.draw(frame))?;
             self.handle_events(ival)?;
+
+            nr += 1;
         }
 
         Ok(())
