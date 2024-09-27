@@ -6,4 +6,3 @@ TODO
 * review
   * add more Option<> fields, store refs and not owned vals
   * visibility of fields and methods
-* dump raw data in json/csv format

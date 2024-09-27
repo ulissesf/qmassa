@@ -6,7 +6,6 @@ use std::env;
 
 use anyhow::{bail, Context, Result};
 use env_logger;
-use log::debug;
 use clap::{Parser, ArgAction};
 
 mod qmdrmdevices;
@@ -39,6 +38,10 @@ pub struct Args {
     /// number of stats updates/iterations
     #[arg(short, long, default_value = "-1")]
     nr_iterations: i32,
+
+    /// dump stats into text file
+    #[arg(short, long)]
+    to_txt: Option<String>,
 
     /// file to log to when RUST_LOG is used [default: stderr (if not tty) or qmassa-<pid>.log]
     #[arg(short, long)]
@@ -99,7 +102,6 @@ fn main() -> Result<()>
     if qmds.is_empty() {
         bail!("No DRM devices found");
     }
-    debug!("{:#?}", qmds);
 
     // get DRM clients from pid process tree starting at base_pid
     let mut qmclis = QmDrmClients::from_pid_tree(base_pid.as_str());

@@ -398,11 +398,6 @@ impl QmDrmClients
         res
     }
 
-    pub fn infos(&self) -> &HashMap<String, Vec<QmDrmClientInfo>>
-    {
-        &self.infos
-    }
-
     pub fn from_pid_tree(at_pid: &str) -> QmDrmClients
     {
         QmDrmClients {

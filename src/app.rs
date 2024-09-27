@@ -1,3 +1,5 @@
+use std::io::Write;
+use std::fs::File;
 use std::time;
 
 use anyhow::Result;
@@ -259,6 +261,15 @@ impl App<'_>
         let max_iterations = self.args.nr_iterations;
         let mut nr = 0;
 
+        let start_time = time::Instant::now();
+        let mut txt_file: Option<File> = None;
+
+        if let Some(txt_fname) = &self.args.to_txt {
+            let mut f = File::create(txt_fname)?;
+            writeln!(f, "{:#?}", self.qmds)?;
+            txt_file = Some(f);
+        }
+
         while !self.exit {
             if max_iterations >= 0 && nr == max_iterations {
                 self.exit = true;
@@ -266,6 +277,13 @@ impl App<'_>
             }
 
             self.clis.refresh()?;
+            if let Some(tf) = &mut txt_file {
+                writeln!(tf, ">>> Iteration: {:?}", nr+1)?;
+                writeln!(tf, ">>> Timestamp: {:?}",
+                    start_time.elapsed().as_millis())?;
+                writeln!(tf, "{:#?}", self.clis)?;
+            }
+
             terminal.draw(|frame| self.draw(frame))?;
             self.handle_events(ival)?;
 
