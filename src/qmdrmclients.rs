@@ -410,6 +410,4 @@ impl QmDrmClients
             infos: HashMap::new(),
         }
     }
-
-    // TODO: add from_user_processes() and scan_user_processes
 }

@@ -1,3 +1,9 @@
+use std::io::{self, IsTerminal};
+use std::path::Path;
+use std::fs::File;
+use std::process;
+use std::env;
+
 use anyhow::{bail, Context, Result};
 use env_logger;
 use log::debug;
@@ -29,22 +35,61 @@ pub struct Args {
     /// show all DRM clients [default: only active]
     #[arg(short, long, action = ArgAction::SetTrue)]
     all_clients: bool,
+
+    /// file to log to when RUST_LOG is used [default: stderr (if not tty) or qmassa-<pid>.log]
+    #[arg(short, long)]
+    log_file: Option<String>,
 }
 
 fn main() -> Result<()>
 {
-    env_logger::init();
-
+    // parse command-line args
     let args = Args::parse();
 
+    // set up logging, if needed
+    if env::var_os(env_logger::DEFAULT_FILTER_ENV) != None {
+        let mut logger = env_logger::Builder::from_default_env();
+        let fname: &Path;
+
+        if args.log_file == None && !io::stderr().is_terminal() {
+            logger.init();
+        } else {
+            let mut fnstr: String;
+
+            if let Some(log_file) = &args.log_file {
+                fname = Path::new(log_file);
+            } else {
+                // stderr is a tty/terminal
+                fnstr = env::current_exe()
+                    .expect("Failed to get current process name")
+                    .file_name().unwrap().to_str().unwrap().to_string();
+                fnstr.push_str("-");
+                fnstr.push_str(&process::id().to_string());
+                fnstr.push_str(".log");
+
+                fname = Path::new(&fnstr);
+            }
+
+            let logtarget = Box::new(File::create(fname)
+                .expect("Can't create log file"));
+            logger.target(env_logger::Target::Pipe(logtarget));
+            logger.init();
+        }
+    }
+
+    // if base_pid not set, pick PID depending on user
+    //   root       => PID 1
+    //   non-root   => oldest parent PID of current process (likely a
+    //                 systemd user session or an sshd process)
+    // TODO: add PID finding logic here
     let base_pid: String;
     if args.pid == None {
         base_pid = String::from("1");
     } else {
         base_pid = args.pid.clone().unwrap();
     }
-    // TODO: if base_pid == 1 && not root, scan all current user processes
 
+    // find all DRM subsystem devices
     let qmds = QmDrmDevices::find_devices()
         .context("Failed to find DRM devices")?;
     if qmds.is_empty() {
@@ -52,7 +97,10 @@ fn main() -> Result<()>
     }
     debug!("{:#?}", qmds);
 
+    // get DRM clients from pid process tree starting at base_pid
     let mut qmclis = QmDrmClients::from_pid_tree(base_pid.as_str());
+
+    // create tui app and run its mainloop
     let mut app = App::new(&qmds, &mut qmclis, &args);
     app.run()?;
 
