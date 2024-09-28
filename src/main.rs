@@ -7,6 +7,7 @@ use std::env;
 use anyhow::{bail, Context, Result};
 use env_logger;
 use clap::{Parser, ArgAction};
+use libc;
 
 mod qmdrmdevices;
 mod qmdrmfdinfo;
@@ -23,7 +24,7 @@ use app::App;
 #[derive(Parser, Debug)]
 #[command(version, about, long_about = None)]
 pub struct Args {
-    /// base for process tree [default: root:1, user:oldest parent PID]
+    /// base for process tree [default: scans all accessible pids' info]
     #[arg(short, long)]
     pid: Option<String>,
 
@@ -58,7 +59,7 @@ fn main() -> Result<()>
         let mut logger = env_logger::Builder::from_default_env();
         let fname: &Path;
 
-        if args.log_file == None && !io::stderr().is_terminal() {
+        if args.log_file.is_none() && !io::stderr().is_terminal() {
             logger.init();
         } else {
             let mut fnstr: String;
@@ -84,16 +85,16 @@ fn main() -> Result<()>
         }
     }
 
-    // if base_pid not set, pick PID depending on user
-    //   root       => PID 1
-    //   non-root   => oldest parent PID of current process (likely a
-    //                 systemd user session or an sshd process)
-    // TODO: add PID finding logic here
-    let base_pid: String;
-    if args.pid == None {
-        base_pid = String::from("1");
-    } else {
+   let base_pid: String;
+    if args.pid != None {
         base_pid = args.pid.clone().unwrap();
+    } else {
+        // base_pid is not set, pick value depending on user:
+        //   root       => "1", to scan process tree for whole system
+        //   non-root   => "", all processes with accessible info are scanned
+        let euid: u32;
+        unsafe { euid = libc::geteuid(); }
+        base_pid = if euid == 0 { String::from("1") } else { String::from("") };
     }
 
     // find all DRM subsystem devices

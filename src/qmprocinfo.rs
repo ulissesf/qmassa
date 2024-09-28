@@ -16,6 +16,52 @@ pub struct QmProcInfo
     pub proc_dir: PathBuf,
 }
 
+#[derive(Debug)]
+pub struct QmProcPids
+{
+    proc_iter: fs::ReadDir,
+}
+
+impl Iterator for QmProcPids
+{
+    type Item = Result<QmProcInfo>;
+
+    fn next(&mut self) -> Option<Self::Item>
+    {
+        loop {
+            let nval = self.proc_iter.next();
+            if nval.is_none() {
+                return None;
+            }
+            let nval = nval.unwrap();
+
+            if let Err(err) = nval {
+                return Some(Err(err.into()));
+            }
+            let nval = nval.unwrap();
+
+            if !nval.path().is_dir() {
+                continue;
+            }
+
+            let fpath = nval.path();
+            let fp = fpath.file_name().unwrap().to_str().unwrap();
+
+            if !fp.chars().next().unwrap().is_digit(10) {
+                continue;
+            }
+
+            let nproc = QmProcInfo::from(&fp.to_string());
+            if let Err(err) = nproc {
+                debug!("ERR: skipping pid {:?}: {:?}", fp, err);
+                continue;
+            }
+
+            return Some(nproc);
+        }
+    }
+}
+
 impl QmProcInfo
 {
     pub fn get_children_procs(&self) -> Result<VecDeque<String>>
@@ -85,5 +131,10 @@ impl QmProcInfo
          qmpi.comm.push_str(cstr.strip_suffix("\n").unwrap());
 
          Ok(qmpi)
+    }
+
+    pub fn iter_proc_pids() -> Result<QmProcPids>
+    {
+        Ok(QmProcPids { proc_iter: Path::new("/proc").read_dir()?, })
     }
 }

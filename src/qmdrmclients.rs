@@ -287,6 +287,68 @@ impl QmDrmClients
         }
     }
 
+    fn process_fdinfos(&mut self,
+        ninfos: &mut HashMap<String, Vec<QmDrmClientInfo>>,
+        nproc: &QmProcInfo, fdinfos: Vec<QmDrmFdinfo>)
+    {
+        for fdi in fdinfos {
+            if let Some(cliref) = QmDrmClients::map_has_client(ninfos,
+                &fdi.pci_dev, fdi.drm_minor, fdi.client_id) {
+                cliref.shared_procs.push((nproc.clone(), fdi.path));
+                debug!("INF: repeated drm client/fd info: proc={:?}, drm-minor={:?}, drm-client-id={:?}", nproc, fdi.drm_minor, fdi.client_id);
+                continue;
+            }
+
+            let pci_dev = fdi.pci_dev.clone();
+            if let Some(mut cli) = QmDrmClients::map_remove_client(
+                &mut self.infos, &fdi.pci_dev, fdi.drm_minor, fdi.client_id) {
+                cli.update(nproc.clone(), fdi);
+                QmDrmClients::map_insert_client(ninfos, pci_dev, cli);
+            } else {
+                let cli = QmDrmClientInfo::from(nproc.clone(), fdi);
+                QmDrmClients::map_insert_client(ninfos, pci_dev, cli);
+            }
+        }
+    }
+
+    fn scan_all_pids(&mut self) -> Result<()>
+    {
+        let mut ninfos: HashMap<String, Vec<QmDrmClientInfo>> = HashMap::new();
+
+        let proc_iter = QmProcInfo::iter_proc_pids();
+        if let Err(err) = proc_iter {
+            debug!("ERR: couldn't get pids info in /proc: {:?}", err);
+        } else {
+            let proc_iter = proc_iter.unwrap();
+            for nproc in proc_iter {
+                // got next process info
+                if let Err(err) = nproc {
+                    debug!("ERR: error iterating through /proc pids: {:?}",
+                        err);
+                    break;
+                }
+                let nproc = nproc.unwrap();
+
+                // search and parse all DRM fdinfo from npid process
+                let fdinfos = nproc.get_drm_fdinfos();
+                if let Err(err) = fdinfos {
+                    debug!("ERR: failed to get DRM fdinfos from {:?}: {:?}",
+                        nproc.pid, err);
+                    continue;
+                }
+                let fdinfos = fdinfos.unwrap();
+
+                // sort out DRM client infos based on DRM fdinfos
+                self.process_fdinfos(&mut ninfos, &nproc, fdinfos);
+            }
+        }
+
+        // update DRM client infos
+        self.infos = ninfos;
+
+        Ok(())
+    }
+
     fn scan_pid_tree(&mut self) -> Result<()>
     {
         let mut ninfos: HashMap<String, Vec<QmDrmClientInfo>> = HashMap::new();
@@ -306,38 +368,23 @@ impl QmDrmClients
             // search and parse all DRM fdinfo from npid process
             let fdinfos = nproc.get_drm_fdinfos();
             if let Err(err) = fdinfos {
-                debug!("ERR: failed to get DRM fdinfos from {:?}: {:?}", npid, err);
+                debug!("ERR: failed to get DRM fdinfos from {:?}: {:?}",
+                    npid, err);
                 continue;
             }
             let fdinfos = fdinfos.unwrap();
 
+            // sort out DRM client infos based on DRM fdinfos
+            self.process_fdinfos(&mut ninfos, &nproc, fdinfos);
+
             // add all child processes
             let chids = nproc.get_children_procs();
             if let Err(err) = chids {
-                debug!("ERR: failed to get children procs for {:?}: {:?}", npid, err);
+                debug!("ERR: failed to get children procs for {:?}: {:?}",
+                    npid, err);
             } else {
                 let mut chids = chids.unwrap();
                 pidq.append(&mut chids);
-            }
-
-            // sort out DRM client infos based on DRM fdinfos
-            for fdi in fdinfos {
-                if let Some(cliref) = QmDrmClients::map_has_client(&mut ninfos,
-                    &fdi.pci_dev, fdi.drm_minor, fdi.client_id) {
-                    cliref.shared_procs.push((nproc.clone(), fdi.path));
-                    debug!("INF: repeated drm client/fd info: proc={:?}, drm-minor={:?}, drm-client-id={:?}", nproc, fdi.drm_minor, fdi.client_id);
-                    continue;
-                }
-
-                let pci_dev = fdi.pci_dev.clone();
-                if let Some(mut cli) = QmDrmClients::map_remove_client(
-                    &mut self.infos, &fdi.pci_dev, fdi.drm_minor, fdi.client_id) {
-                    cli.update(nproc.clone(), fdi);
-                    QmDrmClients::map_insert_client(&mut ninfos, pci_dev, cli);
-                } else {
-                    let cli = QmDrmClientInfo::from(nproc.clone(), fdi);
-                    QmDrmClients::map_insert_client(&mut ninfos, pci_dev, cli);
-                }
             }
         }
 
@@ -349,19 +396,23 @@ impl QmDrmClients
 
     pub fn refresh(&mut self) -> Result<()>
     {
-       self.scan_pid_tree()?;
+        if self.base_pid.is_empty() {
+            self.scan_all_pids()?;
+        } else {
+            self.scan_pid_tree()?;
+        }
 
-       for vcli in self.infos.values_mut() {
-           vcli.sort_by(|a, b| {
-               if a.drm_minor == b.drm_minor {
-                   a.client_id.cmp(&b.client_id)
-               } else {
-                   a.drm_minor.cmp(&b.drm_minor)
-               }
-           });
-       }
+        for vcli in self.infos.values_mut() {
+            vcli.sort_by(|a, b| {
+                if a.drm_minor == b.drm_minor {
+                    a.client_id.cmp(&b.client_id)
+                } else {
+                    a.drm_minor.cmp(&b.drm_minor)
+                }
+            });
+        }
 
-       Ok(())
+        Ok(())
     }
 
     fn get_device_clients(&self,
