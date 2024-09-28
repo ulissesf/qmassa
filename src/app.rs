@@ -126,11 +126,11 @@ impl App<'_>
             Text::from("MIN").alignment(Alignment::Center),
         ];
         let procmem_widths = vec![
-            Constraint::Min(6),
+            Constraint::Max(6),
             Constraint::Min(11),
-            Constraint::Min(6),
-            Constraint::Min(6),
-            Constraint::Min(4),
+            Constraint::Max(5),
+            Constraint::Max(5),
+            Constraint::Max(3),
         ];
         frame.render_widget(Table::new([Row::new(texts)], &procmem_widths)
             .column_spacing(1)
