@@ -4,8 +4,7 @@ TODO
 Features
 --------
 
-* get process cmdline instead of comm, reorg columns to make it look better
-  * add horizontal scrollbar to DRM clients block
+* add horizontal scrollbar to DRM clients block
 * add driver backend to get specific dev info: frequency, dev type (integrated/discrete)
 * use device type and mem regions to:
   * show overall GPU usage and smem vs vram/lmem usage

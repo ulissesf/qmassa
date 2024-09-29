@@ -50,12 +50,10 @@ impl App<'_>
         vstr
     }
 
-    fn client_procmem(&self, cli: &QmDrmClientInfo, widths: &Vec<Constraint>) -> Table
+    fn client_pidmem(&self, cli: &QmDrmClientInfo, widths: &Vec<Constraint>) -> Table
     {
         let rows = [Row::new([
                 Text::from(cli.proc.pid.to_string())
-                    .alignment(Alignment::Center),
-                Text::from(cli.proc.comm.clone())
                     .alignment(Alignment::Center),
                 Text::from(App::short_mem_string(cli.total_mem()))
                     .alignment(Alignment::Center),
@@ -86,6 +84,13 @@ impl App<'_>
         }
     }
 
+    fn client_proc(&self, cli: &QmDrmClientInfo) -> Text
+    {
+        Text::from(cli.proc.cmdline.clone())
+            .alignment(Alignment::Left)
+            .style(Style::new().white().on_black())
+    }
+
     fn render_qmd_clients(&self, qmd: &QmDrmDeviceInfo,
         infos: &Vec<&QmDrmClientInfo>, frame: &mut Frame, area: Rect)
     {
@@ -107,48 +112,49 @@ impl App<'_>
         let stats_area = dev_block.inner(area);
         frame.render_widget(dev_block, area);
 
-        // render DRM clients stats (if any)
+        // if no DRM clients, nothing more to render
         if infos.is_empty() {
             return;
         }
 
+        // render table headers
         let [hdr_area, data_area] = Layout::vertical([
             Constraint::Length(1),
             Constraint::Min(1),
         ]).areas(stats_area);
-        let data_constrs = [
-            Constraint::Percentage(50),
-            Constraint::Percentage(50),
+        let line_widths = vec![
+            Constraint::Max(22),
+            Constraint::Max(42),
+            Constraint::Min(4),
         ];
-        let [procmem_hdr, engines_hdr] = Layout::horizontal(
-            data_constrs).areas(hdr_area);
+        let [pidmem_hdr, engines_hdr, cmd_hdr] = Layout::horizontal(
+            &line_widths).areas(hdr_area);
 
         let texts = vec![
             Text::from("PID").alignment(Alignment::Center),
-            Text::from("CMD").alignment(Alignment::Center),
             Text::from("MEM").alignment(Alignment::Center),
             Text::from("RSS").alignment(Alignment::Center),
             Text::from("MIN").alignment(Alignment::Center),
         ];
-        let procmem_widths = vec![
+        let pidmem_widths = vec![
             Constraint::Max(6),
-            Constraint::Min(11),
             Constraint::Max(5),
             Constraint::Max(5),
             Constraint::Max(3),
         ];
-        frame.render_widget(Table::new([Row::new(texts)], &procmem_widths)
+        frame.render_widget(Table::new([Row::new(texts)], &pidmem_widths)
             .column_spacing(1)
             .block(Block::new()
                 .borders(Borders::NONE)
                 .style(Style::new().white().bold().on_dark_gray())),
-            procmem_hdr);
+            pidmem_hdr);
 
         let engs = infos[0].engines();
         let mut texts = Vec::new();
         let mut eng_widths = Vec::new();
         for e in &engs {
-            texts.push(Text::from(e.as_str()).alignment(Alignment::Center));
+            texts.push(Text::from(e.to_uppercase())
+                .alignment(Alignment::Center));
             eng_widths.push(Constraint::Percentage(
                     (100/engs.len()).try_into().unwrap()));
         }
@@ -159,6 +165,12 @@ impl App<'_>
                 .style(Style::new().white().bold().on_dark_gray())),
             engines_hdr);
 
+        frame.render_widget(Text::from("CMD")
+            .alignment(Alignment::Center)
+            .style(Style::new().white().bold().on_dark_gray()),
+            cmd_hdr);
+
+        // render DRM clients data
         let mut constrs = Vec::new();
         for _ in 0..infos.len() {
             constrs.push(Constraint::Length(1));
@@ -166,17 +178,19 @@ impl App<'_>
         let clis_area = Layout::vertical(constrs).split(data_area);
 
         for (cli, area) in infos.iter().zip(clis_area.iter()) {
-            let [procmem_area, engines_area] = Layout::horizontal(data_constrs)
-                .areas(*area);
+            let [pidmem_area, engines_area, cmd_area] = Layout::horizontal(
+                &line_widths).areas(*area);
 
             frame.render_widget(
-                self.client_procmem(cli, &procmem_widths), procmem_area);
+                self.client_pidmem(cli, &pidmem_widths), pidmem_area);
             self.render_client_engines(cli, &eng_widths, frame, engines_area);
+            frame.render_widget(self.client_proc(cli), cmd_area);
         }
     }
 
     fn draw(&self, frame: &mut Frame)
     {
+        // render title & status bar, and clean main area background
         let [title_bar, main_area, status_bar] = Layout::vertical([
             Constraint::Length(1),
             Constraint::Min(0),
@@ -212,6 +226,7 @@ impl App<'_>
             status_bar,
         );
 
+        // divide main area and render each pci dev and its DRM clients
         let mut all_infos = Vec::new();
         let mut constrs = Vec::new();
 

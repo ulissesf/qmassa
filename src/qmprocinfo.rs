@@ -12,7 +12,7 @@ use crate::qmdrmfdinfo::QmDrmFdinfo;
 pub struct QmProcInfo
 {
     pub pid: u32,
-    pub comm: String,
+    pub cmdline: String,
     pub proc_dir: PathBuf,
 }
 
@@ -122,13 +122,13 @@ impl QmProcInfo
     {
          let mut qmpi = QmProcInfo {
              pid: npid.parse()?,
-             comm: String::from(""),
+             cmdline: String::from(""),
              proc_dir: Path::new("/proc").join(npid.as_str()),
          };
 
-         let cpath = qmpi.proc_dir.join("comm");
+         let cpath = qmpi.proc_dir.join("cmdline");
          let cstr = fs::read_to_string(&cpath)?;
-         qmpi.comm.push_str(cstr.strip_suffix("\n").unwrap());
+         qmpi.cmdline.push_str(&cstr.replace("\0", " "));
 
          Ok(qmpi)
     }

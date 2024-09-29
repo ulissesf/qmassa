@@ -76,7 +76,7 @@ impl Default for QmDrmClientInfo
             client_id: 0,
             proc: QmProcInfo {
                 pid: 0,
-                comm: String::from(""),
+                cmdline: String::from(""),
                 proc_dir: PathBuf::new(),
             },
             fdinfo_path: PathBuf::new(),
