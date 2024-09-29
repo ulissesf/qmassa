@@ -89,6 +89,7 @@ impl App<'_>
     fn render_qmd_clients(&self, qmd: &QmDrmDeviceInfo,
         infos: &Vec<&QmDrmClientInfo>, frame: &mut Frame, area: Rect)
     {
+        // render pci device block and title
         let dev_title = Title::from(Line::from(vec![
             " ".into(),
             qmd.vendor.clone().into(),
@@ -106,7 +107,11 @@ impl App<'_>
         let stats_area = dev_block.inner(area);
         frame.render_widget(dev_block, area);
 
-        // render DRM clients stats
+        // render DRM clients stats (if any)
+        if infos.is_empty() {
+            return;
+        }
+
         let [hdr_area, data_area] = Layout::vertical([
             Constraint::Length(1),
             Constraint::Min(1),
@@ -209,16 +214,22 @@ impl App<'_>
 
         let mut all_infos = Vec::new();
         let mut constrs = Vec::new();
-        for d in self.clis.active_devices() {
+
+        let devs = if self.args.every_device {
+            self.qmds.devices()
+        } else {
+            self.clis.active_devices()
+        };
+
+        for d in devs {
             let inf = if self.args.all_clients {
                 self.clis.device_clients(d)
             } else {
                 self.clis.device_active_clients(d)
             };
-            if !inf.is_empty() {
-                all_infos.push((self.qmds.device_info(d).unwrap(), inf));
-                constrs.push(Constraint::Min(1));
-            }
+
+            all_infos.push((self.qmds.device_info(d).unwrap(), inf));
+            constrs.push(Constraint::Min(1));
         }
         if all_infos.is_empty() {
             return;

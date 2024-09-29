@@ -32,6 +32,10 @@ pub struct Args {
     #[arg(short, long, default_value = "500")]
     ms_interval: u64,
 
+    /// show all DRM devices [default: only active]
+    #[arg(short, long, action = ArgAction::SetTrue)]
+    every_device: bool,
+
     /// show all DRM clients [default: only active]
     #[arg(short, long, action = ArgAction::SetTrue)]
     all_clients: bool,
