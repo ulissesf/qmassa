@@ -124,10 +124,17 @@ impl App<'_>
         ]).areas(stats_area);
         let line_widths = vec![
             Constraint::Max(22),
+            Constraint::Length(1),
             Constraint::Max(42),
+            Constraint::Length(1),
             Constraint::Min(4),
         ];
-        let [pidmem_hdr, engines_hdr, cmd_hdr] = Layout::horizontal(
+        frame.render_widget(
+            Block::new().borders(Borders::NONE)
+                .style(Style::new().on_dark_gray()),
+            hdr_area,
+        );
+        let [pidmem_hdr, _, engines_hdr, _, cmd_hdr] = Layout::horizontal(
             &line_widths).areas(hdr_area);
 
         let texts = vec![
@@ -178,8 +185,8 @@ impl App<'_>
         let clis_area = Layout::vertical(constrs).split(data_area);
 
         for (cli, area) in infos.iter().zip(clis_area.iter()) {
-            let [pidmem_area, engines_area, cmd_area] = Layout::horizontal(
-                &line_widths).areas(*area);
+            let [pidmem_area, _, engines_area, _, cmd_area] =
+                Layout::horizontal(&line_widths).areas(*area);
 
             frame.render_widget(
                 self.client_pidmem(cli, &pidmem_widths), pidmem_area);
@@ -215,7 +222,7 @@ impl App<'_>
         );
         frame.render_widget(
             Block::new().borders(Borders::NONE)
-            .style(Style::new().on_black()),
+                .style(Style::new().on_black()),
             main_area,
         );
         frame.render_widget(
