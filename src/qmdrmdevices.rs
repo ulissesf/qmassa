@@ -2,6 +2,7 @@ use std::collections::HashMap;
 
 use anyhow::{bail, Result};
 use libc;
+use log::debug;
 use udev;
 
 
@@ -127,8 +128,12 @@ impl QmDrmDevices
             let sysname = String::from(pdev.sysname().to_str().unwrap());
 
             if !qmds.infos.contains_key(&sysname) {
-                let pciid = pdev
-                    .property_value("PCI_ID").unwrap().to_str().unwrap();
+                let pciid = if let Some(pciid) = pdev.property_value("PCI_ID") {
+                    pciid.to_str().unwrap()
+                } else {
+                    debug!("INF: Ignoring device without PCI_ID: {:?}", pdev.syspath());
+                    continue;
+                };
 
                 let syspath = String::from(pdev.syspath().to_str().unwrap());
                 let vendor_id = String::from(&pciid[0..4]);

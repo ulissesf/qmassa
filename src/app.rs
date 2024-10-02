@@ -250,8 +250,10 @@ impl App<'_>
                 self.clis.device_active_clients(d)
             };
 
-            all_infos.push((self.qmds.device_info(d).unwrap(), inf));
-            constrs.push(Constraint::Min(1));
+            if let Some(dev_info) = self.qmds.device_info(d) {
+                all_infos.push((dev_info, inf));
+                constrs.push(Constraint::Min(1));
+            }
         }
         if all_infos.is_empty() {
             return;
