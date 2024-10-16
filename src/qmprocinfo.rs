@@ -130,7 +130,7 @@ impl QmProcInfo
 
         let cpath = qmpi.proc_dir.join("comm");
         let cstr = fs::read_to_string(&cpath)?;
-        qmpi.comm.push_str(&cstr.trim_end_matches("\n"));
+        qmpi.comm.push_str(cstr.trim_end());
 
         let cpath = qmpi.proc_dir.join("cmdline");
         let cstr = fs::read_to_string(&cpath)?;

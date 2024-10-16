@@ -30,19 +30,19 @@ impl QmDrmDriver for QmDrmDriveri915
     {
         let fpath = self.freqs_dir.join("gt_min_freq_mhz");
         let fstr = fs::read_to_string(&fpath)?;
-        let min_val: u64 = fstr.trim_end_matches('\n').parse()?;
+        let min_val: u64 = fstr.trim_end().parse()?;
 
         let fpath = self.freqs_dir.join("gt_cur_freq_mhz");
         let fstr = fs::read_to_string(&fpath)?;
-        let cur_val: u64 = fstr.trim_end_matches('\n').parse()?;
+        let cur_val: u64 = fstr.trim_end().parse()?;
 
         let fpath = self.freqs_dir.join("gt_act_freq_mhz");
         let fstr = fs::read_to_string(&fpath)?;
-        let act_val: u64 = fstr.trim_end_matches('\n').parse()?;
+        let act_val: u64 = fstr.trim_end().parse()?;
 
         let fpath = self.freqs_dir.join("gt_max_freq_mhz");
         let fstr = fs::read_to_string(&fpath)?;
-        let max_val: u64 = fstr.trim_end_matches('\n').parse()?;
+        let max_val: u64 = fstr.trim_end().parse()?;
 
         Ok(QmDrmDeviceFreqs {
             min_freq: min_val,
