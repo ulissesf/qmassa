@@ -9,8 +9,6 @@ use serde_json;
 
 use crossterm::event::{self, Event, KeyCode, KeyEvent, KeyEventKind};
 use ratatui::{
-    prelude::Widget,
-    buffer::Buffer,
     layout::{Alignment, Constraint, Layout, Rect, Size},
     style::{palette::tailwind, Style, Stylize},
     text::{Span, Line, Text},
@@ -136,7 +134,7 @@ impl QmApp
     }
 
     fn render_client_engines(&self, cli: &QmAppDataClientStats,
-        constrs: &Vec<Constraint>, buf: &mut Buffer, area: Rect)
+        constrs: &Vec<Constraint>, clis_sv: &mut ScrollView, area: Rect)
     {
         let mut gauges: Vec<Gauge> = Vec::new();
         for eng in cli.eng_stats.iter() {
@@ -148,8 +146,8 @@ impl QmApp
         }
         let places = Layout::horizontal(constrs).split(area);
 
-        for (gauge, a) in gauges.iter().zip(places.iter()) {
-            gauge.render(*a, buf);
+        for (g, a) in gauges.iter().zip(places.iter()) {
+            clis_sv.render_widget(g, *a);
         }
     }
 
@@ -162,7 +160,7 @@ impl QmApp
         QmApp::gauge_colored_from(label, cpu/100.0)
     }
 
-    fn client_proc(&self, cli: &QmAppDataClientStats) -> Text
+    fn client_cmd(&self, cli: &QmAppDataClientStats) -> Text
     {
         Text::from(format!("[{}] {}", &cli.comm, &cli.cmdline))
             .alignment(Alignment::Left)
@@ -338,31 +336,37 @@ impl QmApp
         // get all client info and create scrollview with right size
         let mut cinfos: Vec<&QmAppDataClientStats> = Vec::new();
         let mut constrs = Vec::new();
-        let mut view_w = visible_area.width;
-        let mut view_h: u16 = 1;
+        let mut clis_sv_w = visible_area.width;
+        let mut clis_sv_h: u16 = 1;
 
         for cli in dinfo.clis_stats.iter() {
             if self.args.all_clients || cli.is_active {
                 cinfos.push(cli);
                 constrs.push(Constraint::Length(1));
-                view_w = max(view_w,
+                clis_sv_w = max(clis_sv_w,
                     (80 + cli.comm.len() + cli.cmdline.len() + 3) as u16);
-                view_h += 1;
+                clis_sv_h += 1;
            }
         }
 
-        let mut clis_view = ScrollView::new(Size::new(view_w, view_h));
-        let buf = clis_view.buf_mut();
-        let view_area = buf.area;
+        let mut clis_sv = ScrollView::new(Size::new(clis_sv_w, clis_sv_h));
+        let clis_sv_area = clis_sv.area();
 
-        Block::new().borders(Borders::NONE)
-            .style(Style::new().on_black()).render(view_area, buf);
+        clis_sv.render_widget(Block::new()
+            .borders(Borders::NONE)
+            .style(Style::new().on_black()),
+            clis_sv_area);
 
         // render DRM clients table headers
         let [hdr_area, data_area] = Layout::vertical([
             Constraint::Length(1),
             Constraint::Min(1),
-        ]).areas(view_area);
+        ]).areas(clis_sv_area);
+
+        clis_sv.render_widget(Block::new()
+                .borders(Borders::NONE)
+                .style(Style::new().on_dark_gray()),
+                hdr_area);
         let line_widths = vec![
             Constraint::Max(22),
             Constraint::Length(1),
@@ -371,10 +375,6 @@ impl QmApp
             Constraint::Length(1),
             Constraint::Min(5),
         ];
-        Block::new()
-                .borders(Borders::NONE)
-                .style(Style::new().on_dark_gray())
-                .render(hdr_area, buf);
         let [pidmem_hdr, _, engines_hdr, cpu_hdr, _, cmd_hdr] =
             Layout::horizontal(&line_widths).areas(hdr_area);
 
@@ -390,12 +390,12 @@ impl QmApp
             Constraint::Max(5),
             Constraint::Max(3),
         ];
-        Table::new([Row::new(texts)], &pidmem_widths)
+        clis_sv.render_widget(Table::new([Row::new(texts)], &pidmem_widths)
             .column_spacing(1)
             .block(Block::new()
                 .borders(Borders::NONE)
-                .style(Style::new().white().bold().on_dark_gray()))
-            .render(pidmem_hdr, buf);
+                .style(Style::new().white().bold().on_dark_gray())),
+            pidmem_hdr);
 
         let mut texts = Vec::new();
         let mut eng_widths = Vec::new();
@@ -406,26 +406,26 @@ impl QmApp
             eng_widths.push(Constraint::Percentage(
                     (100/nr_engs).try_into().unwrap()));
         }
-        Table::new([Row::new(texts)], &eng_widths)
+        clis_sv.render_widget(Table::new([Row::new(texts)], &eng_widths)
             .column_spacing(1)
             .block(Block::new()
                 .borders(Borders::NONE)
-                .style(Style::new().white().bold().on_dark_gray()))
-            .render(engines_hdr, buf);
+                .style(Style::new().white().bold().on_dark_gray())),
+            engines_hdr);
 
-        Text::from("CPU")
+        clis_sv.render_widget(Text::from("CPU")
             .alignment(Alignment::Center)
-            .style(Style::new().white().bold().on_dark_gray())
-            .render(cpu_hdr, buf);
-        Text::from("COMMAND")
+            .style(Style::new().white().bold().on_dark_gray()),
+            cpu_hdr);
+        clis_sv.render_widget(Text::from("COMMAND")
             .alignment(Alignment::Left)
-            .style(Style::new().white().bold().on_dark_gray())
-            .render(cmd_hdr, buf);
+            .style(Style::new().white().bold().on_dark_gray()),
+            cmd_hdr);
 
-        // render DRM clients data
+        // render DRM clients data (if any)
         if cinfos.is_empty() {
             frame.render_stateful_widget(
-                clis_view, visible_area, &mut self.clis_state.borrow_mut());
+                clis_sv, visible_area, &mut self.clis_state.borrow_mut());
             return;
         }
 
@@ -434,14 +434,16 @@ impl QmApp
             let [pidmem_area, _, engines_area, cpu_area, _, cmd_area] =
                 Layout::horizontal(&line_widths).areas(*area);
 
-            self.client_pidmem(cli, &pidmem_widths).render(pidmem_area, buf);
-            self.render_client_engines(cli, &eng_widths, buf, engines_area);
-            self.client_cpu_usage(cli).render(cpu_area, buf);
-            self.client_proc(cli).render(cmd_area, buf);
+            clis_sv.render_widget(
+                self.client_pidmem(cli, &pidmem_widths), pidmem_area);
+            self.render_client_engines(
+                cli, &eng_widths, &mut clis_sv, engines_area);
+            clis_sv.render_widget(self.client_cpu_usage(cli), cpu_area);
+            clis_sv.render_widget(self.client_cmd(cli), cmd_area);
         }
 
         frame.render_stateful_widget(
-            clis_view, visible_area, &mut self.clis_state.borrow_mut());
+            clis_sv, visible_area, &mut self.clis_state.borrow_mut());
     }
 
     fn render_drm_device(&self,
