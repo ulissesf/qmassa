@@ -68,6 +68,7 @@ pub struct QmAppDataClientStats
     pub pid: u32,
     pub comm: String,
     pub cmdline: String,
+    pub cpu_usage: Vec<f64>,
     pub eng_stats: Vec<QmAppDataClientEngineStats>,
     pub mem_info: Vec<QmDrmClientMemInfo>,
     pub is_active: bool,
@@ -78,6 +79,8 @@ impl QmAppDataClientStats
     fn update_stats(&mut self,
         eng_names: &Vec<String>, cinfo: &QmDrmClientInfo)
     {
+        limited_vec_push(&mut self.cpu_usage, cinfo.proc.cpu_utilization());
+
         for (en, est) in eng_names.iter().zip(self.eng_stats.iter_mut()) {
             limited_vec_push(&mut est.usage, cinfo.eng_utilization(en));
         }
@@ -86,10 +89,11 @@ impl QmAppDataClientStats
         self.is_active = cinfo.is_active();
     }
 
-    fn from(nr_engs: usize, cinfo: &QmDrmClientInfo) -> QmAppDataClientStats
+    fn from(eng_names: &Vec<String>,
+        cinfo: &QmDrmClientInfo) -> QmAppDataClientStats
     {
         let mut estats: Vec<QmAppDataClientEngineStats> = Vec::new();
-        for _ in 0..nr_engs {
+        for _ in 0..eng_names.len() {
             let n_est = QmAppDataClientEngineStats::new();
             estats.push(n_est);
         }
@@ -100,6 +104,7 @@ impl QmAppDataClientStats
             pid: cinfo.proc.pid,
             comm: cinfo.proc.comm.clone(),
             cmdline: cinfo.proc.cmdline.clone(),
+            cpu_usage: Vec::new(),
             eng_stats: estats,
             mem_info: Vec::new(),
             is_active: false,
@@ -154,7 +159,7 @@ impl QmAppDataDeviceState
                     ncli_st = cli_st;
                 } else {
                     ncli_st = QmAppDataClientStats::from(
-                        self.eng_names.len(), cinf);
+                        &self.eng_names, cinf);
                 }
 
                 ncli_st.update_stats(&self.eng_names, cinf);

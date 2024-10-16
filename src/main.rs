@@ -35,7 +35,7 @@ pub struct QmArgs {
     pid: Option<String>,
 
     /// ms interval between updates
-    #[arg(short, long, default_value = "500")]
+    #[arg(short, long, default_value = "1500")]
     ms_interval: u64,
 
     /// show all DRM clients [default: only active]

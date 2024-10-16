@@ -96,11 +96,28 @@ impl QmApp
         vstr
     }
 
+    fn gauge_colored_from(label: Span, ratio: f64) -> Gauge
+    {
+        let rt = if ratio > 1.0 { 1.0 } else { ratio };
+        let gstyle = if rt > 0.7 {
+            tailwind::RED.c500
+        } else if rt > 0.3 {
+            tailwind::ORANGE.c500
+        } else {
+            tailwind::GREEN.c500
+        };
+
+        Gauge::default()
+            .label(label)
+            .gauge_style(gstyle)
+            .use_unicode(true)
+            .ratio(rt)
+    }
+
     fn client_pidmem(&self,
         cli: &QmAppDataClientStats, widths: &Vec<Constraint>) -> Table
     {
-        // latest data, always present even if zeroed
-        let mem_info = cli.mem_info.last().unwrap();
+        let mem_info = cli.mem_info.last().unwrap();  // always present
 
         let rows = [Row::new([
                 Text::from(cli.pid.to_string())
@@ -123,30 +140,26 @@ impl QmApp
     {
         let mut gauges: Vec<Gauge> = Vec::new();
         for eng in cli.eng_stats.iter() {
-            // latest data, always present even if 0.0
-            let eut = *eng.usage.last().unwrap();
-
+            let eut = *eng.usage.last().unwrap();  // always present
             let label = Span::styled(
                 format!("{:.1}%", eut), Style::new().white());
-            let gstyle = if eut > 70.0 {
-                tailwind::RED.c500
-            } else if eut > 30.0 {
-                tailwind::ORANGE.c500
-            } else {
-                tailwind::GREEN.c500
-            };
 
-            gauges.push(Gauge::default()
-                .label(label)
-                .gauge_style(gstyle)
-                .use_unicode(true)
-                .ratio(eut/100.0));
+            gauges.push(QmApp::gauge_colored_from(label, eut/100.0));
         }
         let places = Layout::horizontal(constrs).split(area);
 
         for (gauge, a) in gauges.iter().zip(places.iter()) {
             gauge.render(*a, buf);
         }
+    }
+
+    fn client_cpu_usage(&self, cli: &QmAppDataClientStats) -> Gauge
+    {
+        let cpu = *cli.cpu_usage.last().unwrap();  // always present
+        let label = Span::styled(
+            format!("{:.1}%", cpu), Style::new().white());
+
+        QmApp::gauge_colored_from(label, cpu/100.0)
     }
 
     fn client_proc(&self, cli: &QmAppDataClientStats) -> Text
@@ -214,8 +227,7 @@ impl QmApp
             hdr_area);
 
         let ind_gs = Layout::horizontal(&mem_widths).split(gauges_area);
-        let mi = dinfo.dev_stats.mem_info.last().unwrap();
-        let gstyle = tailwind::GREEN.c500;
+        let mi = dinfo.dev_stats.mem_info.last().unwrap();  // always present
 
         let smem_label = Span::styled(format!("{}/{}",
             QmApp::short_mem_string(mi.smem_used),
@@ -230,18 +242,10 @@ impl QmApp
         let vram_ratio = if mi.vram_total > 0 {
             mi.vram_used as f64 / mi.vram_total as f64 } else { 0.0 };
 
-        frame.render_widget(Gauge::default()
-            .label(smem_label)
-            .gauge_style(gstyle)
-            .use_unicode(true)
-            .ratio(smem_ratio),
-            ind_gs[0]);
-        frame.render_widget(Gauge::default()
-            .label(vram_label)
-            .gauge_style(gstyle)
-            .use_unicode(true)
-            .ratio(vram_ratio),
-            ind_gs[1]);
+        frame.render_widget(
+            QmApp::gauge_colored_from(smem_label, smem_ratio), ind_gs[0]);
+        frame.render_widget(
+            QmApp::gauge_colored_from(vram_label, vram_ratio), ind_gs[1]);
 
         // render separator line
         frame.render_widget(Block::new().borders(Borders::TOP)
@@ -257,7 +261,8 @@ impl QmApp
         let x_bounds: [f64; 2];
         let mut x_axis: Vec<Span>;
         if x_vals.len() == 1 {
-            x_bounds = [x_vals[0], x_vals[0] + 2.0];
+            let int_secs = self.args.ms_interval as f64 / 1000.0;
+            x_bounds = [x_vals[0], x_vals[0] + int_secs];
             x_axis = vec![
                 Span::raw(format!("{:.1}", x_bounds[0])),
                 Span::raw(format!("{:.1}", x_bounds[1])),
@@ -362,15 +367,16 @@ impl QmApp
             Constraint::Max(22),
             Constraint::Length(1),
             Constraint::Max(42),
+            Constraint::Max(7),
             Constraint::Length(1),
-            Constraint::Min(4),
+            Constraint::Min(5),
         ];
         Block::new()
                 .borders(Borders::NONE)
                 .style(Style::new().on_dark_gray())
                 .render(hdr_area, buf);
-        let [pidmem_hdr, _, engines_hdr, _, cmd_hdr] = Layout::horizontal(
-            &line_widths).areas(hdr_area);
+        let [pidmem_hdr, _, engines_hdr, cpu_hdr, _, cmd_hdr] =
+            Layout::horizontal(&line_widths).areas(hdr_area);
 
         let texts = vec![
             Text::from("PID").alignment(Alignment::Center),
@@ -407,7 +413,11 @@ impl QmApp
                 .style(Style::new().white().bold().on_dark_gray()))
             .render(engines_hdr, buf);
 
-        Text::from(" COMMAND")
+        Text::from("CPU")
+            .alignment(Alignment::Center)
+            .style(Style::new().white().bold().on_dark_gray())
+            .render(cpu_hdr, buf);
+        Text::from("COMMAND")
             .alignment(Alignment::Left)
             .style(Style::new().white().bold().on_dark_gray())
             .render(cmd_hdr, buf);
@@ -421,11 +431,12 @@ impl QmApp
 
         let clis_area = Layout::vertical(constrs).split(data_area);
         for (cli, area) in cinfos.iter().zip(clis_area.iter()) {
-            let [pidmem_area, _, engines_area, _, cmd_area] =
+            let [pidmem_area, _, engines_area, cpu_area, _, cmd_area] =
                 Layout::horizontal(&line_widths).areas(*area);
 
             self.client_pidmem(cli, &pidmem_widths).render(pidmem_area, buf);
             self.render_client_engines(cli, &eng_widths, buf, engines_area);
+            self.client_cpu_usage(cli).render(cpu_area, buf);
             self.client_proc(cli).render(cmd_area, buf);
         }
 

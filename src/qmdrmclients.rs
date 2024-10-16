@@ -102,12 +102,7 @@ impl Default for QmDrmClientInfo
             pci_dev: String::from(""),
             drm_minor: 0,
             client_id: 0,
-            proc: QmProcInfo {
-                pid: 0,
-                comm: String::from(""),
-                cmdline: String::from(""),
-                proc_dir: PathBuf::new(),
-            },
+            proc: QmProcInfo::default(),
             fdinfo_path: PathBuf::new(),
             shared_procs: Vec::new(),
             engs_last: HashMap::new(),
@@ -204,7 +199,13 @@ impl QmDrmClientInfo
 
     pub fn update(&mut self, pinfo: QmProcInfo, fdi: QmDrmFdinfo)
     {
-        self.proc = pinfo;  // fd might be shared
+        if self.proc != pinfo {
+            self.proc = pinfo;  // fd might be shared
+        }
+        if let Err(err) = self.proc.update() {
+            debug!("ERR: failed to update process info for {:?}: {:?}",
+                self.proc, err);
+        }
         self.fdinfo_path = fdi.path;
 
         self.engs_acum.acum_time = 0;

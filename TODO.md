@@ -4,7 +4,6 @@ TODO
 Features
 --------
 
-* show cpu % usage per client pid (maybe cpu smem usage?)
 * move Xe/i915 freqs reading from sysfs files to PMU
 * show overall device engines load/usage
 * show device power usage
