@@ -46,7 +46,7 @@ pub struct QmArgs {
     #[arg(short, long, default_value = "-1")]
     nr_iterations: i32,
 
-    /// dump stats into JSON file
+    /// save stats to a JSON file
     #[arg(short, long)]
     to_json: Option<String>,
 
