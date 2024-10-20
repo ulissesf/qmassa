@@ -326,6 +326,7 @@ impl QmApp
                 .bounds(y_bounds)
                 .labels(y_axis))
             .legend_position(Some(LegendPosition::TopRight))
+            .hidden_legend_constraints((Constraint::Min(0), Constraint::Min(0)))
             .style(Style::new().on_black()),
             freqs_area);
     }
