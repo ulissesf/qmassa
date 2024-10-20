@@ -95,7 +95,7 @@ instant driver-requested and actual device frequency for each iteration.
 | PID          | Process ID                                        |
 | SMEM         | Resident amount of system memory                  |
 | VRAM         | Resident amount of device memory                  |
-| MIN          | Minor number of /dev/dri/<devnode> used           |
+| MIN          | Minor number of /dev/dri device node being used   |
 | [Engines]    | Engine usage in the last iteration                |
 | CPU          | Process' overall CPUs usage in the last iteration |
 | COMMAND      | [/proc/PID/comm] /proc/PID/cmdline                |
