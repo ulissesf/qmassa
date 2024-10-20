@@ -18,7 +18,7 @@ use libc;
 
 use crate::qmdrmdrivers::QmDrmDriver;
 use crate::qmdrmdevices::{
-    QmDrmDeviceType, QmDrmDeviceFreqs,
+    QmDrmDeviceType, QmDrmDeviceFreqs, QmDrmDeviceThrottleReasons,
     QmDrmDeviceMemInfo, QmDrmDeviceInfo
 };
 use crate::qmdrmfdinfo::QmDrmMemRegion;
@@ -121,6 +121,7 @@ pub struct QmDrmDriverXe
     dn_file: File,
     dn_fd: RawFd,
     freqs_dir: PathBuf,
+    throttle_dir: PathBuf,
     dev_type: Option<QmDrmDeviceType>,
 }
 
@@ -267,11 +268,51 @@ impl QmDrmDriver for QmDrmDriverXe
         let fstr = fs::read_to_string(&fpath)?;
         let max_val: u64 = fstr.trim_end().parse()?;
 
+        let fpath = self.throttle_dir.join("reason_pl1");
+        let pl1 = fs::read_to_string(&fpath)?.trim() == "1";
+
+        let fpath = self.throttle_dir.join("reason_pl2");
+        let pl2 = fs::read_to_string(&fpath)?.trim() == "1";
+
+        let fpath = self.throttle_dir.join("reason_pl4");
+        let pl4 = fs::read_to_string(&fpath)?.trim() == "1";
+
+        let fpath = self.throttle_dir.join("reason_prochot");
+        let prochot = fs::read_to_string(&fpath)?.trim() == "1";
+
+        let fpath = self.throttle_dir.join("reason_ratl");
+        let ratl = fs::read_to_string(&fpath)?.trim() == "1";
+
+        let fpath = self.throttle_dir.join("reason_thermal");
+        let thermal = fs::read_to_string(&fpath)?.trim() == "1";
+
+        let fpath = self.throttle_dir.join("reason_vr_tdc");
+        let vr_tdc = fs::read_to_string(&fpath)?.trim() == "1";
+
+        let fpath = self.throttle_dir.join("reason_vr_thermalert");
+        let vr_thermalert = fs::read_to_string(&fpath)?.trim() == "1";
+
+        let fpath = self.throttle_dir.join("status");
+        let status = fs::read_to_string(&fpath)?.trim() == "1";
+
+        let throttle = QmDrmDeviceThrottleReasons {
+            pl1: pl1,
+            pl2: pl2,
+            pl4: pl4,
+            prochot: prochot,
+            ratl: ratl,
+            thermal: thermal,
+            vr_tdc: vr_tdc,
+            vr_thermalert: vr_thermalert,
+            status: status,
+        };
+
         Ok(QmDrmDeviceFreqs {
             min_freq: min_val,
             cur_freq: cur_val,
             act_freq: act_val,
             max_freq: max_val,
+            throttle_reasons: throttle,
         })
     }
 
@@ -322,6 +363,7 @@ impl QmDrmDriverXe
             dn_file: file,
             dn_fd: fd,
             freqs_dir: Path::new(&cpath).join("device/tile0/gt0/freq0"),
+            throttle_dir: Path::new(&cpath).join("device/tile0/gt0/freq0/throttle"),
             dev_type: None,
         })))
     }
