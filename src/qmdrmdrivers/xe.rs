@@ -139,14 +139,14 @@ impl QmDrmDriver for QmDrmDriverXe
 
         let mut dq = drm_xe_device_query {
             extensions: 0,
+            query: DRM_XE_DEVICE_QUERY_CONFIG,
             size: 0,
             data: 0,
-            query: DRM_XE_DEVICE_QUERY_CONFIG,
             reserved: [0, 0],
         };
 
         let res = unsafe {
-            libc::ioctl(self.dn_fd, DRM_IOCTL_XE_DEVICE_QUERY, &dq) };
+            libc::ioctl(self.dn_fd, DRM_IOCTL_XE_DEVICE_QUERY, &mut dq) };
         if res < 0 {
             return Err(io::Error::last_os_error().into());
         }
@@ -165,7 +165,7 @@ impl QmDrmDriver for QmDrmDriverXe
         dq.data = qcfg as u64;
 
         let res = unsafe {
-            libc::ioctl(self.dn_fd, DRM_IOCTL_XE_DEVICE_QUERY, &dq) };
+            libc::ioctl(self.dn_fd, DRM_IOCTL_XE_DEVICE_QUERY, &mut dq) };
         if res < 0 {
             unsafe { alloc::dealloc(qcfg as *mut u8, layout); }
             return Err(io::Error::last_os_error().into());
@@ -190,14 +190,14 @@ impl QmDrmDriver for QmDrmDriverXe
     {
         let mut dq = drm_xe_device_query {
             extensions: 0,
+            query: DRM_XE_DEVICE_QUERY_MEM_REGIONS,
             size: 0,
             data: 0,
-            query: DRM_XE_DEVICE_QUERY_MEM_REGIONS,
             reserved: [0, 0],
         };
 
         let res = unsafe {
-            libc::ioctl(self.dn_fd, DRM_IOCTL_XE_DEVICE_QUERY, &dq) };
+            libc::ioctl(self.dn_fd, DRM_IOCTL_XE_DEVICE_QUERY, &mut dq) };
         if res < 0 {
             return Err(io::Error::last_os_error().into());
         }
@@ -216,7 +216,7 @@ impl QmDrmDriver for QmDrmDriverXe
         dq.data = qmrg as u64;
 
         let res = unsafe {
-            libc::ioctl(self.dn_fd, DRM_IOCTL_XE_DEVICE_QUERY, &dq) };
+            libc::ioctl(self.dn_fd, DRM_IOCTL_XE_DEVICE_QUERY, &mut dq) };
         if res < 0 {
             unsafe { alloc::dealloc(qmrg as *mut u8, layout); }
             return Err(io::Error::last_os_error().into());
@@ -247,7 +247,7 @@ impl QmDrmDriver for QmDrmDriverXe
         unsafe { alloc::dealloc(qmrg as *mut u8, layout); }
 
         Ok(qmdmi)
-     }
+    }
 
     fn freqs(&mut self) -> Result<QmDrmDeviceFreqs>
     {
