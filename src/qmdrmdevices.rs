@@ -15,8 +15,33 @@ use crate::qmdrmdrivers::{self, QmDrmDriver};
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum QmDrmDeviceType
 {
+    Unknown,
     Integrated,
     Discrete,
+}
+
+impl QmDrmDeviceType
+{
+    pub fn is_discrete(&self) -> bool
+    {
+        *self == QmDrmDeviceType::Discrete
+    }
+
+    pub fn is_integrated(&self) -> bool
+    {
+        *self == QmDrmDeviceType::Integrated
+    }
+
+    pub fn to_string(&self) -> String
+    {
+        if self.is_discrete() {
+            String::from("Discrete")
+        } else if self.is_integrated() {
+            String::from("Integrated")
+        } else {
+            String::from("Unknown")
+        }
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -118,7 +143,7 @@ impl Default for QmDrmDeviceInfo
     {
         QmDrmDeviceInfo {
             pci_dev: String::from(""),
-            dev_type: QmDrmDeviceType::Integrated,
+            dev_type: QmDrmDeviceType::Unknown,
             freqs: QmDrmDeviceFreqs::new(),
             mem_info: QmDrmDeviceMemInfo::new(),
             vendor_id: String::from(""),
@@ -143,11 +168,6 @@ impl QmDrmDeviceInfo
         }
 
         None
-    }
-
-    pub fn is_discrete(&self) -> bool
-    {
-        self.dev_type == QmDrmDeviceType::Discrete
     }
 
     pub fn refresh(&mut self) -> Result<()>

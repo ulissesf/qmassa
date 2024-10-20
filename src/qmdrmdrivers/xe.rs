@@ -288,7 +288,7 @@ impl QmDrmDriver for QmDrmDriverXe
                 cmi.vram_used += mr.total;
                 cmi.vram_rss += mr.resident;
             } else if mr.name.starts_with("stolen") {
-                if self.dev_type()? == QmDrmDeviceType::Discrete {
+                if self.dev_type()?.is_discrete() {
                     cmi.vram_used += mr.total;
                     cmi.vram_rss += mr.resident;
                 } else {

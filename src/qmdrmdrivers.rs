@@ -27,7 +27,7 @@ pub trait QmDrmDriver
 
     fn dev_type(&mut self) -> Result<QmDrmDeviceType>
     {
-        Ok(QmDrmDeviceType::Integrated)
+        Ok(QmDrmDeviceType::Unknown)
     }
 
     fn freqs(&mut self) -> Result<QmDrmDeviceFreqs>

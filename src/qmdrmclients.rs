@@ -298,14 +298,6 @@ impl QmDrmClients
         None
     }
 
-    pub fn active_devices(&self) -> Vec<&String>
-    {
-        let mut res: Vec<&String> = self.infos.keys().collect::<Vec<&_>>();
-        res.sort();
-
-        res
-    }
-
     fn map_has_client<'a>(map: &'a mut HashMap<String,
         Rc<RefCell<Vec<QmDrmClientInfo>>>>, dev: &'a String,
         minor: u32, id: u32) -> Option<RefMut<'a, QmDrmClientInfo>>

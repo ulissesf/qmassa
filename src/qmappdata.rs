@@ -206,8 +206,7 @@ impl QmAppDataDeviceState
             pci_dev: dinfo.pci_dev.clone(),
             vdr_dev_rev: format!("{} {} (rev {})",
                 dinfo.vendor, dinfo.device, dinfo.revision),
-            dev_type: if dinfo.is_discrete() {
-                String::from("Discrete") } else { String::from("Integrated") },
+            dev_type: dinfo.dev_type.to_string(),
             drv_name: dinfo.drv_name.clone(),
             dev_nodes: dnodes,
             eng_names: enames,
