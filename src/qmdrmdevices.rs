@@ -45,12 +45,45 @@ impl QmDrmDeviceType
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct QmDrmDeviceThrottleReasons
+{
+    pub pl1: bool,
+    pub pl2: bool,
+    pub pl4: bool,
+    pub prochot: bool,
+    pub ratl: bool,
+    pub thermal: bool,
+    pub vr_tdc: bool,
+    pub vr_thermalert: bool,
+    pub status: bool
+}
+
+impl QmDrmDeviceThrottleReasons
+{
+    pub fn new() -> QmDrmDeviceThrottleReasons
+    {
+        QmDrmDeviceThrottleReasons {
+            pl1: false,
+            pl2: false,
+            pl4: false,
+            prochot: false,
+            ratl: false,
+            thermal: false,
+            vr_tdc: false,
+            vr_thermalert: false,
+            status: false,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct QmDrmDeviceFreqs
 {
     pub min_freq: u64,
     pub cur_freq: u64,
     pub act_freq: u64,
     pub max_freq: u64,
+    pub throttle_reasons: QmDrmDeviceThrottleReasons,
 }
 
 impl QmDrmDeviceFreqs
@@ -62,6 +95,7 @@ impl QmDrmDeviceFreqs
             cur_freq: 0,
             act_freq: 0,
             max_freq: 0,
+            throttle_reasons: QmDrmDeviceThrottleReasons::new(),
         }
     }
 }

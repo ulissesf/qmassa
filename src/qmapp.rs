@@ -296,6 +296,9 @@ impl QmApp
         let mut miny: u64 = u64::MAX;
         let mut act_freq_ds = Vec::new();
         let mut cur_freq_ds = Vec::new();
+        let mut tr_pl1 = Vec::new();
+        let mut tr_status = Vec::new();
+
 
         for (fqs, xval) in dinfo.dev_stats.freqs.iter().zip(x_vals.iter()) {
             maxy = max(maxy, fqs.max_freq);
@@ -303,6 +306,17 @@ impl QmApp
 
             act_freq_ds.push((*xval, fqs.act_freq as f64));
             cur_freq_ds.push((*xval, fqs.cur_freq as f64));
+
+            if fqs.throttle_reasons.pl1 {
+                tr_pl1.push((*xval, ((miny + maxy) / 2) as f64));
+            } else {
+                tr_pl1.push((*xval, 0.0));
+            }
+            if fqs.throttle_reasons.status {
+                tr_status.push((*xval, ((miny + maxy) / 2) as f64));
+            } else {
+                tr_status.push((*xval, 0.0));
+            }
         }
         let miny = miny as f64;
         let maxy = maxy as f64;
@@ -318,15 +332,27 @@ impl QmApp
             Dataset::default()
                 .name("Requested")
                 .marker(symbols::Marker::Dot)
-                .style(tailwind::ORANGE.c700)
+                .style(tailwind::BLUE.c700)
                 .graph_type(GraphType::Line)
                 .data(&cur_freq_ds),
             Dataset::default()
                 .name("Actual")
                 .marker(symbols::Marker::Dot)
-                .style(tailwind::BLUE.c700)
+                .style(tailwind::GREEN.c700)
                 .graph_type(GraphType::Line)
                 .data(&act_freq_ds),
+            Dataset::default()
+                .name("Throttle: PL1")
+                .marker(symbols::Marker::Dot)
+                .style(tailwind::RED.c700)
+                .graph_type(GraphType::Line)
+                .data(&tr_pl1),
+            Dataset::default()
+                .name("Throttle: Status")
+                .marker(symbols::Marker::Dot)
+                .style(tailwind::ORANGE.c700)
+                .graph_type(GraphType::Line)
+                .data(&tr_status),
         ];
 
         frame.render_widget(Chart::new(datasets)
