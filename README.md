@@ -16,8 +16,8 @@ stats in qmassa:
 
 | Driver | Support                                                          |
 | ------ | ---------------------------------------------------------------- |
-| Xe     | Device type & frequencies, Device & DRM clients' resident memory |
-| i915   | Device frequencies, DRM client's resident memory                 |
+| Xe     | Device type & frequencies, Device & DRM clients' resident memory and engines usage |
+| i915   | Device frequencies & engines usage, DRM client's resident memory & engines usage   |
 
 ## How to use it
 
@@ -84,6 +84,7 @@ sudo qmassa -t data.json
 | DEVICE NODES | Character device nodes in /dev/dri             |
 | SMEM         | System memory used / Total system memory       |
 | VRAM         | Device memory used / Total device memory       |
+| [Engines]    | Overall engine usage in the last iteration     |
 
 The frequency graph ranges from min to max values and plots the
 instant driver-requested and actual device frequency for each iteration.
