@@ -138,7 +138,7 @@ impl QmApp
     {
         let mut gauges: Vec<Gauge> = Vec::new();
         for eng in cli.eng_stats.iter() {
-            let eut = *eng.usage.last().unwrap();  // always present
+            let eut = eng.usage.last().unwrap();  // always present
             let label = Span::styled(
                 format!("{:.1}%", eut), Style::new().white());
 
@@ -171,62 +171,66 @@ impl QmApp
         dinfo: &QmAppDataDeviceState, tstamps: &Vec<u128>,
         frame: &mut Frame, area: Rect)
     {
-        let [infmem_area, sep_area, freqs_area] = Layout::vertical([
+        let [inf_area, memengs_area, sep, freqs_area] = Layout::vertical([
+            Constraint::Length(1),
             Constraint::Length(2),
             Constraint::Length(1),
             Constraint::Min(1),
         ]).areas(area);
 
-        // render some device info and mem stats
-        let [inf_area, mem_area] = Layout::horizontal([
-            Constraint::Max(38),
-            Constraint::Min(24),
-        ]).areas(infmem_area);
-
+        // render some device info and mem/engines stats
         let widths = vec![
-            Constraint::Min(7),
-            Constraint::Min(11),
-            Constraint::Min(17),
+            Constraint::Fill(1),
+            Constraint::Fill(1),
+            Constraint::Fill(2),
         ];
-        let hdrs = Row::new([
-            Text::from("DRIVER").alignment(Alignment::Center),
-            Text::from("TYPE").alignment(Alignment::Center),
-            Text::from("DEVICE NODES").alignment(Alignment::Center),
-        ]).style(Style::new().white().bold().on_dark_gray());
         let rows = [Row::new([
-                Text::from(dinfo.drv_name.clone())
-                    .alignment(Alignment::Center),
-                Text::from(dinfo.dev_type.clone())
-                    .alignment(Alignment::Center),
-                Text::from(dinfo.dev_nodes.clone())
-                    .alignment(Alignment::Center),
+                Line::from(vec![
+                    "DRIVER: ".white().bold(),
+                    dinfo.drv_name.clone().into()])
+                .alignment(Alignment::Center),
+                Line::from(vec![
+                    "TYPE: ".white().bold(),
+                    dinfo.dev_type.clone().into()])
+                .alignment(Alignment::Center),
+                Line::from(vec![
+                    "DEVICE NODES: ".white().bold(),
+                    dinfo.dev_nodes.clone().into()])
+                .alignment(Alignment::Center),
         ])];
         frame.render_widget(Table::new(rows, widths)
             .style(Style::new().white().on_black())
-            .column_spacing(1)
-            .header(hdrs),
+            .column_spacing(1),
             inf_area);
 
         let [hdr_area, gauges_area] = Layout::vertical([
             Constraint::Length(1),
             Constraint::Length(1),
-        ]).areas(mem_area);
-        let mem_widths = vec![
-            Constraint::Percentage(50),
-            Constraint::Percentage(50),
-        ];
-        let mem_hdr = [Row::new([
-            Text::from("SMEM").alignment(Alignment::Center),
-            Text::from("VRAM").alignment(Alignment::Center),
-        ])];
-        frame.render_widget(Table::new(mem_hdr, &mem_widths)
+        ]).areas(memengs_area);
+
+        let mut memengs_widths = Vec::new();
+        let mut hdrs_lst = Vec::new();
+
+        memengs_widths.push(Constraint::Length(12));
+        memengs_widths.push(Constraint::Length(12));
+        hdrs_lst.push(Text::from("SMEM").alignment(Alignment::Center));
+        hdrs_lst.push(Text::from("VRAM").alignment(Alignment::Center));
+
+        for en in dinfo.eng_names.iter() {
+            memengs_widths.push(Constraint::Fill(1));
+            hdrs_lst.push(Text::from(en.to_uppercase())
+                .alignment(Alignment::Center));
+        }
+
+        let memengs_hdr = [Row::new(hdrs_lst)];
+        frame.render_widget(Table::new(memengs_hdr, &memengs_widths)
             .style(Style::new().white().bold().on_dark_gray())
             .column_spacing(1),
             hdr_area);
 
-        let ind_gs = Layout::horizontal(&mem_widths).split(gauges_area);
-        let mi = dinfo.dev_stats.mem_info.last().unwrap();  // always present
+        let ind_gs = Layout::horizontal(&memengs_widths).split(gauges_area);
 
+        let mi = dinfo.dev_stats.mem_info.last().unwrap();  // always present
         let smem_label = Span::styled(format!("{}/{}",
             QmApp::short_mem_string(mi.smem_used),
             QmApp::short_mem_string(mi.smem_total)),
@@ -240,16 +244,27 @@ impl QmApp
         let vram_ratio = if mi.vram_total > 0 {
             mi.vram_used as f64 / mi.vram_total as f64 } else { 0.0 };
 
-        frame.render_widget(
-            QmApp::gauge_colored_from(smem_label, smem_ratio), ind_gs[0]);
-        frame.render_widget(
-            QmApp::gauge_colored_from(vram_label, vram_ratio), ind_gs[1]);
+        let mut engs_gs = Vec::new();
+        engs_gs.push(QmApp::gauge_colored_from(smem_label, smem_ratio));
+        engs_gs.push(QmApp::gauge_colored_from(vram_label, vram_ratio));
+
+        for eng in dinfo.dev_stats.eng_stats.iter() {
+            let eut = eng.usage.last().unwrap();  // always present
+            let label = Span::styled(
+                  format!("{:.1}%", eut), Style::new().white());
+
+            engs_gs.push(QmApp::gauge_colored_from(label, eut/100.0));
+        }
+
+        for (eng_g, eng_a) in engs_gs.iter().zip(ind_gs.iter()) {
+            frame.render_widget(eng_g, *eng_a);
+        }
 
         // render separator line
         frame.render_widget(Block::new().borders(Borders::TOP)
                 .border_type(BorderType::Plain)
                 .border_style(Style::new().white().on_black()),
-            sep_area);
+            sep);
 
         // render dev freqs stats
         let mut x_vals = Vec::new();
@@ -452,14 +467,14 @@ impl QmApp
         frame: &mut Frame, area: Rect)
     {
         let [dev_blk_area, clis_blk_area] = Layout::vertical([
-            Constraint::Max(20),
+            Constraint::Max(21),
             Constraint::Min(8),
         ]).areas(area);
 
         // render pci device block and stats
         let [dev_title_area, dev_stats_area] = Layout::vertical([
             Constraint::Length(1),
-            Constraint::Min(4),
+            Constraint::Min(5),
         ]).areas(dev_blk_area);
         let dev_title = Title::from(Line::from(vec![
             " ".into(),

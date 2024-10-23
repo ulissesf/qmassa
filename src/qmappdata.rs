@@ -21,41 +21,54 @@ fn limited_vec_push<T>(vlst: &mut Vec<T>, vitem: T)
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-pub struct QmAppDataDeviceStats
+pub struct QmAppDataEngineStats
 {
-    pub freqs: Vec<QmDrmDeviceFreqs>,
-    pub mem_info: Vec<QmDrmDeviceMemInfo>,
+    pub usage: Vec<f64>,
 }
 
-impl QmAppDataDeviceStats
+impl QmAppDataEngineStats
 {
-    fn update_stats(&mut self, dinfo: &QmDrmDeviceInfo)
+    fn new() -> QmAppDataEngineStats
     {
-        limited_vec_push(&mut self.freqs, dinfo.freqs.clone());
-        limited_vec_push(&mut self.mem_info, dinfo.mem_info.clone());
-    }
-
-    fn new() -> QmAppDataDeviceStats
-    {
-        QmAppDataDeviceStats {
-            freqs: Vec::new(),
-            mem_info: Vec::new(),
+        QmAppDataEngineStats {
+            usage: Vec::new(),
         }
     }
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-pub struct QmAppDataClientEngineStats
+pub struct QmAppDataDeviceStats
 {
-    pub usage: Vec<f64>,
+    pub freqs: Vec<QmDrmDeviceFreqs>,
+    pub mem_info: Vec<QmDrmDeviceMemInfo>,
+    pub eng_stats: Vec<QmAppDataEngineStats>,
 }
 
-impl QmAppDataClientEngineStats
+impl QmAppDataDeviceStats
 {
-    fn new() -> QmAppDataClientEngineStats
+    fn update_stats(&mut self,
+        eng_names: &Vec<String>, dinfo: &QmDrmDeviceInfo)
     {
-        QmAppDataClientEngineStats {
-            usage: Vec::new(),
+        limited_vec_push(&mut self.freqs, dinfo.freqs.clone());
+        limited_vec_push(&mut self.mem_info, dinfo.mem_info.clone());
+
+        for (en, est) in eng_names.iter().zip(self.eng_stats.iter_mut()) {
+            limited_vec_push(&mut est.usage, dinfo.eng_utilization(en));
+        }
+    }
+
+    fn new(eng_names: &Vec<String>) -> QmAppDataDeviceStats
+    {
+        let mut estats: Vec<QmAppDataEngineStats> = Vec::new();
+        for _ in 0..eng_names.len() {
+            let n_est = QmAppDataEngineStats::new();
+            estats.push(n_est);
+        }
+
+        QmAppDataDeviceStats {
+            freqs: Vec::new(),
+            mem_info: Vec::new(),
+            eng_stats: estats,
         }
     }
 }
@@ -69,7 +82,7 @@ pub struct QmAppDataClientStats
     pub comm: String,
     pub cmdline: String,
     pub cpu_usage: Vec<f64>,
-    pub eng_stats: Vec<QmAppDataClientEngineStats>,
+    pub eng_stats: Vec<QmAppDataEngineStats>,
     pub mem_info: Vec<QmDrmClientMemInfo>,
     pub is_active: bool,
 }
@@ -92,9 +105,9 @@ impl QmAppDataClientStats
     fn from(eng_names: &Vec<String>,
         cinfo: &QmDrmClientInfo) -> QmAppDataClientStats
     {
-        let mut estats: Vec<QmAppDataClientEngineStats> = Vec::new();
+        let mut estats: Vec<QmAppDataEngineStats> = Vec::new();
         for _ in 0..eng_names.len() {
-            let n_est = QmAppDataClientEngineStats::new();
+            let n_est = QmAppDataEngineStats::new();
             estats.push(n_est);
         }
 
@@ -148,7 +161,7 @@ impl QmAppDataDeviceState
     fn update_stats(&mut self, dinfo: &QmDrmDeviceInfo,
         cinfos_b: &Option<Ref<'_, Vec<QmDrmClientInfo>>>)
     {
-        self.dev_stats.update_stats(dinfo);
+        self.dev_stats.update_stats(&self.eng_names, dinfo);
 
         let mut ncstats: Vec<QmAppDataClientStats> = Vec::new();
         if let Some(clis_b) = cinfos_b {
@@ -201,6 +214,7 @@ impl QmAppDataDeviceState
                 }
             }
         }
+        let dstats = QmAppDataDeviceStats::new(&enames);
 
         QmAppDataDeviceState {
             pci_dev: dinfo.pci_dev.clone(),
@@ -210,7 +224,7 @@ impl QmAppDataDeviceState
             drv_name: dinfo.drv_name.clone(),
             dev_nodes: dnodes,
             eng_names: enames,
-            dev_stats: QmAppDataDeviceStats::new(),
+            dev_stats: dstats,
             clis_stats: Vec::new(),
         }
     }

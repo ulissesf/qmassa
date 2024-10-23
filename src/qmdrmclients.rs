@@ -5,7 +5,7 @@ use std::rc::{Rc, Weak};
 use std::time;
 
 use anyhow::Result;
-use log::debug;
+use log::{debug, warn};
 use serde::{Deserialize, Serialize};
 
 use crate::qmprocinfo::QmProcInfo;
@@ -160,6 +160,8 @@ impl QmDrmClientInfo
         }
 
         if res > 100.0 {
+            warn!("Engine {:?} utilization at {:?}, clamped to 100%.",
+                eng, res);
             res = 100.0;
         }
         res

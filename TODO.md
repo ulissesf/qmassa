@@ -4,8 +4,6 @@ TODO
 Features
 --------
 
-* [Ulisses] show overall device engines load/usage
-  * move Xe/i915 freqs reading from sysfs files to PMU?
 * show device power usage for igfx and dgfx (hwmon)
   * expose generic QmHwMon interface to read the data
   * integrate with app data layer and UI

@@ -4,7 +4,7 @@ use std::rc::{Rc, Weak};
 
 use anyhow::{bail, Result};
 use libc;
-use log::debug;
+use log::{debug, warn};
 use serde::{Deserialize, Serialize};
 use udev;
 
@@ -161,6 +161,27 @@ impl Default for QmDrmDeviceInfo
 
 impl QmDrmDeviceInfo
 {
+    pub fn eng_utilization(&self, eng: &String) -> f64
+    {
+        if let Some(vref) = &self.drm_clis {
+            let clis_b = vref.borrow();
+
+            let mut res: f64 = 0.0;
+            for cli in clis_b.iter() {
+                res += cli.eng_utilization(eng);
+            }
+
+            if res > 100.0 {
+                warn!("Engine {:?} utilization at {:?}, clamped to 100%.",
+                    eng, res);
+                res = 100.0;
+            }
+            return res;
+        }
+
+        0.0
+    }
+
     pub fn clients(&self) -> Option<Weak<RefCell<Vec<QmDrmClientInfo>>>>
     {
         if let Some(vref) = &self.drm_clis {
