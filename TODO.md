@@ -4,7 +4,7 @@ TODO
 Features
 --------
 
-* option to create png files for different plotted graphs (great idea by from Rodrigo Vivi)
+* option to create png files for different plotted graphs (great idea from Rodrigo Vivi)
 * show device power usage for igfx and dgfx (hwmon)
   * [Rodrigo Vivi WIP] expose generic QmHwMon interface to read the data
   * integrate with app data layer and UI
