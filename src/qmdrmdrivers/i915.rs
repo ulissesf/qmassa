@@ -45,31 +45,31 @@ impl QmDrmDriver for QmDrmDriveri915
         let fstr = fs::read_to_string(&fpath)?;
         let max_val: u64 = fstr.trim_end().parse()?;
 
-        let fpath = self.gt_dir.join("throttle_reasons_pl1");
+        let fpath = self.gt_dir.join("throttle_reason_pl1");
         let pl1 = fs::read_to_string(&fpath)?.trim() == "1";
 
-        let fpath = self.gt_dir.join("throttle_reasons_pl2");
+        let fpath = self.gt_dir.join("throttle_reason_pl2");
         let pl2 = fs::read_to_string(&fpath)?.trim() == "1";
 
-        let fpath = self.gt_dir.join("throttle_reasons_pl4");
+        let fpath = self.gt_dir.join("throttle_reason_pl4");
         let pl4 = fs::read_to_string(&fpath)?.trim() == "1";
 
-        let fpath = self.gt_dir.join("throttle_reasons_prochot");
+        let fpath = self.gt_dir.join("throttle_reason_prochot");
         let prochot = fs::read_to_string(&fpath)?.trim() == "1";
 
-        let fpath = self.gt_dir.join("throttle_reasons_ratl");
+        let fpath = self.gt_dir.join("throttle_reason_ratl");
         let ratl = fs::read_to_string(&fpath)?.trim() == "1";
 
-        let fpath = self.gt_dir.join("throttle_reasons_thermal");
+        let fpath = self.gt_dir.join("throttle_reason_thermal");
         let thermal = fs::read_to_string(&fpath)?.trim() == "1";
 
-        let fpath = self.gt_dir.join("throttle_reasons_vr_tdc");
+        let fpath = self.gt_dir.join("throttle_reason_vr_tdc");
         let vr_tdc = fs::read_to_string(&fpath)?.trim() == "1";
 
-        let fpath = self.gt_dir.join("throttle_reasons_vr_thermalert");
+        let fpath = self.gt_dir.join("throttle_reason_vr_thermalert");
         let vr_thermalert = fs::read_to_string(&fpath)?.trim() == "1";
 
-        let fpath = self.gt_dir.join("throttle_reasons_status");
+        let fpath = self.gt_dir.join("throttle_reason_status");
         let status = fs::read_to_string(&fpath)?.trim() == "1";
 
         let throttle = QmDrmDeviceThrottleReasons {
