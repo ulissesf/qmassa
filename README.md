@@ -10,14 +10,9 @@ the tool control how much can be displayed.
 
 Most of the information is gathered through a GPU vendor and driver agnostic
 interface such as standard files in /proc and /sys or by using udev. For some
-of the stats, though, a driver-specific way is needed (e.g. specific query
-ioctls). The table below shows the current driver support for getting device
-stats in qmassa:
-
-| Driver | Support                                                          |
-| ------ | ---------------------------------------------------------------- |
-| Xe     | Device type & frequencies, Device & DRM clients' resident memory and engines usage |
-| i915   | Device frequencies & engines usage, DRM client's resident memory & engines usage   |
+of the stats, though, a driver-specific way is needed, and qmassa then
+leverages what the kernel drivers expose in their uAPI (e.g. specific query
+ioctls).
 
 ## How to use it
 
@@ -86,8 +81,18 @@ sudo qmassa -t data.json
 | VRAM         | Device memory used / Total device memory       |
 | [Engines]    | Overall engine usage in the last iteration     |
 
+The overall engines usage depends on the DRM clients that the user has access
+to. In order to have a system view, please run qmassa as root.
+
 The frequency graph ranges from min to max values and plots the
-instant driver-requested and actual device frequency for each iteration.
+instant driver-requested and actual device frequency for each iteration. It
+also indicates the overall status and PL1 throttle reasons (for now) for i915
+and Xe drivers.
+
+#### Limitations
+
+* i915: the kernel driver doesn't track/report overall system memory used
+and thus qmassa can't display it.
 
 ### Per DRM client
 
@@ -115,5 +120,7 @@ and 100%.
 qmassa uses <a href="https://ratatui.rs/">Ratatui</a> for displaying a nice text-based UI and leverages [many](https://github.com/ulissesf/qmassa/blob/main/Cargo.toml) other Rust crates.
 
 ## License
+
+Copyright © 2024 Ulisses Furquim
 
 This project is distributed under the terms of the Apache License (Version 2.0). See [LICENSE](LICENSE) for details.
