@@ -441,12 +441,10 @@ impl QmApp
 
         let mut texts = Vec::new();
         let mut eng_widths = Vec::new();
-        let nr_engs = dinfo.eng_names.len();
-        for en in &dinfo.eng_names {
+        for en in dinfo.eng_names.iter() {
             texts.push(Text::from(en.to_uppercase())
                 .alignment(Alignment::Center));
-            eng_widths.push(Constraint::Percentage(
-                    (100/nr_engs).try_into().unwrap()));
+            eng_widths.push(Constraint::Fill(1));
         }
         clis_sv.render_widget(Table::new([Row::new(texts)], &eng_widths)
             .column_spacing(1)
