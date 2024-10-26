@@ -12,6 +12,7 @@ use crate::qmdrmdevices::{
 use crate::qmdrmfdinfo::QmDrmMemRegion;
 use crate::qmdrmclients::QmDrmClientMemInfo;
 
+mod qmhelpers;
 mod xe;
 use xe::QmDrmDriverXe;
 mod i915;

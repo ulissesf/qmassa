@@ -17,6 +17,7 @@ use log::warn;
 use libc;
 
 use crate::qmdrmdrivers::QmDrmDriver;
+use crate::qmdrmdrivers::qmhelpers::__IncompleteArrayField;
 use crate::qmdrmdevices::{
     QmDrmDeviceType, QmDrmDeviceFreqs, QmDrmDeviceThrottleReasons,
     QmDrmDeviceMemInfo, QmDrmDeviceInfo
@@ -26,52 +27,8 @@ use crate::qmdrmclients::QmDrmClientMemInfo;
 
 
 //
-// code modified from rust-bindgen 0.69.4 ran on part of kernel's xe_drm.h
+// code modified from rust-bindgen 0.69.4 run on part of kernel's xe_drm.h
 //
-#[repr(C)]
-#[derive(Default)]
-struct __IncompleteArrayField<T>(::std::marker::PhantomData<T>, [T; 0]);
-impl<T> __IncompleteArrayField<T> {
-    #[inline]
-    const fn new() -> Self {
-        __IncompleteArrayField(::std::marker::PhantomData, [])
-    }
-    #[inline]
-    fn as_ptr(&self) -> *const T {
-        self as *const _ as *const T
-    }
-    #[inline]
-    fn as_mut_ptr(&mut self) -> *mut T {
-        self as *mut _ as *mut T
-    }
-    #[inline]
-    unsafe fn as_slice(&self, len: usize) -> &[T] {
-        ::std::slice::from_raw_parts(self.as_ptr(), len)
-    }
-    #[inline]
-    unsafe fn as_mut_slice(&mut self, len: usize) -> &mut [T] {
-        ::std::slice::from_raw_parts_mut(self.as_mut_ptr(), len)
-    }
-}
-impl<T> ::std::fmt::Debug for __IncompleteArrayField<T> {
-    fn fmt(&self, fmt: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
-        fmt.write_str("__IncompleteArrayField")
-    }
-}
-
-#[repr(C)]
-#[derive(Debug, Copy, Clone)]
-struct drm_xe_device_query {
-    extensions: u64,
-    query: u32,
-    size: u32,
-    data: u64,
-    reserved: [u64; 2usize],
-}
-
-// generated manually (use nix crate if more are needed)
-const DRM_IOCTL_XE_DEVICE_QUERY: u64 = 3223872576;
-
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
 struct drm_xe_mem_region {
@@ -115,6 +72,19 @@ const DRM_XE_QUERY_CONFIG_MAX_EXEC_QUEUE_PRIORITY: u32 = 4;
 
 const DRM_XE_DEVICE_QUERY_CONFIG: u32 = 2;
 
+#[repr(C)]
+#[derive(Debug, Copy, Clone)]
+struct drm_xe_device_query {
+    extensions: u64,
+    query: u32,
+    size: u32,
+    data: u64,
+    reserved: [u64; 2usize],
+}
+
+// generated manually (use nix crate if more are needed)
+const DRM_IOCTL_XE_DEVICE_QUERY: u64 = 3223872576;
+
 #[derive(Debug)]
 pub struct QmDrmDriverXe
 {
@@ -152,9 +122,13 @@ impl QmDrmDriver for QmDrmDriverXe
             return Err(io::Error::last_os_error().into());
         }
 
+        if dq.size as usize == 0 {
+            warn!("Xe config query ioctl() returned 0 size, skipping.");
+            return Ok(QmDrmDeviceType::Unknown);
+        }
+
         let layout = alloc::Layout::from_size_align(dq.size as usize,
             mem::size_of::<u64>())?;
-
         let qcfg = unsafe {
             let ptr = alloc::alloc(layout) as *mut drm_xe_query_config;
             if ptr.is_null() {
@@ -171,7 +145,6 @@ impl QmDrmDriver for QmDrmDriverXe
             unsafe { alloc::dealloc(qcfg as *mut u8, layout); }
             return Err(io::Error::last_os_error().into());
         }
-
         let cfg = unsafe { (*qcfg).info.as_slice((*qcfg).num_params as usize) };
         let flags = cfg[DRM_XE_QUERY_CONFIG_FLAGS as usize];
 
@@ -203,9 +176,13 @@ impl QmDrmDriver for QmDrmDriverXe
             return Err(io::Error::last_os_error().into());
         }
 
+        if dq.size as usize == 0 {
+            warn!("Xe mem regions query ioctl() returned 0 size, skipping.");
+            return Ok(QmDrmDeviceMemInfo::new());
+        }
+
         let layout = alloc::Layout::from_size_align(dq.size as usize,
             mem::size_of::<u64>())?;
-
         let qmrg = unsafe {
             let ptr = alloc::alloc(layout) as *mut drm_xe_query_mem_regions;
             if ptr.is_null() {
@@ -222,7 +199,6 @@ impl QmDrmDriver for QmDrmDriverXe
             unsafe { alloc::dealloc(qmrg as *mut u8, layout); }
             return Err(io::Error::last_os_error().into());
         }
-
         let mrgs = unsafe {
             (*qmrg).mem_regions.as_slice((*qmrg).num_mem_regions as usize) };
 
