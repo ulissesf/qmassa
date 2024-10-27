@@ -12,7 +12,7 @@ use ratatui::{
     layout::{Alignment, Constraint, Layout, Rect, Size},
     style::{palette::tailwind, Style, Stylize},
     text::{Span, Line, Text},
-    widgets::{block::Title, Axis, Block, Borders, BorderType, Chart,
+    widgets::{Axis, Block, Borders, BorderType, Chart,
         Dataset, Gauge, GraphType, LegendPosition, Row, Table, Tabs},
     symbols, DefaultTerminal, Frame,
 };
@@ -499,16 +499,16 @@ impl App
             Constraint::Length(1),
             Constraint::Min(5),
         ]).areas(dev_blk_area);
-        let dev_title = Title::from(Line::from(vec![
+        let dev_title = Line::from(vec![
             " ".into(),
             dinfo.vdr_dev_rev.clone().into(),
             " ".into(),
-        ]).magenta().bold().on_black());
+        ]).magenta().bold().on_black();
         frame.render_widget(Block::new()
             .borders(Borders::TOP)
             .border_type(BorderType::Double)
             .border_style(Style::new().white().bold().on_black())
-            .title(dev_title.alignment(Alignment::Center)),
+            .title_top(dev_title.alignment(Alignment::Center)),
             dev_title_area);
 
         self.render_dev_stats(dinfo, &tstamps, frame, dev_stats_area);
@@ -518,8 +518,8 @@ impl App
             Constraint::Length(1),
             Constraint::Min(2),
         ]).areas(clis_blk_area);
-        let clis_title = Title::from(Line::from(vec![" DRM clients ".into(),])
-            .magenta().bold().on_black());
+        let clis_title = Line::from(vec![" DRM clients ".into(),])
+            .magenta().bold().on_black();
         frame.render_widget(Block::new()
             .borders(Borders::TOP)
             .border_type(BorderType::Double)
@@ -569,19 +569,19 @@ impl App
             Constraint::Length(1),
         ]).areas(frame.area());
 
-        let prog_name = Title::from(Line::from(vec![
+        let prog_name = Line::from(vec![
             " qmassa! v".into(),
             env!("CARGO_PKG_VERSION").into(),
             " ".into(),])
-            .style(Style::new().light_blue().bold().on_black()));
+            .style(Style::new().light_blue().bold().on_black());
         let menu_blk = Block::bordered()
                 .border_type(BorderType::Thick)
                 .border_style(Style::new().cyan().bold().on_black())
                 .title(prog_name.alignment(Alignment::Center));
         let tab_area = menu_blk.inner(menu_area);
-        let instr = Title::from(Line::from(vec![
+        let instr = Line::from(vec![
             " (Tab/BackTab) Next/prev device (↑/↓/←/→) Scroll clients (Q) Quit ".into(),])
-            .style(Style::new().white().bold().on_black()));
+            .style(Style::new().white().bold().on_black());
 
         frame.render_widget(menu_blk, menu_area);
         frame.render_widget(
