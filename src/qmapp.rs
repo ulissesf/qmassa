@@ -18,21 +18,21 @@ use ratatui::{
 };
 use tui_widgets::scrollview::{ScrollView, ScrollViewState};
 
-use crate::qmappdata::{QmAppData, QmAppDataDeviceState, QmAppDataClientStats};
-use crate::QmArgs;
+use crate::qmappdata::{AppData, AppDataDeviceState, AppDataClientStats};
+use crate::Args;
 
 
-struct QmDevicesTabState
+struct DevicesTabState
 {
     devs: Vec<String>,
     sel: usize,
 }
 
-impl QmDevicesTabState
+impl DevicesTabState
 {
-    fn new(devs: Vec<String>) -> QmDevicesTabState
+    fn new(devs: Vec<String>) -> DevicesTabState
     {
-        QmDevicesTabState {
+        DevicesTabState {
             devs,
             sel: 0,
         }
@@ -61,16 +61,16 @@ impl QmDevicesTabState
     }
 }
 
-pub struct QmApp
+pub struct App
 {
-    data: QmAppData,
-    args: QmArgs,
-    tab_state: Option<QmDevicesTabState>,
+    data: AppData,
+    args: Args,
+    tab_state: Option<DevicesTabState>,
     clis_state: RefCell<ScrollViewState>,
     exit: bool,
 }
 
-impl QmApp
+impl App
 {
     fn short_mem_string(val: u64) -> String
     {
@@ -113,16 +113,16 @@ impl QmApp
     }
 
     fn client_pidmem(&self,
-        cli: &QmAppDataClientStats, widths: &Vec<Constraint>) -> Table
+        cli: &AppDataClientStats, widths: &Vec<Constraint>) -> Table
     {
         let mem_info = cli.mem_info.last().unwrap();  // always present
 
         let rows = [Row::new([
                 Text::from(cli.pid.to_string())
                     .alignment(Alignment::Center),
-                Text::from(QmApp::short_mem_string(mem_info.smem_rss))
+                Text::from(App::short_mem_string(mem_info.smem_rss))
                     .alignment(Alignment::Center),
-                Text::from(QmApp::short_mem_string(mem_info.vram_rss))
+                Text::from(App::short_mem_string(mem_info.vram_rss))
                     .alignment(Alignment::Center),
                 Text::from(cli.drm_minor.to_string())
                     .alignment(Alignment::Center),
@@ -133,7 +133,7 @@ impl QmApp
             .style(Style::new().white().on_black())
     }
 
-    fn render_client_engines(&self, cli: &QmAppDataClientStats,
+    fn render_client_engines(&self, cli: &AppDataClientStats,
         constrs: &Vec<Constraint>, clis_sv: &mut ScrollView, area: Rect)
     {
         let mut gauges: Vec<Gauge> = Vec::new();
@@ -142,7 +142,7 @@ impl QmApp
             let label = Span::styled(
                 format!("{:.1}%", eut), Style::new().white());
 
-            gauges.push(QmApp::gauge_colored_from(label, eut/100.0));
+            gauges.push(App::gauge_colored_from(label, eut/100.0));
         }
         let places = Layout::horizontal(constrs).split(area);
 
@@ -151,16 +151,16 @@ impl QmApp
         }
     }
 
-    fn client_cpu_usage(&self, cli: &QmAppDataClientStats) -> Gauge
+    fn client_cpu_usage(&self, cli: &AppDataClientStats) -> Gauge
     {
         let cpu = *cli.cpu_usage.last().unwrap();  // always present
         let label = Span::styled(
             format!("{:.1}%", cpu), Style::new().white());
 
-        QmApp::gauge_colored_from(label, cpu/100.0)
+        App::gauge_colored_from(label, cpu/100.0)
     }
 
-    fn client_cmd(&self, cli: &QmAppDataClientStats) -> Text
+    fn client_cmd(&self, cli: &AppDataClientStats) -> Text
     {
         Text::from(format!("[{}] {}", &cli.comm, &cli.cmdline))
             .alignment(Alignment::Left)
@@ -168,7 +168,7 @@ impl QmApp
     }
 
     fn render_dev_stats(&self,
-        dinfo: &QmAppDataDeviceState, tstamps: &Vec<u128>,
+        dinfo: &AppDataDeviceState, tstamps: &Vec<u128>,
         frame: &mut Frame, area: Rect)
     {
         let [inf_area, memengs_area, sep, freqs_area] = Layout::vertical([
@@ -232,28 +232,28 @@ impl QmApp
 
         let mi = dinfo.dev_stats.mem_info.last().unwrap();  // always present
         let smem_label = Span::styled(format!("{}/{}",
-            QmApp::short_mem_string(mi.smem_used),
-            QmApp::short_mem_string(mi.smem_total)),
+            App::short_mem_string(mi.smem_used),
+            App::short_mem_string(mi.smem_total)),
             Style::new().white());
         let smem_ratio = if mi.smem_total > 0 {
             mi.smem_used as f64 / mi.smem_total as f64 } else { 0.0 };
         let vram_label = Span::styled(format!("{}/{}",
-            QmApp::short_mem_string(mi.vram_used),
-            QmApp::short_mem_string(mi.vram_total)),
+            App::short_mem_string(mi.vram_used),
+            App::short_mem_string(mi.vram_total)),
             Style::new().white());
         let vram_ratio = if mi.vram_total > 0 {
             mi.vram_used as f64 / mi.vram_total as f64 } else { 0.0 };
 
         let mut engs_gs = Vec::new();
-        engs_gs.push(QmApp::gauge_colored_from(smem_label, smem_ratio));
-        engs_gs.push(QmApp::gauge_colored_from(vram_label, vram_ratio));
+        engs_gs.push(App::gauge_colored_from(smem_label, smem_ratio));
+        engs_gs.push(App::gauge_colored_from(vram_label, vram_ratio));
 
         for eng in dinfo.dev_stats.eng_stats.iter() {
             let eut = eng.usage.last().unwrap();  // always present
             let label = Span::styled(
                   format!("{:.1}%", eut), Style::new().white());
 
-            engs_gs.push(QmApp::gauge_colored_from(label, eut/100.0));
+            engs_gs.push(App::gauge_colored_from(label, eut/100.0));
         }
 
         for (eng_g, eng_a) in engs_gs.iter().zip(ind_gs.iter()) {
@@ -373,10 +373,10 @@ impl QmApp
     }
 
     fn render_drm_clients(&self,
-        dinfo: &QmAppDataDeviceState, frame: &mut Frame, visible_area: Rect)
+        dinfo: &AppDataDeviceState, frame: &mut Frame, visible_area: Rect)
     {
         // get all client info and create scrollview with right size
-        let mut cinfos: Vec<&QmAppDataClientStats> = Vec::new();
+        let mut cinfos: Vec<&AppDataClientStats> = Vec::new();
         let mut constrs = Vec::new();
         let mut clis_sv_w = visible_area.width;
         let mut clis_sv_h: u16 = 1;
@@ -487,7 +487,7 @@ impl QmApp
     }
 
     fn render_drm_device(&self,
-        dinfo: &QmAppDataDeviceState, tstamps: &Vec<u128>,
+        dinfo: &AppDataDeviceState, tstamps: &Vec<u128>,
         frame: &mut Frame, area: Rect)
     {
         let [dev_blk_area, clis_blk_area] = Layout::vertical([
@@ -537,7 +537,7 @@ impl QmApp
     }
 
     fn render_devs_tab(&self,
-        devs_ts: &QmDevicesTabState, frame: &mut Frame, area: Rect)
+        devs_ts: &DevicesTabState, frame: &mut Frame, area: Rect)
     {
         frame.render_widget(Tabs::new(devs_ts.devs.clone())
             .style(Style::new().white().bold().on_black())
@@ -560,7 +560,7 @@ impl QmApp
                 }
             }
 
-            self.tab_state = Some(QmDevicesTabState::new(dv));
+            self.tab_state = Some(DevicesTabState::new(dv));
         }
 
         // render title/menu & status bar, clean main area background
@@ -716,9 +716,9 @@ impl QmApp
         res
     }
 
-    pub fn from(data: QmAppData, args: QmArgs) -> QmApp
+    pub fn from(data: AppData, args: Args) -> App
     {
-        QmApp {
+        App {
             data,
             args,
             tab_state: None,

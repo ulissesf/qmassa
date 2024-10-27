@@ -6,62 +6,62 @@ use std::rc::Rc;
 use anyhow::Result;
 
 use crate::qmdrmdevices::{
-    QmDrmDeviceType, QmDrmDeviceFreqs,
-    QmDrmDeviceMemInfo, QmDrmDeviceInfo
+    DrmDeviceType, DrmDeviceFreqs,
+    DrmDeviceMemInfo, DrmDeviceInfo
 };
-use crate::qmdrmfdinfo::QmDrmMemRegion;
-use crate::qmdrmclients::QmDrmClientMemInfo;
+use crate::qmdrmfdinfo::DrmMemRegion;
+use crate::qmdrmclients::DrmClientMemInfo;
 
 mod qmhelpers;
 mod xe;
-use xe::QmDrmDriverXe;
+use xe::DrmDriverXe;
 mod i915;
-use i915::QmDrmDriveri915;
+use i915::DrmDriveri915;
 
 
-pub trait QmDrmDriver
+pub trait DrmDriver
 {
     fn name(&self) -> &str
     {
         "(not implemented)"
     }
 
-    fn dev_type(&mut self) -> Result<QmDrmDeviceType>
+    fn dev_type(&mut self) -> Result<DrmDeviceType>
     {
-        Ok(QmDrmDeviceType::Unknown)
+        Ok(DrmDeviceType::Unknown)
     }
 
-    fn freqs(&mut self) -> Result<QmDrmDeviceFreqs>
+    fn freqs(&mut self) -> Result<DrmDeviceFreqs>
     {
-        Ok(QmDrmDeviceFreqs::new())
+        Ok(DrmDeviceFreqs::new())
     }
 
-    fn mem_info(&mut self) -> Result<QmDrmDeviceMemInfo>
+    fn mem_info(&mut self) -> Result<DrmDeviceMemInfo>
     {
-        Ok(QmDrmDeviceMemInfo::new())
+        Ok(DrmDeviceMemInfo::new())
     }
 
     fn client_mem_info(&mut self,
-        _mem_regs: &HashMap<String, QmDrmMemRegion>) -> Result<QmDrmClientMemInfo>
+        _mem_regs: &HashMap<String, DrmMemRegion>) -> Result<DrmClientMemInfo>
     {
-        Ok(QmDrmClientMemInfo::new())
+        Ok(DrmClientMemInfo::new())
     }
 }
 
-impl Debug for dyn QmDrmDriver
+impl Debug for dyn DrmDriver
 {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-        write!(f, "QmDrmDriver({:?})", self.name())
+        write!(f, "DrmDriver({:?})", self.name())
     }
 }
 
 pub fn driver_from(
-    qmd: &QmDrmDeviceInfo) -> Result<Option<Rc<RefCell<dyn QmDrmDriver>>>>
+    qmd: &DrmDeviceInfo) -> Result<Option<Rc<RefCell<dyn DrmDriver>>>>
 {
     let drvs: &[(&str,
-        fn(&QmDrmDeviceInfo) -> Result<Rc<RefCell<dyn QmDrmDriver>>>)] = &[
-        ("xe", QmDrmDriverXe::new),
-        ("i915", QmDrmDriveri915::new),
+        fn(&DrmDeviceInfo) -> Result<Rc<RefCell<dyn DrmDriver>>>)] = &[
+        ("xe", DrmDriverXe::new),
+        ("i915", DrmDriveri915::new),
     ];
 
     for (dn, drv_newfunc) in drvs {

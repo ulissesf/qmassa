@@ -16,14 +16,14 @@ use anyhow::Result;
 use log::warn;
 use libc;
 
-use crate::qmdrmdrivers::QmDrmDriver;
+use crate::qmdrmdrivers::DrmDriver;
 use crate::qmdrmdrivers::qmhelpers::__IncompleteArrayField;
 use crate::qmdrmdevices::{
-    QmDrmDeviceType, QmDrmDeviceFreqs, QmDrmDeviceThrottleReasons,
-    QmDrmDeviceMemInfo, QmDrmDeviceInfo
+    DrmDeviceType, DrmDeviceFreqs, DrmDeviceThrottleReasons,
+    DrmDeviceMemInfo, DrmDeviceInfo
 };
-use crate::qmdrmfdinfo::QmDrmMemRegion;
-use crate::qmdrmclients::QmDrmClientMemInfo;
+use crate::qmdrmfdinfo::DrmMemRegion;
+use crate::qmdrmclients::DrmClientMemInfo;
 
 
 //
@@ -93,23 +93,23 @@ struct drm_i915_query {
 const DRM_IOCTL_I915_QUERY: u64 = 3222299769;
 
 #[derive(Debug)]
-pub struct QmDrmDriveri915
+pub struct DrmDriveri915
 {
     dn_file: File,
     dn_fd: RawFd,
     freqs_dir: PathBuf,
     gt_dir: PathBuf,
-    dev_type: Option<QmDrmDeviceType>,
+    dev_type: Option<DrmDeviceType>,
 }
 
-impl QmDrmDriver for QmDrmDriveri915
+impl DrmDriver for DrmDriveri915
 {
     fn name(&self) -> &str
     {
         "i915"
     }
 
-    fn dev_type(&mut self) -> Result<QmDrmDeviceType>
+    fn dev_type(&mut self) -> Result<DrmDeviceType>
     {
         if let Some(dt) = &self.dev_type {
             return Ok(dt.clone());
@@ -117,16 +117,16 @@ impl QmDrmDriver for QmDrmDriveri915
 
         let dmi = self.mem_info()?;
         let qmdt = if dmi.vram_total > 0 {
-            QmDrmDeviceType::Discrete
+            DrmDeviceType::Discrete
         } else {
-            QmDrmDeviceType::Integrated
+            DrmDeviceType::Integrated
         };
 
         self.dev_type = Some(qmdt.clone());
         Ok(qmdt)
     }
 
-    fn mem_info(&mut self) -> Result<QmDrmDeviceMemInfo>
+    fn mem_info(&mut self) -> Result<DrmDeviceMemInfo>
     {
         let mut dqi = drm_i915_query_item {
             query_id: DRM_I915_QUERY_MEMORY_REGIONS,
@@ -151,7 +151,7 @@ impl QmDrmDriver for QmDrmDriveri915
         if dqi.length as usize <= 0 {
             warn!("i915 memregions query ioctl() with {:?} length, skipping.",
                 dqi.length as usize);
-            return Ok(QmDrmDeviceMemInfo::new());
+            return Ok(DrmDeviceMemInfo::new());
         }
 
         let layout = alloc::Layout::from_size_align(dqi.length as usize,
@@ -175,12 +175,12 @@ impl QmDrmDriver for QmDrmDriveri915
         if dqi.length <= 0 {
             warn!("i915 memregions query ioctl() error: {:?}", dqi.length);
             unsafe { alloc::dealloc(qmrg as *mut u8, layout); }
-            return Ok(QmDrmDeviceMemInfo::new());
+            return Ok(DrmDeviceMemInfo::new());
         }
         let mrgs = unsafe {
             (*qmrg).regions.as_slice((*qmrg).num_regions as usize) };
 
-        let mut qmdmi = QmDrmDeviceMemInfo::new();
+        let mut qmdmi = DrmDeviceMemInfo::new();
         for mr in mrgs {
             match mr.region.memory_class {
                 I915_MEMORY_CLASS_SYSTEM => {
@@ -204,7 +204,7 @@ impl QmDrmDriver for QmDrmDriveri915
         Ok(qmdmi)
     }
 
-    fn freqs(&mut self) -> Result<QmDrmDeviceFreqs>
+    fn freqs(&mut self) -> Result<DrmDeviceFreqs>
     {
         let fpath = self.freqs_dir.join("gt_min_freq_mhz");
         let fstr = fs::read_to_string(&fpath)?;
@@ -249,7 +249,7 @@ impl QmDrmDriver for QmDrmDriveri915
         let fpath = self.gt_dir.join("throttle_reason_status");
         let status = fs::read_to_string(&fpath)?.trim() == "1";
 
-        let throttle = QmDrmDeviceThrottleReasons {
+        let throttle = DrmDeviceThrottleReasons {
             pl1: pl1,
             pl2: pl2,
             pl4: pl4,
@@ -261,7 +261,7 @@ impl QmDrmDriver for QmDrmDriveri915
             status: status,
         };
 
-        Ok(QmDrmDeviceFreqs {
+        Ok(DrmDeviceFreqs {
             min_freq: min_val,
             cur_freq: cur_val,
             act_freq: act_val,
@@ -271,9 +271,9 @@ impl QmDrmDriver for QmDrmDriveri915
     }
 
     fn client_mem_info(&mut self,
-        mem_regs: &HashMap<String, QmDrmMemRegion>) -> Result<QmDrmClientMemInfo>
+        mem_regs: &HashMap<String, DrmMemRegion>) -> Result<DrmClientMemInfo>
     {
-        let mut cmi = QmDrmClientMemInfo::new();
+        let mut cmi = DrmClientMemInfo::new();
 
         for mr in mem_regs.values() {
             if mr.name.starts_with("system") ||
@@ -294,9 +294,9 @@ impl QmDrmDriver for QmDrmDriveri915
     }
 }
 
-impl QmDrmDriveri915
+impl DrmDriveri915
 {
-    pub fn new(qmd: &QmDrmDeviceInfo) -> Result<Rc<RefCell<dyn QmDrmDriver>>>
+    pub fn new(qmd: &DrmDeviceInfo) -> Result<Rc<RefCell<dyn DrmDriver>>>
     {
         let file = File::open(qmd.drm_minors[0].devnode.clone())?;
         let fd = file.as_raw_fd();
@@ -306,7 +306,7 @@ impl QmDrmDriveri915
             .file_name().unwrap().to_str().unwrap();
         cpath.push_str(card);
 
-        Ok(Rc::new(RefCell::new(QmDrmDriveri915 {
+        Ok(Rc::new(RefCell::new(DrmDriveri915 {
             dn_file: file,
             dn_fd: fd,
             freqs_dir: PathBuf::from(&cpath),

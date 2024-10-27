@@ -6,8 +6,8 @@ use anyhow::Result;
 use serde::{Deserialize, Serialize};
 
 use crate::qmdrmdevices::{
-    QmDrmDeviceFreqs, QmDrmDeviceMemInfo, QmDrmDeviceInfo, QmDrmDevices};
-use crate::qmdrmclients::{QmDrmClientMemInfo, QmDrmClientInfo};
+    DrmDeviceFreqs, DrmDeviceMemInfo, DrmDeviceInfo, DrmDevices};
+use crate::qmdrmclients::{DrmClientMemInfo, DrmClientInfo};
 
 
 const QM_APP_DATA_MAX_NR_STATS: usize = 10;
@@ -21,33 +21,33 @@ fn limited_vec_push<T>(vlst: &mut Vec<T>, vitem: T)
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-pub struct QmAppDataEngineStats
+pub struct AppDataEngineStats
 {
     pub usage: Vec<f64>,
 }
 
-impl QmAppDataEngineStats
+impl AppDataEngineStats
 {
-    fn new() -> QmAppDataEngineStats
+    fn new() -> AppDataEngineStats
     {
-        QmAppDataEngineStats {
+        AppDataEngineStats {
             usage: Vec::new(),
         }
     }
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-pub struct QmAppDataDeviceStats
+pub struct AppDataDeviceStats
 {
-    pub freqs: Vec<QmDrmDeviceFreqs>,
-    pub mem_info: Vec<QmDrmDeviceMemInfo>,
-    pub eng_stats: Vec<QmAppDataEngineStats>,
+    pub freqs: Vec<DrmDeviceFreqs>,
+    pub mem_info: Vec<DrmDeviceMemInfo>,
+    pub eng_stats: Vec<AppDataEngineStats>,
 }
 
-impl QmAppDataDeviceStats
+impl AppDataDeviceStats
 {
     fn update_stats(&mut self,
-        eng_names: &Vec<String>, dinfo: &QmDrmDeviceInfo)
+        eng_names: &Vec<String>, dinfo: &DrmDeviceInfo)
     {
         limited_vec_push(&mut self.freqs, dinfo.freqs.clone());
         limited_vec_push(&mut self.mem_info, dinfo.mem_info.clone());
@@ -57,15 +57,15 @@ impl QmAppDataDeviceStats
         }
     }
 
-    fn new(eng_names: &Vec<String>) -> QmAppDataDeviceStats
+    fn new(eng_names: &Vec<String>) -> AppDataDeviceStats
     {
-        let mut estats: Vec<QmAppDataEngineStats> = Vec::new();
+        let mut estats: Vec<AppDataEngineStats> = Vec::new();
         for _ in 0..eng_names.len() {
-            let n_est = QmAppDataEngineStats::new();
+            let n_est = AppDataEngineStats::new();
             estats.push(n_est);
         }
 
-        QmAppDataDeviceStats {
+        AppDataDeviceStats {
             freqs: Vec::new(),
             mem_info: Vec::new(),
             eng_stats: estats,
@@ -74,7 +74,7 @@ impl QmAppDataDeviceStats
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-pub struct QmAppDataClientStats
+pub struct AppDataClientStats
 {
     pub drm_minor: u32,
     pub client_id: u32,
@@ -82,15 +82,15 @@ pub struct QmAppDataClientStats
     pub comm: String,
     pub cmdline: String,
     pub cpu_usage: Vec<f64>,
-    pub eng_stats: Vec<QmAppDataEngineStats>,
-    pub mem_info: Vec<QmDrmClientMemInfo>,
+    pub eng_stats: Vec<AppDataEngineStats>,
+    pub mem_info: Vec<DrmClientMemInfo>,
     pub is_active: bool,
 }
 
-impl QmAppDataClientStats
+impl AppDataClientStats
 {
     fn update_stats(&mut self,
-        eng_names: &Vec<String>, cinfo: &QmDrmClientInfo)
+        eng_names: &Vec<String>, cinfo: &DrmClientInfo)
     {
         limited_vec_push(&mut self.cpu_usage, cinfo.proc.cpu_utilization());
 
@@ -103,15 +103,15 @@ impl QmAppDataClientStats
     }
 
     fn from(eng_names: &Vec<String>,
-        cinfo: &QmDrmClientInfo) -> QmAppDataClientStats
+        cinfo: &DrmClientInfo) -> AppDataClientStats
     {
-        let mut estats: Vec<QmAppDataEngineStats> = Vec::new();
+        let mut estats: Vec<AppDataEngineStats> = Vec::new();
         for _ in 0..eng_names.len() {
-            let n_est = QmAppDataEngineStats::new();
+            let n_est = AppDataEngineStats::new();
             estats.push(n_est);
         }
 
-        QmAppDataClientStats {
+        AppDataClientStats {
             drm_minor: cinfo.drm_minor,
             client_id: cinfo.client_id,
             pid: cinfo.proc.pid,
@@ -126,7 +126,7 @@ impl QmAppDataClientStats
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-pub struct QmAppDataDeviceState
+pub struct AppDataDeviceState
 {
     pub pci_dev: String,
     pub vdr_dev_rev: String,
@@ -134,14 +134,14 @@ pub struct QmAppDataDeviceState
     pub drv_name: String,
     pub dev_nodes: String,
     pub eng_names: Vec<String>,
-    pub dev_stats: QmAppDataDeviceStats,
-    pub clis_stats: Vec<QmAppDataClientStats>,
+    pub dev_stats: AppDataDeviceStats,
+    pub clis_stats: Vec<AppDataClientStats>,
 }
 
-impl QmAppDataDeviceState
+impl AppDataDeviceState
 {
     fn remove_client_stat(&mut self,
-        minor: u32, id: u32) -> Option<QmAppDataClientStats>
+        minor: u32, id: u32) -> Option<AppDataClientStats>
     {
         let mut idx = 0;
         for cli_st in &self.clis_stats {
@@ -158,20 +158,20 @@ impl QmAppDataDeviceState
         Some(self.clis_stats.swap_remove(idx))
     }
 
-    fn update_stats(&mut self, dinfo: &QmDrmDeviceInfo,
-        cinfos_b: &Option<Ref<'_, Vec<QmDrmClientInfo>>>)
+    fn update_stats(&mut self, dinfo: &DrmDeviceInfo,
+        cinfos_b: &Option<Ref<'_, Vec<DrmClientInfo>>>)
     {
         self.dev_stats.update_stats(&self.eng_names, dinfo);
 
-        let mut ncstats: Vec<QmAppDataClientStats> = Vec::new();
+        let mut ncstats: Vec<AppDataClientStats> = Vec::new();
         if let Some(clis_b) = cinfos_b {
             for cinf in clis_b.iter() {
-                let mut ncli_st: QmAppDataClientStats;
+                let mut ncli_st: AppDataClientStats;
                 if let Some(cli_st) = self.remove_client_stat(
                     cinf.drm_minor, cinf.client_id) {
                     ncli_st = cli_st;
                 } else {
-                    ncli_st = QmAppDataClientStats::from(
+                    ncli_st = AppDataClientStats::from(
                         &self.eng_names, cinf);
                 }
 
@@ -192,15 +192,15 @@ impl QmAppDataDeviceState
         }
     }
 
-    fn from(dinfo: &QmDrmDeviceInfo,
-        cinfos_b: &Option<Ref<'_, Vec<QmDrmClientInfo>>>) -> QmAppDataDeviceState
+    fn from(dinfo: &DrmDeviceInfo,
+        cinfos_b: &Option<Ref<'_, Vec<DrmClientInfo>>>) -> AppDataDeviceState
     {
-        let cn = QmAppDataDeviceState::card_from(
+        let cn = AppDataDeviceState::card_from(
             &dinfo.drm_minors[0].devnode);
         let mut dnodes = String::from(cn);
 
         for idx in 1..dinfo.drm_minors.len() {
-            let cn = QmAppDataDeviceState::card_from(
+            let cn = AppDataDeviceState::card_from(
                 &dinfo.drm_minors[idx].devnode);
             dnodes.push_str(", ");
             dnodes.push_str(cn);
@@ -214,9 +214,9 @@ impl QmAppDataDeviceState
                 }
             }
         }
-        let dstats = QmAppDataDeviceStats::new(&enames);
+        let dstats = AppDataDeviceStats::new(&enames);
 
-        QmAppDataDeviceState {
+        AppDataDeviceState {
             pci_dev: dinfo.pci_dev.clone(),
             vdr_dev_rev: format!("{} {} (rev {})",
                 dinfo.vendor, dinfo.device, dinfo.revision),
@@ -231,15 +231,15 @@ impl QmAppDataDeviceState
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-pub struct QmAppDataState
+pub struct AppDataState
 {
     pub timestamps: Vec<u128>,
-    pub devs_state: Vec<QmAppDataDeviceState>,
+    pub devs_state: Vec<AppDataDeviceState>,
 }
 
-impl QmAppDataState
+impl AppDataState
 {
-    fn remove_device(&mut self, dev: &String) -> Option<QmAppDataDeviceState>
+    fn remove_device(&mut self, dev: &String) -> Option<AppDataDeviceState>
     {
         let mut idx = 0;
         for ds in &self.devs_state {
@@ -256,9 +256,9 @@ impl QmAppDataState
         Some(self.devs_state.swap_remove(idx))
     }
 
-    fn new() -> QmAppDataState
+    fn new() -> AppDataState
     {
-        QmAppDataState {
+        AppDataState {
                 timestamps: Vec::new(),
                 devs_state: Vec::new(),
         }
@@ -266,26 +266,26 @@ impl QmAppDataState
 }
 
 #[derive(Debug)]
-pub struct QmAppData
+pub struct AppData
 {
-    state: QmAppDataState,
-    qmds: QmDrmDevices,
+    state: AppDataState,
+    qmds: DrmDevices,
     start_time: time::Instant,
 }
 
-impl QmAppData
+impl AppData
 {
     pub fn timestamps(&self) -> &Vec<u128>
     {
         &self.state.timestamps
     }
 
-    pub fn devices(&self) -> &Vec<QmAppDataDeviceState>
+    pub fn devices(&self) -> &Vec<AppDataDeviceState>
     {
         &self.state.devs_state
     }
 
-    pub fn get_device(&self, dev: &String) -> Option<&QmAppDataDeviceState>
+    pub fn get_device(&self, dev: &String) -> Option<&AppDataDeviceState>
     {
         for ds in self.state.devs_state.iter() {
             if ds.pci_dev == *dev {
@@ -296,7 +296,7 @@ impl QmAppData
         None
     }
 
-    pub fn state(&self) -> &QmAppDataState
+    pub fn state(&self) -> &AppDataState
     {
         &self.state
     }
@@ -305,12 +305,12 @@ impl QmAppData
     {
         self.qmds.refresh()?;
 
-        let mut nstate = QmAppDataState::new();
+        let mut nstate = AppDataState::new();
         for d in self.qmds.devices() {
             let dinfo = self.qmds.device_info(d).unwrap();
 
-            let o_up_ref: Option<Rc<RefCell<Vec<QmDrmClientInfo>>>>;
-            let mut cinfos_b: Option<Ref<'_, Vec<QmDrmClientInfo>>> = None;
+            let o_up_ref: Option<Rc<RefCell<Vec<DrmClientInfo>>>>;
+            let mut cinfos_b: Option<Ref<'_, Vec<DrmClientInfo>>> = None;
             if let Some(cinfos_ref) = dinfo.clients() {
                 o_up_ref = cinfos_ref.upgrade();
                 if let Some(up_ref) = &o_up_ref {
@@ -318,11 +318,11 @@ impl QmAppData
                 }
             }
 
-            let mut ndst: QmAppDataDeviceState;
+            let mut ndst: AppDataDeviceState;
             if let Some(dst) = self.state.remove_device(&d) {
                 ndst = dst;
             } else {
-                ndst = QmAppDataDeviceState::from(dinfo, &cinfos_b);
+                ndst = AppDataDeviceState::from(dinfo, &cinfos_b);
             }
 
             ndst.update_stats(dinfo, &cinfos_b);
@@ -338,10 +338,10 @@ impl QmAppData
         Ok(())
     }
 
-    pub fn from(qmds: QmDrmDevices) -> QmAppData
+    pub fn from(qmds: DrmDevices) -> AppData
     {
-        QmAppData {
-            state: QmAppDataState::new(),
+        AppData {
+            state: AppDataState::new(),
             qmds: qmds,
             start_time: time::Instant::now(),
         }

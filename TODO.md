@@ -7,7 +7,7 @@ Features
 * [Ulisses WIP] improve/find mainloop to support different resolution timers
 * [Ulisses WIP] option to create png files for different plotted graphs (great idea from Rodrigo Vivi)
 * show device power usage for igfx and dgfx (hwmon)
-  * [Rodrigo Vivi WIP] expose generic QmHwMon interface to read the data
+  * [Rodrigo Vivi WIP] expose generic HwMon interface to read the data
   * integrate with app data layer and UI
 * option to select which device stat graphs to plot
   * maybe add scroll view also in device area (and handle focus between areas)

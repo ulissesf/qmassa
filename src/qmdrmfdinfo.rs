@@ -8,7 +8,7 @@ use libc;
 
 
 #[derive(Debug)]
-pub struct QmDrmEngine
+pub struct DrmEngine
 {
     pub name: String,
     pub capacity: u32,
@@ -25,11 +25,11 @@ enum EngKvType
     KvTotCycles,
 }
 
-impl Default for QmDrmEngine
+impl Default for DrmEngine
 {
-    fn default() -> QmDrmEngine
+    fn default() -> DrmEngine
     {
-        QmDrmEngine {
+        DrmEngine {
             name: String::from(""),
             capacity: 1,
             time: 0,
@@ -39,11 +39,11 @@ impl Default for QmDrmEngine
     }
 }
 
-impl QmDrmEngine
+impl DrmEngine
 {
-    pub fn new(eng_name: &str) -> QmDrmEngine
+    pub fn new(eng_name: &str) -> DrmEngine
     {
-        QmDrmEngine {
+        DrmEngine {
             name: eng_name.to_string(),
             ..Default::default()
         }
@@ -51,7 +51,7 @@ impl QmDrmEngine
 }
 
 #[derive(Debug, Clone)]
-pub struct QmDrmMemRegion
+pub struct DrmMemRegion
 {
     pub name: String,
     pub total: u64,
@@ -70,11 +70,11 @@ enum MemRegKvType
     KvActive,
 }
 
-impl Default for QmDrmMemRegion
+impl Default for DrmMemRegion
 {
-    fn default() -> QmDrmMemRegion
+    fn default() -> DrmMemRegion
     {
-        QmDrmMemRegion {
+        DrmMemRegion {
             name: String::from(""),
             total: 0,
             shared: 0,
@@ -85,11 +85,11 @@ impl Default for QmDrmMemRegion
     }
 }
 
-impl QmDrmMemRegion
+impl DrmMemRegion
 {
-    pub fn new(memreg_name: &str) -> QmDrmMemRegion
+    pub fn new(memreg_name: &str) -> DrmMemRegion
     {
-        QmDrmMemRegion {
+        DrmMemRegion {
             name: memreg_name.to_string(),
             ..Default::default()
         }
@@ -97,21 +97,21 @@ impl QmDrmMemRegion
 }
 
 #[derive(Debug)]
-pub struct QmDrmFdinfo
+pub struct DrmFdinfo
 {
     pub pci_dev: String,
     pub drm_minor: u32,
     pub client_id: u32,
     pub path: PathBuf,
-    pub engines: HashMap<String, QmDrmEngine>,
-    pub mem_regions: HashMap<String, QmDrmMemRegion>,
+    pub engines: HashMap<String, DrmEngine>,
+    pub mem_regions: HashMap<String, DrmMemRegion>,
 }
 
-impl Default for QmDrmFdinfo
+impl Default for DrmFdinfo
 {
-    fn default() -> QmDrmFdinfo
+    fn default() -> DrmFdinfo
     {
-        QmDrmFdinfo {
+        DrmFdinfo {
             pci_dev: String::from(""),
             drm_minor: 0,
             client_id: 0,
@@ -122,7 +122,7 @@ impl Default for QmDrmFdinfo
     }
 }
 
-impl QmDrmFdinfo
+impl DrmFdinfo
 {
     pub fn is_drm_fd(file: &Path, minor: &mut u32) -> Result<bool>
     {
@@ -148,10 +148,10 @@ impl QmDrmFdinfo
 
     fn update_engine(&mut self, kv_type: EngKvType, eng_name: &str, val: &str) -> Result<()>
     {
-        let eng: &mut QmDrmEngine;
+        let eng: &mut DrmEngine;
 
         if !self.engines.contains_key(eng_name) {
-            self.engines.insert(eng_name.to_string(), QmDrmEngine::new(eng_name));
+            self.engines.insert(eng_name.to_string(), DrmEngine::new(eng_name));
         }
         eng = self.engines.get_mut(eng_name).unwrap();
 
@@ -186,10 +186,10 @@ impl QmDrmFdinfo
 
     fn update_mem_region(&mut self, kv_type: MemRegKvType, mr_name: &str, val: &str) -> Result<()>
     {
-        let mrg: &mut QmDrmMemRegion;
+        let mrg: &mut DrmMemRegion;
 
         if !self.mem_regions.contains_key(mr_name) {
-            self.mem_regions.insert(mr_name.to_string(), QmDrmMemRegion::new(mr_name));
+            self.mem_regions.insert(mr_name.to_string(), DrmMemRegion::new(mr_name));
         }
         mrg = self.mem_regions.get_mut(mr_name).unwrap();
 
@@ -197,7 +197,7 @@ impl QmDrmFdinfo
         let nr: u64 = dt[0].parse()?;
         let mut mul: u64 = 1;
         if dt.len() == 2  {
-            mul = QmDrmFdinfo::mul_from_unit(dt[1]);
+            mul = DrmFdinfo::mul_from_unit(dt[1]);
         }
 
         match kv_type {
@@ -221,14 +221,14 @@ impl QmDrmFdinfo
         Ok(())
     }
 
-    pub fn from(fdinfo: &PathBuf, d_minor: u32) -> Result<QmDrmFdinfo>
+    pub fn from(fdinfo: &PathBuf, d_minor: u32) -> Result<DrmFdinfo>
     {
         let lines: Vec<_> = fs::read_to_string(fdinfo)?
             .lines()
             .map(String::from)
             .collect();
 
-        let mut info = QmDrmFdinfo {
+        let mut info = DrmFdinfo {
             drm_minor: d_minor,
             path: PathBuf::from(fdinfo),
             ..Default::default()

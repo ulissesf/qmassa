@@ -16,14 +16,14 @@ use anyhow::Result;
 use log::warn;
 use libc;
 
-use crate::qmdrmdrivers::QmDrmDriver;
+use crate::qmdrmdrivers::DrmDriver;
 use crate::qmdrmdrivers::qmhelpers::__IncompleteArrayField;
 use crate::qmdrmdevices::{
-    QmDrmDeviceType, QmDrmDeviceFreqs, QmDrmDeviceThrottleReasons,
-    QmDrmDeviceMemInfo, QmDrmDeviceInfo
+    DrmDeviceType, DrmDeviceFreqs, DrmDeviceThrottleReasons,
+    DrmDeviceMemInfo, DrmDeviceInfo
 };
-use crate::qmdrmfdinfo::QmDrmMemRegion;
-use crate::qmdrmclients::QmDrmClientMemInfo;
+use crate::qmdrmfdinfo::DrmMemRegion;
+use crate::qmdrmclients::DrmClientMemInfo;
 
 
 //
@@ -86,23 +86,23 @@ struct drm_xe_device_query {
 const DRM_IOCTL_XE_DEVICE_QUERY: u64 = 3223872576;
 
 #[derive(Debug)]
-pub struct QmDrmDriverXe
+pub struct DrmDriverXe
 {
     dn_file: File,
     dn_fd: RawFd,
     freqs_dir: PathBuf,
     throttle_dir: PathBuf,
-    dev_type: Option<QmDrmDeviceType>,
+    dev_type: Option<DrmDeviceType>,
 }
 
-impl QmDrmDriver for QmDrmDriverXe
+impl DrmDriver for DrmDriverXe
 {
     fn name(&self) -> &str
     {
         "xe"
     }
 
-    fn dev_type(&mut self) -> Result<QmDrmDeviceType>
+    fn dev_type(&mut self) -> Result<DrmDeviceType>
     {
         if let Some(dt) = &self.dev_type {
             return Ok(dt.clone());
@@ -124,7 +124,7 @@ impl QmDrmDriver for QmDrmDriverXe
 
         if dq.size as usize == 0 {
             warn!("Xe config query ioctl() returned 0 size, skipping.");
-            return Ok(QmDrmDeviceType::Unknown);
+            return Ok(DrmDeviceType::Unknown);
         }
 
         let layout = alloc::Layout::from_size_align(dq.size as usize,
@@ -149,9 +149,9 @@ impl QmDrmDriver for QmDrmDriverXe
         let flags = cfg[DRM_XE_QUERY_CONFIG_FLAGS as usize];
 
         let qmdt = if flags & DRM_XE_QUERY_CONFIG_FLAG_HAS_VRAM as u64 > 0 {
-            QmDrmDeviceType::Discrete
+            DrmDeviceType::Discrete
         } else {
-            QmDrmDeviceType::Integrated
+            DrmDeviceType::Integrated
         };
 
         unsafe { alloc::dealloc(qcfg as *mut u8, layout); }
@@ -160,7 +160,7 @@ impl QmDrmDriver for QmDrmDriverXe
         Ok(qmdt)
     }
 
-    fn mem_info(&mut self) -> Result<QmDrmDeviceMemInfo>
+    fn mem_info(&mut self) -> Result<DrmDeviceMemInfo>
     {
         let mut dq = drm_xe_device_query {
             extensions: 0,
@@ -178,7 +178,7 @@ impl QmDrmDriver for QmDrmDriverXe
 
         if dq.size as usize == 0 {
             warn!("Xe mem regions query ioctl() returned 0 size, skipping.");
-            return Ok(QmDrmDeviceMemInfo::new());
+            return Ok(DrmDeviceMemInfo::new());
         }
 
         let layout = alloc::Layout::from_size_align(dq.size as usize,
@@ -202,7 +202,7 @@ impl QmDrmDriver for QmDrmDriverXe
         let mrgs = unsafe {
             (*qmrg).mem_regions.as_slice((*qmrg).num_mem_regions as usize) };
 
-        let mut qmdmi = QmDrmDeviceMemInfo::new();
+        let mut qmdmi = DrmDeviceMemInfo::new();
         for mr in mrgs {
             match mr.mem_class {
                 DRM_XE_MEM_REGION_CLASS_SYSMEM => {
@@ -226,7 +226,7 @@ impl QmDrmDriver for QmDrmDriverXe
         Ok(qmdmi)
     }
 
-    fn freqs(&mut self) -> Result<QmDrmDeviceFreqs>
+    fn freqs(&mut self) -> Result<DrmDeviceFreqs>
     {
         let fpath = self.freqs_dir.join("min_freq");
         let fstr = fs::read_to_string(&fpath)?;
@@ -271,7 +271,7 @@ impl QmDrmDriver for QmDrmDriverXe
         let fpath = self.throttle_dir.join("status");
         let status = fs::read_to_string(&fpath)?.trim() == "1";
 
-        let throttle = QmDrmDeviceThrottleReasons {
+        let throttle = DrmDeviceThrottleReasons {
             pl1: pl1,
             pl2: pl2,
             pl4: pl4,
@@ -283,7 +283,7 @@ impl QmDrmDriver for QmDrmDriverXe
             status: status,
         };
 
-        Ok(QmDrmDeviceFreqs {
+        Ok(DrmDeviceFreqs {
             min_freq: min_val,
             cur_freq: cur_val,
             act_freq: act_val,
@@ -293,9 +293,9 @@ impl QmDrmDriver for QmDrmDriverXe
     }
 
     fn client_mem_info(&mut self,
-        mem_regs: &HashMap<String, QmDrmMemRegion>) -> Result<QmDrmClientMemInfo>
+        mem_regs: &HashMap<String, DrmMemRegion>) -> Result<DrmClientMemInfo>
     {
-        let mut cmi = QmDrmClientMemInfo::new();
+        let mut cmi = DrmClientMemInfo::new();
 
         for mr in mem_regs.values() {
             if mr.name.starts_with("system") || mr.name.starts_with("gtt") {
@@ -322,9 +322,9 @@ impl QmDrmDriver for QmDrmDriverXe
     }
 }
 
-impl QmDrmDriverXe
+impl DrmDriverXe
 {
-    pub fn new(qmd: &QmDrmDeviceInfo) -> Result<Rc<RefCell<dyn QmDrmDriver>>>
+    pub fn new(qmd: &DrmDeviceInfo) -> Result<Rc<RefCell<dyn DrmDriver>>>
     {
         let file = File::open(qmd.drm_minors[0].devnode.clone())?;
         let fd = file.as_raw_fd();
@@ -335,7 +335,7 @@ impl QmDrmDriverXe
         cpath.push_str(card);
 
         // TODO: handle more than one tile & gt
-        Ok(Rc::new(RefCell::new(QmDrmDriverXe {
+        Ok(Rc::new(RefCell::new(DrmDriverXe {
             dn_file: file,
             dn_fd: fd,
             freqs_dir: Path::new(&cpath).join("device/tile0/gt0/freq0"),

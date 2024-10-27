@@ -17,15 +17,15 @@ mod qmdrmclients;
 mod qmappdata;
 mod qmapp;
 
-use qmdrmdevices::QmDrmDevices;
-use qmappdata::QmAppData;
-use qmapp::QmApp;
+use qmdrmdevices::DrmDevices;
+use qmappdata::AppData;
+use qmapp::App;
 
 
 /// qmassa! - display DRM clients usage stats
 #[derive(Parser, Debug)]
 #[command(version, about, long_about = None)]
-pub struct QmArgs {
+pub struct Args {
     /// show only specific PCI device (default: all devices)
     #[arg(short, long)]
     dev_slot: Option<String>,
@@ -58,7 +58,7 @@ pub struct QmArgs {
 fn main() -> Result<()>
 {
     // parse command-line args
-    let args = QmArgs::parse();
+    let args = Args::parse();
 
     // set up logging, if needed
     if env::var_os(env_logger::DEFAULT_FILTER_ENV).is_some() {
@@ -106,7 +106,7 @@ fn main() -> Result<()>
     }
 
     // find all DRM subsystem devices
-    let mut qmds = QmDrmDevices::find_devices()
+    let mut qmds = DrmDevices::find_devices()
         .context("Failed to find DRM devices")?;
     if qmds.is_empty() {
         bail!("No DRM devices found");
@@ -115,10 +115,10 @@ fn main() -> Result<()>
     qmds.clients_pid_tree(base_pid.as_str());
 
     // get app data from live system info
-    let appdata = QmAppData::from(qmds);
+    let appdata = AppData::from(qmds);
 
     // create tui app and run its mainloop
-    let mut app = QmApp::from(appdata, args);
+    let mut app = App::from(appdata, args);
     app.run()?;
 
     Ok(())

@@ -7,7 +7,7 @@ use anyhow::Result;
 use log::debug;
 use libc;
 
-use crate::qmdrmfdinfo::QmDrmFdinfo;
+use crate::qmdrmfdinfo::DrmFdinfo;
 
 
 thread_local! {
@@ -17,14 +17,14 @@ thread_local! {
 }
 
 #[derive(Debug)]
-pub struct QmProcPids
+pub struct ProcPids
 {
     proc_iter: fs::ReadDir,
 }
 
-impl Iterator for QmProcPids
+impl Iterator for ProcPids
 {
-    type Item = Result<QmProcInfo>;
+    type Item = Result<ProcInfo>;
 
     fn next(&mut self) -> Option<Self::Item>
     {
@@ -51,7 +51,7 @@ impl Iterator for QmProcPids
                 continue;
             }
 
-            let nproc = QmProcInfo::from(&fp.to_string());
+            let nproc = ProcInfo::from(&fp.to_string());
             if let Err(err) = nproc {
                 debug!("ERR: skipping pid {:?}: {:?}", fp, err);
                 continue;
@@ -63,7 +63,7 @@ impl Iterator for QmProcPids
 }
 
 #[derive(Debug, Clone)]
-pub struct QmProcInfo
+pub struct ProcInfo
 {
     pub pid: u32,
     pub comm: String,
@@ -76,11 +76,11 @@ pub struct QmProcInfo
     last_update: time::Instant,
 }
 
-impl Default for QmProcInfo
+impl Default for ProcInfo
 {
-    fn default() -> QmProcInfo
+    fn default() -> ProcInfo
     {
-        QmProcInfo {
+        ProcInfo {
             pid: 0,
             comm: String::from(""),
             cmdline: String::from(""),
@@ -94,17 +94,17 @@ impl Default for QmProcInfo
     }
 }
 
-impl PartialEq for QmProcInfo
+impl PartialEq for ProcInfo
 {
-    fn eq(&self, other: &QmProcInfo) -> bool {
+    fn eq(&self, other: &ProcInfo) -> bool {
         self.pid == other.pid &&
             self.comm == other.comm &&
             self.cmdline == other.cmdline
     }
 }
-impl Eq for QmProcInfo {}
+impl Eq for ProcInfo {}
 
-impl QmProcInfo
+impl ProcInfo
 {
     pub fn get_children_procs(&self) -> Result<VecDeque<String>>
     {
@@ -126,9 +126,9 @@ impl QmProcInfo
         Ok(chids)
     }
 
-    pub fn get_drm_fdinfos(&self) -> Result<Vec<QmDrmFdinfo>>
+    pub fn get_drm_fdinfos(&self) -> Result<Vec<DrmFdinfo>>
     {
-        let mut res: Vec<QmDrmFdinfo> = Vec::new();
+        let mut res: Vec<DrmFdinfo> = Vec::new();
         let fddir = self.proc_dir.join("fd");
         let fdinfodir = self.proc_dir.join("fdinfo");
 
@@ -136,7 +136,7 @@ impl QmProcInfo
             let et = et?;
 
             let mut mn: u32 = 0;
-            let is_drm_fd = QmDrmFdinfo::is_drm_fd(&et.path(), &mut mn);
+            let is_drm_fd = DrmFdinfo::is_drm_fd(&et.path(), &mut mn);
             if let Err(err) = is_drm_fd {
                 debug!("ERR: failed to find fd {:?}: {:?}", et.path(), err);
                 continue;
@@ -147,7 +147,7 @@ impl QmProcInfo
             }
 
             let fipath = fdinfodir.join(et.path().file_name().unwrap());
-            let finfo = QmDrmFdinfo::from(&fipath, mn);
+            let finfo = DrmFdinfo::from(&fipath, mn);
             if let Err(err) = finfo {
                 debug!("ERR: failed to parse DRM fdinfo {:?}: {:?}", fipath, err);
                 continue;
@@ -207,9 +207,9 @@ impl QmProcInfo
         Ok(())
     }
 
-    pub fn from(npid: &String) -> Result<QmProcInfo>
+    pub fn from(npid: &String) -> Result<ProcInfo>
     {
-        let mut qmpi = QmProcInfo {
+        let mut qmpi = ProcInfo {
             pid: npid.parse()?,
             comm: String::from(""),
             cmdline: String::from(""),
@@ -230,8 +230,8 @@ impl QmProcInfo
         Ok(qmpi)
     }
 
-    pub fn iter_proc_pids() -> Result<QmProcPids>
+    pub fn iter_proc_pids() -> Result<ProcPids>
     {
-        Ok(QmProcPids { proc_iter: Path::new("/proc").read_dir()?, })
+        Ok(ProcPids { proc_iter: Path::new("/proc").read_dir()?, })
     }
 }

@@ -8,24 +8,24 @@ use anyhow::Result;
 use log::{debug, warn};
 use serde::{Deserialize, Serialize};
 
-use crate::qmprocinfo::QmProcInfo;
-use crate::qmdrmfdinfo::{QmDrmEngine, QmDrmMemRegion, QmDrmFdinfo};
-use crate::qmdrmdrivers::QmDrmDriver;
+use crate::qmprocinfo::ProcInfo;
+use crate::qmdrmfdinfo::{DrmEngine, DrmMemRegion, DrmFdinfo};
+use crate::qmdrmdrivers::DrmDriver;
 
 
 #[derive(Debug)]
-pub struct QmDrmEnginesAcum
+pub struct DrmEnginesAcum
 {
     pub acum_time: u64,
     pub acum_cycles: u64,
     pub acum_total_cycles: u64,
 }
 
-impl QmDrmEnginesAcum
+impl DrmEnginesAcum
 {
-    pub fn new() -> QmDrmEnginesAcum
+    pub fn new() -> DrmEnginesAcum
     {
-        QmDrmEnginesAcum {
+        DrmEnginesAcum {
             acum_time: 0,
             acum_cycles: 0,
             acum_total_cycles: 0,
@@ -34,18 +34,18 @@ impl QmDrmEnginesAcum
 }
 
 #[derive(Debug)]
-pub struct QmDrmEngineDelta
+pub struct DrmEngineDelta
 {
     pub delta_time: u64,
     pub delta_cycles: u64,
     pub delta_total_cycles: u64,
 }
 
-impl QmDrmEngineDelta
+impl DrmEngineDelta
 {
-    pub fn new() -> QmDrmEngineDelta
+    pub fn new() -> DrmEngineDelta
     {
-        QmDrmEngineDelta {
+        DrmEngineDelta {
             delta_time: 0,
             delta_cycles: 0,
             delta_total_cycles: 0,
@@ -54,7 +54,7 @@ impl QmDrmEngineDelta
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-pub struct QmDrmClientMemInfo
+pub struct DrmClientMemInfo
 {
     pub smem_used: u64,
     pub smem_rss: u64,
@@ -62,11 +62,11 @@ pub struct QmDrmClientMemInfo
     pub vram_rss: u64,
 }
 
-impl QmDrmClientMemInfo
+impl DrmClientMemInfo
 {
-    pub fn new() -> QmDrmClientMemInfo
+    pub fn new() -> DrmClientMemInfo
     {
-        QmDrmClientMemInfo {
+        DrmClientMemInfo {
             smem_used: 0,
             smem_rss: 0,
             vram_used: 0,
@@ -76,38 +76,38 @@ impl QmDrmClientMemInfo
 }
 
 #[derive(Debug)]
-pub struct QmDrmClientInfo
+pub struct DrmClientInfo
 {
     pub pci_dev: String,
     pub drm_minor: u32,
     pub client_id: u32,
-    pub proc: QmProcInfo,
+    pub proc: ProcInfo,
     pub fdinfo_path: PathBuf,
-    pub shared_procs: Vec<(QmProcInfo, PathBuf)>,
-    engs_last: HashMap<String, QmDrmEngine>,
-    engs_delta: HashMap<String, QmDrmEngineDelta>,
-    engs_acum: QmDrmEnginesAcum,
-    mem_regions: HashMap<String, QmDrmMemRegion>,
+    pub shared_procs: Vec<(ProcInfo, PathBuf)>,
+    engs_last: HashMap<String, DrmEngine>,
+    engs_delta: HashMap<String, DrmEngineDelta>,
+    engs_acum: DrmEnginesAcum,
+    mem_regions: HashMap<String, DrmMemRegion>,
     nr_updates: u64,
     ms_elapsed: u64,
     last_update: time::Instant,
-    driver: Option<Weak<RefCell<dyn QmDrmDriver>>>,
+    driver: Option<Weak<RefCell<dyn DrmDriver>>>,
 }
 
-impl Default for QmDrmClientInfo
+impl Default for DrmClientInfo
 {
-    fn default() -> QmDrmClientInfo
+    fn default() -> DrmClientInfo
     {
-        QmDrmClientInfo {
+        DrmClientInfo {
             pci_dev: String::from(""),
             drm_minor: 0,
             client_id: 0,
-            proc: QmProcInfo::default(),
+            proc: ProcInfo::default(),
             fdinfo_path: PathBuf::new(),
             shared_procs: Vec::new(),
             engs_last: HashMap::new(),
             engs_delta: HashMap::new(),
-            engs_acum: QmDrmEnginesAcum::new(),
+            engs_acum: DrmEnginesAcum::new(),
             mem_regions: HashMap::new(),
             nr_updates: 0,
             ms_elapsed: 0,
@@ -117,9 +117,9 @@ impl Default for QmDrmClientInfo
     }
 }
 
-impl QmDrmClientInfo
+impl DrmClientInfo
 {
-    pub fn mem_info(&self) -> QmDrmClientMemInfo
+    pub fn mem_info(&self) -> DrmClientMemInfo
     {
         if let Some(w_ref) = &self.driver {
             if let Some(drv_ref) = w_ref.upgrade() {
@@ -130,7 +130,7 @@ impl QmDrmClientInfo
             }
         }
 
-        QmDrmClientMemInfo::new()
+        DrmClientMemInfo::new()
     }
 
     pub fn eng_utilization(&self, eng: &String) -> f64
@@ -199,7 +199,7 @@ impl QmDrmClientInfo
         false
     }
 
-    pub fn update(&mut self, pinfo: QmProcInfo, fdi: QmDrmFdinfo)
+    pub fn update(&mut self, pinfo: ProcInfo, fdi: DrmFdinfo)
     {
         if self.proc != pinfo {
             self.proc = pinfo;  // fd might be shared
@@ -243,14 +243,14 @@ impl QmDrmClientInfo
         self.last_update = time::Instant::now();
     }
 
-    pub fn set_driver(&mut self, drv_wref: Weak<RefCell<dyn QmDrmDriver>>)
+    pub fn set_driver(&mut self, drv_wref: Weak<RefCell<dyn DrmDriver>>)
     {
         self.driver = Some(drv_wref);
     }
 
-    pub fn from(pinfo: QmProcInfo, fdi: QmDrmFdinfo) -> QmDrmClientInfo
+    pub fn from(pinfo: ProcInfo, fdi: DrmFdinfo) -> DrmClientInfo
     {
-        let mut cli = QmDrmClientInfo {
+        let mut cli = DrmClientInfo {
             pci_dev: fdi.pci_dev.clone(),
             drm_minor: fdi.drm_minor,
             client_id: fdi.client_id,
@@ -258,8 +258,8 @@ impl QmDrmClientInfo
         };
 
         for nm in fdi.engines.keys() {
-            cli.engs_last.insert(nm.clone(), QmDrmEngine::new(nm.as_str()));
-            cli.engs_delta.insert(nm.clone(), QmDrmEngineDelta::new());
+            cli.engs_last.insert(nm.clone(), DrmEngine::new(nm.as_str()));
+            cli.engs_delta.insert(nm.clone(), DrmEngineDelta::new());
         }
 
         cli.update(pinfo, fdi);
@@ -269,16 +269,16 @@ impl QmDrmClientInfo
 }
 
 #[derive(Debug)]
-pub struct QmDrmClients
+pub struct DrmClients
 {
     base_pid: String,
-    infos: HashMap<String, Rc<RefCell<Vec<QmDrmClientInfo>>>>,
+    infos: HashMap<String, Rc<RefCell<Vec<DrmClientInfo>>>>,
 }
 
-impl QmDrmClients
+impl DrmClients
 {
     pub fn set_dev_clients_driver(&mut self,
-        dev: &String, drv_wref: Weak<RefCell<dyn QmDrmDriver>>)
+        dev: &String, drv_wref: Weak<RefCell<dyn DrmDriver>>)
     {
         if !self.infos.contains_key(dev) {
             return;
@@ -291,7 +291,7 @@ impl QmDrmClients
     }
 
     pub fn device_clients(&self,
-        dev: &String) -> Option<Rc<RefCell<Vec<QmDrmClientInfo>>>>
+        dev: &String) -> Option<Rc<RefCell<Vec<DrmClientInfo>>>>
     {
         if let Some(vref) = self.infos.get(dev) {
             return Some(vref.clone());
@@ -301,8 +301,8 @@ impl QmDrmClients
     }
 
     fn map_has_client<'a>(map: &'a mut HashMap<String,
-        Rc<RefCell<Vec<QmDrmClientInfo>>>>, dev: &'a String,
-        minor: u32, id: u32) -> Option<RefMut<'a, QmDrmClientInfo>>
+        Rc<RefCell<Vec<DrmClientInfo>>>>, dev: &'a String,
+        minor: u32, id: u32) -> Option<RefMut<'a, DrmClientInfo>>
     {
         if !map.contains_key(dev) {
             return None;
@@ -325,8 +325,8 @@ impl QmDrmClients
     }
 
     fn map_remove_client(map: &mut HashMap<String,
-        Rc<RefCell<Vec<QmDrmClientInfo>>>>, dev: &String,
-        minor: u32, id: u32) -> Option<QmDrmClientInfo>
+        Rc<RefCell<Vec<DrmClientInfo>>>>, dev: &String,
+        minor: u32, id: u32) -> Option<DrmClientInfo>
     {
         if !map.contains_key(dev) {
             return None
@@ -349,10 +349,10 @@ impl QmDrmClients
     }
 
     fn map_insert_client(map: &mut HashMap<String,
-        Rc<RefCell<Vec<QmDrmClientInfo>>>>, dev: String, cli: QmDrmClientInfo)
+        Rc<RefCell<Vec<DrmClientInfo>>>>, dev: String, cli: DrmClientInfo)
     {
         if !map.contains_key(&dev) {
-            let mut vlst: Vec<QmDrmClientInfo> = Vec::new();
+            let mut vlst: Vec<DrmClientInfo> = Vec::new();
             vlst.push(cli);
             map.insert(dev, Rc::new(RefCell::new(vlst)));
         } else {
@@ -362,11 +362,11 @@ impl QmDrmClients
     }
 
     fn process_fdinfos(&mut self,
-        ninfos: &mut HashMap<String, Rc<RefCell<Vec<QmDrmClientInfo>>>>,
-        nproc: &QmProcInfo, fdinfos: Vec<QmDrmFdinfo>)
+        ninfos: &mut HashMap<String, Rc<RefCell<Vec<DrmClientInfo>>>>,
+        nproc: &ProcInfo, fdinfos: Vec<DrmFdinfo>)
     {
         for fdi in fdinfos {
-            if let Some(mut cliref) = QmDrmClients::map_has_client(ninfos,
+            if let Some(mut cliref) = DrmClients::map_has_client(ninfos,
                 &fdi.pci_dev, fdi.drm_minor, fdi.client_id) {
                 cliref.shared_procs.push((nproc.clone(), fdi.path));
                 debug!("INF: repeated drm client/fd info: proc={:?}, drm-minor={:?}, drm-client-id={:?}", nproc, fdi.drm_minor, fdi.client_id);
@@ -374,13 +374,13 @@ impl QmDrmClients
             }
 
             let pci_dev = fdi.pci_dev.clone();
-            if let Some(mut cli) = QmDrmClients::map_remove_client(
+            if let Some(mut cli) = DrmClients::map_remove_client(
                 &mut self.infos, &fdi.pci_dev, fdi.drm_minor, fdi.client_id) {
                 cli.update(nproc.clone(), fdi);
-                QmDrmClients::map_insert_client(ninfos, pci_dev, cli);
+                DrmClients::map_insert_client(ninfos, pci_dev, cli);
             } else {
-                let cli = QmDrmClientInfo::from(nproc.clone(), fdi);
-                QmDrmClients::map_insert_client(ninfos, pci_dev, cli);
+                let cli = DrmClientInfo::from(nproc.clone(), fdi);
+                DrmClients::map_insert_client(ninfos, pci_dev, cli);
             }
         }
     }
@@ -388,9 +388,9 @@ impl QmDrmClients
     fn scan_all_pids(&mut self) -> Result<()>
     {
         let mut ninfos: HashMap<String,
-            Rc<RefCell<Vec<QmDrmClientInfo>>>> = HashMap::new();
+            Rc<RefCell<Vec<DrmClientInfo>>>> = HashMap::new();
 
-        let proc_iter = QmProcInfo::iter_proc_pids();
+        let proc_iter = ProcInfo::iter_proc_pids();
         if let Err(err) = proc_iter {
             debug!("ERR: couldn't get pids info in /proc: {:?}", err);
         } else {
@@ -427,14 +427,14 @@ impl QmDrmClients
     fn scan_pid_tree(&mut self) -> Result<()>
     {
         let mut ninfos: HashMap<String,
-            Rc<RefCell<Vec<QmDrmClientInfo>>>> = HashMap::new();
+            Rc<RefCell<Vec<DrmClientInfo>>>> = HashMap::new();
         let mut pidq = VecDeque::from([self.base_pid.clone(),]);
 
         while !pidq.is_empty() {
             let npid = pidq.pop_front().unwrap();
 
             // new process info
-            let nproc = QmProcInfo::from(&npid);
+            let nproc = ProcInfo::from(&npid);
             if let Err(err) = nproc {
                 debug!("ERR: Couldn't get proc info for {:?}: {:?}", npid, err);
                 continue;
@@ -492,9 +492,9 @@ impl QmDrmClients
         Ok(())
     }
 
-    pub fn from_pid_tree(at_pid: &str) -> QmDrmClients
+    pub fn from_pid_tree(at_pid: &str) -> DrmClients
     {
-        QmDrmClients {
+        DrmClients {
             base_pid: at_pid.to_string(),
             infos: HashMap::new(),
         }

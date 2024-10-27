@@ -8,28 +8,28 @@ use log::{debug, warn};
 use serde::{Deserialize, Serialize};
 use udev;
 
-use crate::qmdrmclients::{QmDrmClients, QmDrmClientInfo};
-use crate::qmdrmdrivers::{self, QmDrmDriver};
+use crate::qmdrmclients::{DrmClients, DrmClientInfo};
+use crate::qmdrmdrivers::{self, DrmDriver};
 
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub enum QmDrmDeviceType
+pub enum DrmDeviceType
 {
     Unknown,
     Integrated,
     Discrete,
 }
 
-impl QmDrmDeviceType
+impl DrmDeviceType
 {
     pub fn is_discrete(&self) -> bool
     {
-        *self == QmDrmDeviceType::Discrete
+        *self == DrmDeviceType::Discrete
     }
 
     pub fn is_integrated(&self) -> bool
     {
-        *self == QmDrmDeviceType::Integrated
+        *self == DrmDeviceType::Integrated
     }
 
     pub fn to_string(&self) -> String
@@ -45,7 +45,7 @@ impl QmDrmDeviceType
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct QmDrmDeviceThrottleReasons
+pub struct DrmDeviceThrottleReasons
 {
     pub pl1: bool,
     pub pl2: bool,
@@ -58,11 +58,11 @@ pub struct QmDrmDeviceThrottleReasons
     pub status: bool
 }
 
-impl QmDrmDeviceThrottleReasons
+impl DrmDeviceThrottleReasons
 {
-    pub fn new() -> QmDrmDeviceThrottleReasons
+    pub fn new() -> DrmDeviceThrottleReasons
     {
-        QmDrmDeviceThrottleReasons {
+        DrmDeviceThrottleReasons {
             pl1: false,
             pl2: false,
             pl4: false,
@@ -77,31 +77,31 @@ impl QmDrmDeviceThrottleReasons
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct QmDrmDeviceFreqs
+pub struct DrmDeviceFreqs
 {
     pub min_freq: u64,
     pub cur_freq: u64,
     pub act_freq: u64,
     pub max_freq: u64,
-    pub throttle_reasons: QmDrmDeviceThrottleReasons,
+    pub throttle_reasons: DrmDeviceThrottleReasons,
 }
 
-impl QmDrmDeviceFreqs
+impl DrmDeviceFreqs
 {
-    pub fn new() -> QmDrmDeviceFreqs
+    pub fn new() -> DrmDeviceFreqs
     {
-        QmDrmDeviceFreqs {
+        DrmDeviceFreqs {
             min_freq: 0,
             cur_freq: 0,
             act_freq: 0,
             max_freq: 0,
-            throttle_reasons: QmDrmDeviceThrottleReasons::new(),
+            throttle_reasons: DrmDeviceThrottleReasons::new(),
         }
     }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct QmDrmDeviceMemInfo
+pub struct DrmDeviceMemInfo
 {
     pub smem_total: u64,
     pub smem_used: u64,
@@ -109,11 +109,11 @@ pub struct QmDrmDeviceMemInfo
     pub vram_used: u64,
 }
 
-impl QmDrmDeviceMemInfo
+impl DrmDeviceMemInfo
 {
-    pub fn new() -> QmDrmDeviceMemInfo
+    pub fn new() -> DrmDeviceMemInfo
     {
-        QmDrmDeviceMemInfo {
+        DrmDeviceMemInfo {
             smem_total: 0,
             smem_used: 0,
             vram_total: 0,
@@ -123,15 +123,15 @@ impl QmDrmDeviceMemInfo
 }
 
 #[derive(Debug)]
-pub struct QmDrmMinorInfo
+pub struct DrmMinorInfo
 {
     pub devnode: String,
     pub drm_minor: u32,
 }
 
-impl QmDrmMinorInfo
+impl DrmMinorInfo
 {
-    pub fn from(devnode: &String, devnum: u64) -> Result<QmDrmMinorInfo>
+    pub fn from(devnode: &String, devnum: u64) -> Result<DrmMinorInfo>
     {
         let mj: u32;
         let mn: u32;
@@ -146,7 +146,7 @@ impl QmDrmMinorInfo
                 mj, devnode);
         }
 
-        Ok(QmDrmMinorInfo {
+        Ok(DrmMinorInfo {
             devnode: devnode.clone(),
             drm_minor: mn,
         })
@@ -154,32 +154,32 @@ impl QmDrmMinorInfo
 }
 
 #[derive(Debug)]
-pub struct QmDrmDeviceInfo
+pub struct DrmDeviceInfo
 {
     pub pci_dev: String,                // sysname or PCI_SLOT_NAME in udev
-    pub dev_type: QmDrmDeviceType,
-    pub freqs: QmDrmDeviceFreqs,
-    pub mem_info: QmDrmDeviceMemInfo,
+    pub dev_type: DrmDeviceType,
+    pub freqs: DrmDeviceFreqs,
+    pub mem_info: DrmDeviceMemInfo,
     pub vendor_id: String,
     pub vendor: String,
     pub device_id: String,
     pub device: String,
     pub revision: String,
     pub drv_name: String,
-    pub drm_minors: Vec<QmDrmMinorInfo>,
-    driver: Option<Rc<RefCell<dyn QmDrmDriver>>>,
-    drm_clis: Option<Rc<RefCell<Vec<QmDrmClientInfo>>>>,
+    pub drm_minors: Vec<DrmMinorInfo>,
+    driver: Option<Rc<RefCell<dyn DrmDriver>>>,
+    drm_clis: Option<Rc<RefCell<Vec<DrmClientInfo>>>>,
 }
 
-impl Default for QmDrmDeviceInfo
+impl Default for DrmDeviceInfo
 {
-    fn default() -> QmDrmDeviceInfo
+    fn default() -> DrmDeviceInfo
     {
-        QmDrmDeviceInfo {
+        DrmDeviceInfo {
             pci_dev: String::from(""),
-            dev_type: QmDrmDeviceType::Unknown,
-            freqs: QmDrmDeviceFreqs::new(),
-            mem_info: QmDrmDeviceMemInfo::new(),
+            dev_type: DrmDeviceType::Unknown,
+            freqs: DrmDeviceFreqs::new(),
+            mem_info: DrmDeviceMemInfo::new(),
             vendor_id: String::from(""),
             vendor: String::from(""),
             device_id: String::from(""),
@@ -193,7 +193,7 @@ impl Default for QmDrmDeviceInfo
     }
 }
 
-impl QmDrmDeviceInfo
+impl DrmDeviceInfo
 {
     pub fn eng_utilization(&self, eng: &String) -> f64
     {
@@ -216,7 +216,7 @@ impl QmDrmDeviceInfo
         0.0
     }
 
-    pub fn clients(&self) -> Option<Weak<RefCell<Vec<QmDrmClientInfo>>>>
+    pub fn clients(&self) -> Option<Weak<RefCell<Vec<DrmClientInfo>>>>
     {
         if let Some(vref) = &self.drm_clis {
             return Some(Rc::downgrade(&vref));
@@ -240,15 +240,15 @@ impl QmDrmDeviceInfo
 }
 
 #[derive(Debug)]
-pub struct QmDrmDevices
+pub struct DrmDevices
 {
-    infos: HashMap<String, QmDrmDeviceInfo>,
-    qmclis: Option<QmDrmClients>,
+    infos: HashMap<String, DrmDeviceInfo>,
+    qmclis: Option<DrmClients>,
 }
 
-impl QmDrmDevices
+impl DrmDevices
 {
-    pub fn device_info(&self, dev: &String) -> Option<&QmDrmDeviceInfo>
+    pub fn device_info(&self, dev: &String) -> Option<&DrmDeviceInfo>
     {
         self.infos.get(dev)
     }
@@ -294,12 +294,12 @@ impl QmDrmDevices
 
     pub fn clients_pid_tree(&mut self, at_pid: &str)
     {
-        self.qmclis = Some(QmDrmClients::from_pid_tree(at_pid));
+        self.qmclis = Some(DrmClients::from_pid_tree(at_pid));
     }
 
-    fn new() -> QmDrmDevices
+    fn new() -> DrmDevices
     {
-        QmDrmDevices {
+        DrmDevices {
             infos: HashMap::new(),
             qmclis: None,
         }
@@ -336,9 +336,9 @@ impl QmDrmDevices
         device_id.clone()
     }
 
-    pub fn find_devices() -> Result<QmDrmDevices>
+    pub fn find_devices() -> Result<DrmDevices>
     {
-        let mut qmds = QmDrmDevices::new();
+        let mut qmds = DrmDevices::new();
 
         let mut enumerator = udev::Enumerator::new()?;
         enumerator.match_subsystem("drm")?;
@@ -358,9 +358,9 @@ impl QmDrmDevices
                 };
 
                 let vendor_id = String::from(&pciid[0..4]);
-                let vendor = QmDrmDevices::find_vendor(&vendor_id);
+                let vendor = DrmDevices::find_vendor(&vendor_id);
                 let device_id = String::from(&pciid[5..9]);
-                let device = QmDrmDevices::find_device(&vendor_id, &device_id);
+                let device = DrmDevices::find_device(&vendor_id, &device_id);
                 let revision = pdev.attribute_value("revision")
                     .unwrap().to_str().unwrap();
                 let revision = if revision.starts_with("0x") {
@@ -371,7 +371,7 @@ impl QmDrmDevices
                 let drv_name = String::from(pdev.driver()
                     .unwrap().to_str().unwrap());
 
-                let ndinf = QmDrmDeviceInfo {
+                let ndinf = DrmDeviceInfo {
                     pci_dev: sysname.clone(),
                     vendor_id: vendor_id,
                     vendor: vendor,
@@ -386,7 +386,7 @@ impl QmDrmDevices
 
             let devnode = String::from(d.devnode().unwrap().to_str().unwrap());
             let devnum = d.devnum().unwrap();
-            let minf = QmDrmMinorInfo::from(&devnode, devnum)?;
+            let minf = DrmMinorInfo::from(&devnode, devnum)?;
 
             let dinf = qmds.infos.get_mut(&sysname).unwrap();
             dinf.drm_minors.push(minf);
