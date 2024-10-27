@@ -120,7 +120,8 @@ and 100%.
 
 ## Acknowledgements
 
-qmassa uses <a href="https://ratatui.rs/">Ratatui</a> for displaying a nice text-based UI and leverages [many](Cargo.toml) other Rust crates.
+qmassa uses <a href="https://ratatui.rs/">Ratatui</a> for displaying a nice
+terminal-based UI and leverages [many](Cargo.toml) other Rust crates.
 
 ## License
 
