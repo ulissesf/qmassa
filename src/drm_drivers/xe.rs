@@ -16,14 +16,14 @@ use anyhow::Result;
 use log::warn;
 use libc;
 
-use crate::qmdrmdrivers::DrmDriver;
-use crate::qmdrmdrivers::qmhelpers::__IncompleteArrayField;
-use crate::qmdrmdevices::{
+use crate::drm_drivers::DrmDriver;
+use crate::drm_drivers::helpers::__IncompleteArrayField;
+use crate::drm_devices::{
     DrmDeviceType, DrmDeviceFreqs, DrmDeviceThrottleReasons,
     DrmDeviceMemInfo, DrmDeviceInfo
 };
-use crate::qmdrmfdinfo::DrmMemRegion;
-use crate::qmdrmclients::DrmClientMemInfo;
+use crate::drm_fdinfo::DrmMemRegion;
+use crate::drm_clients::DrmClientMemInfo;
 
 
 //

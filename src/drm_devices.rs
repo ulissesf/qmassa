@@ -8,8 +8,8 @@ use log::{debug, warn};
 use serde::{Deserialize, Serialize};
 use udev;
 
-use crate::qmdrmclients::{DrmClients, DrmClientInfo};
-use crate::qmdrmdrivers::{self, DrmDriver};
+use crate::drm_clients::{DrmClients, DrmClientInfo};
+use crate::drm_drivers::{self, DrmDriver};
 
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -392,7 +392,7 @@ impl DrmDevices
             dinf.drm_minors.push(minf);
 
             if dinf.drm_minors.len() == 1 {
-                if let Some(drv_ref) = qmdrmdrivers::driver_from(dinf)? {
+                if let Some(drv_ref) = drm_drivers::driver_from(dinf)? {
                     let dref = drv_ref.clone();
                     let mut drv_b = dref.borrow_mut();
 

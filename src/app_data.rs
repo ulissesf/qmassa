@@ -5,9 +5,9 @@ use std::time;
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
 
-use crate::qmdrmdevices::{
+use crate::drm_devices::{
     DrmDeviceFreqs, DrmDeviceMemInfo, DrmDeviceInfo, DrmDevices};
-use crate::qmdrmclients::{DrmClientMemInfo, DrmClientInfo};
+use crate::drm_clients::{DrmClientMemInfo, DrmClientInfo};
 
 
 const QM_APP_DATA_MAX_NR_STATS: usize = 10;

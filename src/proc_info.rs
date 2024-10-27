@@ -7,7 +7,7 @@ use anyhow::Result;
 use log::debug;
 use libc;
 
-use crate::qmdrmfdinfo::DrmFdinfo;
+use crate::drm_fdinfo::DrmFdinfo;
 
 
 thread_local! {

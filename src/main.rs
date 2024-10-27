@@ -9,17 +9,17 @@ use env_logger;
 use clap::{Parser, ArgAction};
 use libc;
 
-mod qmdrmdevices;
-mod qmdrmdrivers;
-mod qmdrmfdinfo;
-mod qmprocinfo;
-mod qmdrmclients;
-mod qmappdata;
-mod qmapp;
+mod drm_devices;
+mod drm_drivers;
+mod drm_fdinfo;
+mod proc_info;
+mod drm_clients;
+mod app_data;
+mod app;
 
-use qmdrmdevices::DrmDevices;
-use qmappdata::AppData;
-use qmapp::App;
+use drm_devices::DrmDevices;
+use app_data::AppData;
+use app::App;
 
 
 /// qmassa! - display DRM clients usage stats

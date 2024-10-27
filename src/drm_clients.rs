@@ -8,9 +8,9 @@ use anyhow::Result;
 use log::{debug, warn};
 use serde::{Deserialize, Serialize};
 
-use crate::qmprocinfo::ProcInfo;
-use crate::qmdrmfdinfo::{DrmEngine, DrmMemRegion, DrmFdinfo};
-use crate::qmdrmdrivers::DrmDriver;
+use crate::proc_info::ProcInfo;
+use crate::drm_fdinfo::{DrmEngine, DrmMemRegion, DrmFdinfo};
+use crate::drm_drivers::DrmDriver;
 
 
 #[derive(Debug)]

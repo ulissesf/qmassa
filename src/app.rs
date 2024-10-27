@@ -18,7 +18,7 @@ use ratatui::{
 };
 use tui_widgets::scrollview::{ScrollView, ScrollViewState};
 
-use crate::qmappdata::{AppData, AppDataDeviceState, AppDataClientStats};
+use crate::app_data::{AppData, AppDataDeviceState, AppDataClientStats};
 use crate::Args;
 
 

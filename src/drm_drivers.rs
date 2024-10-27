@@ -5,14 +5,14 @@ use std::rc::Rc;
 
 use anyhow::Result;
 
-use crate::qmdrmdevices::{
+use crate::drm_devices::{
     DrmDeviceType, DrmDeviceFreqs,
     DrmDeviceMemInfo, DrmDeviceInfo
 };
-use crate::qmdrmfdinfo::DrmMemRegion;
-use crate::qmdrmclients::DrmClientMemInfo;
+use crate::drm_fdinfo::DrmMemRegion;
+use crate::drm_clients::DrmClientMemInfo;
 
-mod qmhelpers;
+mod helpers;
 mod xe;
 use xe::DrmDriverXe;
 mod i915;
