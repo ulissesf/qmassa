@@ -76,6 +76,7 @@ impl DrmClientMemInfo
 }
 
 #[derive(Debug)]
+#[allow(dead_code)]
 pub struct DrmClientInfo
 {
     pub pci_dev: String,

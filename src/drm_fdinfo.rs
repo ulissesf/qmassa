@@ -8,6 +8,7 @@ use libc;
 
 
 #[derive(Debug)]
+#[allow(dead_code)]
 pub struct DrmEngine
 {
     pub name: String,
