@@ -4,7 +4,8 @@ TODO
 Features
 --------
 
-* option to create png files for different plotted graphs (great idea from Rodrigo Vivi)
+* [Ulisses WIP] improve/find mainloop to support different resolution timers
+* [Ulisses WIP] option to create png files for different plotted graphs (great idea from Rodrigo Vivi)
 * show device power usage for igfx and dgfx (hwmon)
   * [Rodrigo Vivi WIP] expose generic QmHwMon interface to read the data
   * integrate with app data layer and UI
@@ -18,8 +19,8 @@ Features
 Code Quality/Structure
 ----------------------
 
-* provide both lib and app crates
-* improve code comments
 * review
   * struct/fn naming and visibility of fields/methods
   * add more Option<> fields, store refs and not owned vals
+* improve code comments
+* provide both lib and app crates

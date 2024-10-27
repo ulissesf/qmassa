@@ -1,6 +1,9 @@
 # qmassa!
 
-qmassa is a top-like Rust-based tool for displaying GPU devices usage stats.
+qmassa is a top-like Rust-based tool for displaying GPU devices usage
+stats on Linux.
+
+![qmassa](assets/qmassa-v0.2.1.gif?raw=true)
 
 ## General description and driver support
 
@@ -117,7 +120,7 @@ and 100%.
 
 ## Acknowledgements
 
-qmassa uses <a href="https://ratatui.rs/">Ratatui</a> for displaying a nice text-based UI and leverages [many](https://github.com/ulissesf/qmassa/blob/main/Cargo.toml) other Rust crates.
+qmassa uses <a href="https://ratatui.rs/">Ratatui</a> for displaying a nice text-based UI and leverages [many](Cargo.toml) other Rust crates.
 
 ## License
 
