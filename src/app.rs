@@ -299,7 +299,6 @@ impl App
         let mut tr_pl1 = Vec::new();
         let mut tr_status = Vec::new();
 
-
         for (fqs, xval) in dinfo.dev_stats.freqs.iter().zip(x_vals.iter()) {
             maxy = max(maxy, fqs.max_freq);
             miny = min(miny, fqs.min_freq);
@@ -331,25 +330,25 @@ impl App
         let datasets = vec![
             Dataset::default()
                 .name("Requested")
-                .marker(symbols::Marker::Dot)
+                .marker(symbols::Marker::Braille)
                 .style(tailwind::BLUE.c700)
                 .graph_type(GraphType::Line)
                 .data(&cur_freq_ds),
             Dataset::default()
                 .name("Actual")
-                .marker(symbols::Marker::Dot)
+                .marker(symbols::Marker::Braille)
                 .style(tailwind::GREEN.c700)
                 .graph_type(GraphType::Line)
                 .data(&act_freq_ds),
             Dataset::default()
                 .name("Throttle: PL1")
-                .marker(symbols::Marker::Dot)
+                .marker(symbols::Marker::Braille)
                 .style(tailwind::RED.c700)
                 .graph_type(GraphType::Line)
                 .data(&tr_pl1),
             Dataset::default()
                 .name("Throttle: Status")
-                .marker(symbols::Marker::Dot)
+                .marker(symbols::Marker::Braille)
                 .style(tailwind::ORANGE.c700)
                 .graph_type(GraphType::Line)
                 .data(&tr_status),
@@ -366,9 +365,9 @@ impl App
                 .style(Style::new().white())
                 .bounds(y_bounds)
                 .labels(y_axis))
-            .legend_position(Some(LegendPosition::TopRight))
+            .legend_position(Some(LegendPosition::BottomLeft))
             .hidden_legend_constraints((Constraint::Min(0), Constraint::Min(0)))
-            .style(Style::new().on_black()),
+            .style(Style::new().bold().on_black()),
             freqs_area);
     }
 

@@ -10,11 +10,11 @@ use crate::drm_devices::{
 use crate::drm_clients::{DrmClientMemInfo, DrmClientInfo};
 
 
-const QM_APP_DATA_MAX_NR_STATS: usize = 10;
+const APP_DATA_MAX_NR_STATS: usize = 40;
 
 fn limited_vec_push<T>(vlst: &mut Vec<T>, vitem: T)
 {
-    if vlst.len() == QM_APP_DATA_MAX_NR_STATS {
+    if vlst.len() == APP_DATA_MAX_NR_STATS {
         vlst.drain(..1);
     }
     vlst.push(vitem);
