@@ -19,8 +19,5 @@ Features
 Code Quality/Structure
 ----------------------
 
-* review
-  * struct/fn naming and visibility of fields/methods
-  * add more Option<> fields, store refs and not owned vals
 * improve code comments
 * provide both lib and app crates
