@@ -7,6 +7,17 @@
 pub const DRM_IOCTL_BASE: u64 = 'd' as u64;
 pub const DRM_COMMAND_BASE: u64 = 0x40;
 
+macro_rules! drm_iow
+{
+    ($nr: expr, $sz: expr) => {
+        ::nix::request_code_write!(
+            $crate::drm_drivers::helpers::DRM_IOCTL_BASE,
+            $crate::drm_drivers::helpers::DRM_COMMAND_BASE + $nr,
+            $sz)
+    }
+}
+pub (crate) use drm_iow;
+
 macro_rules! drm_iowr
 {
     ($nr: expr, $sz: expr) => {

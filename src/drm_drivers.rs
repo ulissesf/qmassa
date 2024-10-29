@@ -17,6 +17,8 @@ mod xe;
 use xe::DrmDriverXe;
 mod i915;
 use i915::DrmDriveri915;
+mod amdgpu;
+use amdgpu::DrmDriverAmdgpu;
 
 
 pub trait DrmDriver
@@ -67,6 +69,7 @@ pub fn driver_from(
         fn(&DrmDeviceInfo) -> Result<Rc<RefCell<dyn DrmDriver>>>)] = &[
         ("xe", DrmDriverXe::new),
         ("i915", DrmDriveri915::new),
+        ("amdgpu", DrmDriverAmdgpu::new),
     ];
 
     for (dn, drv_newfunc) in drvs {
