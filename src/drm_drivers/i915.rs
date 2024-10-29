@@ -17,7 +17,7 @@ use log::warn;
 use libc;
 
 use crate::drm_drivers::DrmDriver;
-use crate::drm_drivers::helpers::__IncompleteArrayField;
+use crate::drm_drivers::helpers::{drm_iowr, __IncompleteArrayField};
 use crate::drm_devices::{
     DrmDeviceType, DrmDeviceFreqs, DrmDeviceThrottleReasons,
     DrmDeviceMemInfo, DrmDeviceInfo
@@ -26,9 +26,7 @@ use crate::drm_fdinfo::DrmMemRegion;
 use crate::drm_clients::DrmClientMemInfo;
 
 
-//
 // code modified from rust-bindgen 0.69.4 run on part of kernel's i915_drm.h
-//
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
 struct drm_i915_gem_memory_class_instance {
@@ -89,8 +87,9 @@ struct drm_i915_query {
     items_ptr: u64,
 }
 
-// generated manually (use nix crate if more are needed)
-const DRM_IOCTL_I915_QUERY: u64 = 3222299769;
+const DRM_I915_QUERY: u64 = 0x39;
+const DRM_IOCTL_I915_QUERY: u64 = drm_iowr!(DRM_I915_QUERY,
+    mem::size_of::<drm_i915_query>());
 
 #[derive(Debug)]
 pub struct DrmDriveri915

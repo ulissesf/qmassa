@@ -17,7 +17,7 @@ use log::warn;
 use libc;
 
 use crate::drm_drivers::DrmDriver;
-use crate::drm_drivers::helpers::__IncompleteArrayField;
+use crate::drm_drivers::helpers::{drm_iowr, __IncompleteArrayField};
 use crate::drm_devices::{
     DrmDeviceType, DrmDeviceFreqs, DrmDeviceThrottleReasons,
     DrmDeviceMemInfo, DrmDeviceInfo
@@ -26,9 +26,7 @@ use crate::drm_fdinfo::DrmMemRegion;
 use crate::drm_clients::DrmClientMemInfo;
 
 
-//
 // code modified from rust-bindgen 0.69.4 run on part of kernel's xe_drm.h
-//
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
 struct drm_xe_mem_region {
@@ -82,8 +80,9 @@ struct drm_xe_device_query {
     reserved: [u64; 2usize],
 }
 
-// generated manually (use nix crate if more are needed)
-const DRM_IOCTL_XE_DEVICE_QUERY: u64 = 3223872576;
+const DRM_XE_DEVICE_QUERY: u64 = 0x00;
+const DRM_IOCTL_XE_DEVICE_QUERY: u64 = drm_iowr!(DRM_XE_DEVICE_QUERY,
+    mem::size_of::<drm_xe_device_query>());
 
 #[derive(Debug)]
 pub struct DrmDriverXe
