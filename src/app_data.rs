@@ -342,7 +342,7 @@ impl AppData
     {
         AppData {
             state: AppDataState::new(),
-            qmds: qmds,
+            qmds,
             start_time: time::Instant::now(),
         }
     }

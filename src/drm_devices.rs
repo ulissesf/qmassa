@@ -375,12 +375,12 @@ impl DrmDevices
 
                 let ndinf = DrmDeviceInfo {
                     pci_dev: sysname.clone(),
-                    vendor_id: vendor_id,
-                    vendor: vendor,
-                    device_id: device_id,
-                    device: device,
-                    revision: revision,
-                    drv_name: drv_name,
+                    vendor_id,
+                    vendor,
+                    device_id,
+                    device,
+                    revision,
+                    drv_name,
                     ..Default::default()
                 };
                 qmds.infos.insert(sysname.clone(), ndinf);
