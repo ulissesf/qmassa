@@ -154,6 +154,12 @@ impl ProcInfo
             }
             let finfo = finfo.unwrap();
 
+            if finfo.pci_dev.is_empty() {
+                debug!("INF: DRM fdinfo {:?} with no PCI dev, ignoring.",
+                    fipath);
+                continue;
+            }
+
             res.push(finfo);
         }
 
