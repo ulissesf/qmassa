@@ -100,7 +100,7 @@ impl Default for DrmClientInfo
     fn default() -> DrmClientInfo
     {
         DrmClientInfo {
-            pci_dev: String::from(""),
+            pci_dev: String::new(),
             drm_minor: 0,
             client_id: 0,
             proc: ProcInfo::default(),

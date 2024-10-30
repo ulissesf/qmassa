@@ -31,7 +31,7 @@ impl Default for DrmEngine
     fn default() -> DrmEngine
     {
         DrmEngine {
-            name: String::from(""),
+            name: String::new(),
             capacity: 1,
             time: 0,
             cycles: 0,
@@ -76,7 +76,7 @@ impl Default for DrmMemRegion
     fn default() -> DrmMemRegion
     {
         DrmMemRegion {
-            name: String::from(""),
+            name: String::new(),
             total: 0,
             shared: 0,
             resident: 0,
@@ -113,7 +113,7 @@ impl Default for DrmFdinfo
     fn default() -> DrmFdinfo
     {
         DrmFdinfo {
-            pci_dev: String::from(""),
+            pci_dev: String::new(),
             drm_minor: 0,
             client_id: 0,
             path: PathBuf::new(),

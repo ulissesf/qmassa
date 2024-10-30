@@ -82,8 +82,8 @@ impl Default for ProcInfo
     {
         ProcInfo {
             pid: 0,
-            comm: String::from(""),
-            cmdline: String::from(""),
+            comm: String::new(),
+            cmdline: String::new(),
             proc_dir: PathBuf::new(),
             cputime_last: 0,
             cputime_delta: 0,
@@ -211,8 +211,8 @@ impl ProcInfo
     {
         let mut qmpi = ProcInfo {
             pid: npid.parse()?,
-            comm: String::from(""),
-            cmdline: String::from(""),
+            comm: String::new(),
+            cmdline: String::new(),
             proc_dir: Path::new("/proc").join(npid.as_str()),
             ..Default::default()
         };

@@ -178,16 +178,16 @@ impl Default for DrmDeviceInfo
     fn default() -> DrmDeviceInfo
     {
         DrmDeviceInfo {
-            pci_dev: String::from(""),
+            pci_dev: String::new(),
             dev_type: DrmDeviceType::Unknown,
             freqs: DrmDeviceFreqs::new(),
             mem_info: DrmDeviceMemInfo::new(),
-            vendor_id: String::from(""),
-            vendor: String::from(""),
-            device_id: String::from(""),
-            device: String::from(""),
-            revision: String::from(""),
-            drv_name: String::from(""),
+            vendor_id: String::new(),
+            vendor: String::new(),
+            device_id: String::new(),
+            device: String::new(),
+            revision: String::new(),
+            drv_name: String::new(),
             drm_minors: Vec::new(),
             driver: None,
             drm_clis: None,
