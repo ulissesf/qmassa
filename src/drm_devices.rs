@@ -77,6 +77,26 @@ impl DrmDeviceThrottleReasons
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DrmDeviceFreqLimits
+{
+    pub minimum: u64,
+    pub efficient: u64,
+    pub maximum: u64,
+}
+
+impl DrmDeviceFreqLimits
+{
+    pub fn new() -> DrmDeviceFreqLimits
+    {
+        DrmDeviceFreqLimits {
+            minimum: 0,
+            efficient: 0,
+            maximum: 0,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DrmDeviceFreqs
 {
     pub min_freq: u64,
@@ -160,6 +180,7 @@ pub struct DrmDeviceInfo
 {
     pub pci_dev: String,                // sysname or PCI_SLOT_NAME in udev
     pub dev_type: DrmDeviceType,
+    pub freq_limits: DrmDeviceFreqLimits,
     pub freqs: DrmDeviceFreqs,
     pub mem_info: DrmDeviceMemInfo,
     pub vendor_id: String,
@@ -180,6 +201,7 @@ impl Default for DrmDeviceInfo
         DrmDeviceInfo {
             pci_dev: String::new(),
             dev_type: DrmDeviceType::Unknown,
+            freq_limits: DrmDeviceFreqLimits::new(),
             freqs: DrmDeviceFreqs::new(),
             mem_info: DrmDeviceMemInfo::new(),
             vendor_id: String::new(),
@@ -232,7 +254,7 @@ impl DrmDeviceInfo
         if let Some(drv_ref) = &self.driver {
             let mut drv_b = drv_ref.borrow_mut();
 
-            // note: dev_type doesn't change
+            // note: dev_type and freq_limits don't change
             self.freqs = drv_b.freqs()?;
             self.mem_info = drv_b.mem_info()?;
         }
@@ -399,6 +421,7 @@ impl DrmDevices
                     let mut drv_b = dref.borrow_mut();
 
                     dinf.dev_type = drv_b.dev_type()?;
+                    dinf.freq_limits = drv_b.freq_limits()?;
                     dinf.freqs = drv_b.freqs()?;
                     dinf.mem_info = drv_b.mem_info()?;
 

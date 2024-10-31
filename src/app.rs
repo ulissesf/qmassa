@@ -1,6 +1,6 @@
 use std::io::{Write, Seek, SeekFrom};
 use std::cell::RefCell;
-use std::cmp::{max, min};
+use std::cmp::max;
 use std::fs::File;
 use std::time;
 
@@ -292,33 +292,29 @@ impl App
             }
         }
 
-        let mut maxy: u64 = 0;
-        let mut miny: u64 = u64::MAX;
         let mut act_freq_ds = Vec::new();
         let mut cur_freq_ds = Vec::new();
         let mut tr_pl1 = Vec::new();
         let mut tr_status = Vec::new();
 
-        for (fqs, xval) in dinfo.dev_stats.freqs.iter().zip(x_vals.iter()) {
-            maxy = max(maxy, fqs.max_freq);
-            miny = min(miny, fqs.min_freq);
+        let miny = dinfo.freq_limits.minimum as f64;
+        let maxy = dinfo.freq_limits.maximum as f64;
 
+        for (fqs, xval) in dinfo.dev_stats.freqs.iter().zip(x_vals.iter()) {
             act_freq_ds.push((*xval, fqs.act_freq as f64));
             cur_freq_ds.push((*xval, fqs.cur_freq as f64));
 
             if fqs.throttle_reasons.pl1 {
-                tr_pl1.push((*xval, ((miny + maxy) / 2) as f64));
+                tr_pl1.push((*xval, (miny + maxy) / 2.0));
             } else {
                 tr_pl1.push((*xval, 0.0));
             }
             if fqs.throttle_reasons.status {
-                tr_status.push((*xval, ((miny + maxy) / 2) as f64));
+                tr_status.push((*xval, (miny + maxy) / 2.0));
             } else {
                 tr_status.push((*xval, 0.0));
             }
         }
-        let miny = miny as f64;
-        let maxy = maxy as f64;
 
         let y_axis = vec![
             Span::raw(format!("{}", miny)),

@@ -6,7 +6,8 @@ use anyhow::Result;
 use serde::{Deserialize, Serialize};
 
 use crate::drm_devices::{
-    DrmDeviceFreqs, DrmDeviceMemInfo, DrmDeviceInfo, DrmDevices};
+    DrmDeviceFreqLimits, DrmDeviceFreqs,
+    DrmDeviceMemInfo, DrmDeviceInfo, DrmDevices};
 use crate::drm_clients::{DrmClientMemInfo, DrmClientInfo};
 
 
@@ -134,6 +135,7 @@ pub struct AppDataDeviceState
     pub drv_name: String,
     pub dev_nodes: String,
     pub eng_names: Vec<String>,
+    pub freq_limits: DrmDeviceFreqLimits,
     pub dev_stats: AppDataDeviceStats,
     pub clis_stats: Vec<AppDataClientStats>,
 }
@@ -224,6 +226,7 @@ impl AppDataDeviceState
             drv_name: dinfo.drv_name.clone(),
             dev_nodes: dnodes,
             eng_names: enames,
+            freq_limits: dinfo.freq_limits.clone(),
             dev_stats: dstats,
             clis_stats: Vec::new(),
         }

@@ -19,8 +19,8 @@ use libc;
 use crate::drm_drivers::DrmDriver;
 use crate::drm_drivers::helpers::{drm_iowr, __IncompleteArrayField};
 use crate::drm_devices::{
-    DrmDeviceType, DrmDeviceFreqs, DrmDeviceThrottleReasons,
-    DrmDeviceMemInfo, DrmDeviceInfo
+    DrmDeviceType, DrmDeviceFreqLimits, DrmDeviceFreqs,
+    DrmDeviceThrottleReasons, DrmDeviceMemInfo, DrmDeviceInfo
 };
 use crate::drm_fdinfo::DrmMemRegion;
 use crate::drm_clients::DrmClientMemInfo;
@@ -92,6 +92,7 @@ pub struct DrmDriverXe
     freqs_dir: PathBuf,
     throttle_dir: PathBuf,
     dev_type: Option<DrmDeviceType>,
+    freq_limits: Option<DrmDeviceFreqLimits>,
 }
 
 impl DrmDriver for DrmDriverXe
@@ -225,6 +226,34 @@ impl DrmDriver for DrmDriverXe
         Ok(qmdmi)
     }
 
+    fn freq_limits(&mut self) -> Result<DrmDeviceFreqLimits>
+    {
+        if let Some(fls) = &self.freq_limits {
+            return Ok(fls.clone());
+        }
+
+        let fpath = self.freqs_dir.join("rpn_freq");
+        let fstr = fs::read_to_string(&fpath)?;
+        let rpn_val: u64 = fstr.trim_end().parse()?;
+
+        let fpath = self.freqs_dir.join("rpe_freq");
+        let fstr = fs::read_to_string(&fpath)?;
+        let rpe_val: u64 = fstr.trim_end().parse()?;
+
+        let fpath = self.freqs_dir.join("rp0_freq");
+        let fstr = fs::read_to_string(&fpath)?;
+        let rp0_val: u64 = fstr.trim_end().parse()?;
+
+        let fls = DrmDeviceFreqLimits {
+            minimum: rpn_val,
+            efficient: rpe_val,
+            maximum: rp0_val,
+        };
+
+        self.freq_limits = Some(fls.clone());
+        Ok(fls)
+    }
+
     fn freqs(&mut self) -> Result<DrmDeviceFreqs>
     {
         let fpath = self.freqs_dir.join("min_freq");
@@ -340,6 +369,7 @@ impl DrmDriverXe
             freqs_dir: Path::new(&cpath).join("device/tile0/gt0/freq0"),
             throttle_dir: Path::new(&cpath).join("device/tile0/gt0/freq0/throttle"),
             dev_type: None,
+            freq_limits: None,
         })))
     }
 }

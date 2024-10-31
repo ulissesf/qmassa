@@ -19,8 +19,8 @@ use libc;
 use crate::drm_drivers::DrmDriver;
 use crate::drm_drivers::helpers::{drm_iowr, __IncompleteArrayField};
 use crate::drm_devices::{
-    DrmDeviceType, DrmDeviceFreqs, DrmDeviceThrottleReasons,
-    DrmDeviceMemInfo, DrmDeviceInfo
+    DrmDeviceType, DrmDeviceFreqs, DrmDeviceFreqLimits,
+    DrmDeviceThrottleReasons, DrmDeviceMemInfo, DrmDeviceInfo
 };
 use crate::drm_fdinfo::DrmMemRegion;
 use crate::drm_clients::DrmClientMemInfo;
@@ -97,8 +97,8 @@ pub struct DrmDriveri915
     dn_file: File,
     dn_fd: RawFd,
     freqs_dir: PathBuf,
-    gt_dir: PathBuf,
     dev_type: Option<DrmDeviceType>,
+    freq_limits: Option<DrmDeviceFreqLimits>,
 }
 
 impl DrmDriver for DrmDriveri915
@@ -203,49 +203,77 @@ impl DrmDriver for DrmDriveri915
         Ok(qmdmi)
     }
 
+    fn freq_limits(&mut self) -> Result<DrmDeviceFreqLimits>
+    {
+        if let Some(fls) = &self.freq_limits {
+            return Ok(fls.clone());
+        }
+
+        let fpath = self.freqs_dir.join("rps_RPn_freq_mhz");
+        let fstr = fs::read_to_string(&fpath)?;
+        let rpn_val: u64 = fstr.trim_end().parse()?;
+
+        let fpath = self.freqs_dir.join("rps_RP1_freq_mhz");
+        let fstr = fs::read_to_string(&fpath)?;
+        let rp1_val: u64 = fstr.trim_end().parse()?;
+
+        let fpath = self.freqs_dir.join("rps_RP0_freq_mhz");
+        let fstr = fs::read_to_string(&fpath)?;
+        let rp0_val: u64 = fstr.trim_end().parse()?;
+
+        let fls = DrmDeviceFreqLimits {
+            minimum: rpn_val,
+            efficient: rp1_val,
+            maximum: rp0_val,
+        };
+
+        self.freq_limits = Some(fls.clone());
+        Ok(fls)
+    }
+
     fn freqs(&mut self) -> Result<DrmDeviceFreqs>
     {
-        let fpath = self.freqs_dir.join("gt_min_freq_mhz");
+        let fpath = self.freqs_dir.join("rps_min_freq_mhz");
         let fstr = fs::read_to_string(&fpath)?;
         let min_val: u64 = fstr.trim_end().parse()?;
 
-        let fpath = self.freqs_dir.join("gt_cur_freq_mhz");
+        let fpath = self.freqs_dir.join("rps_cur_freq_mhz");
         let fstr = fs::read_to_string(&fpath)?;
         let cur_val: u64 = fstr.trim_end().parse()?;
 
-        let fpath = self.freqs_dir.join("gt_act_freq_mhz");
+        let fpath = self.freqs_dir.join("rps_act_freq_mhz");
         let fstr = fs::read_to_string(&fpath)?;
         let act_val: u64 = fstr.trim_end().parse()?;
 
-        let fpath = self.freqs_dir.join("gt_max_freq_mhz");
+        let fpath = self.freqs_dir.join("rps_max_freq_mhz");
         let fstr = fs::read_to_string(&fpath)?;
         let max_val: u64 = fstr.trim_end().parse()?;
 
-        let fpath = self.gt_dir.join("throttle_reason_pl1");
+        let fpath = self.freqs_dir.join("throttle_reason_pl1");
         let pl1 = fs::read_to_string(&fpath)?.trim() == "1";
 
-        let fpath = self.gt_dir.join("throttle_reason_pl2");
+        let fpath = self.freqs_dir.join("throttle_reason_pl2");
         let pl2 = fs::read_to_string(&fpath)?.trim() == "1";
 
-        let fpath = self.gt_dir.join("throttle_reason_pl4");
+        let fpath = self.freqs_dir.join("throttle_reason_pl4");
         let pl4 = fs::read_to_string(&fpath)?.trim() == "1";
 
-        let fpath = self.gt_dir.join("throttle_reason_prochot");
+        let fpath = self.freqs_dir.join("throttle_reason_prochot");
         let prochot = fs::read_to_string(&fpath)?.trim() == "1";
 
-        let fpath = self.gt_dir.join("throttle_reason_ratl");
+        let fpath = self.freqs_dir.join("throttle_reason_ratl");
         let ratl = fs::read_to_string(&fpath)?.trim() == "1";
 
-        let fpath = self.gt_dir.join("throttle_reason_thermal");
+        let fpath = self.freqs_dir.join("throttle_reason_thermal");
         let thermal = fs::read_to_string(&fpath)?.trim() == "1";
 
-        let fpath = self.gt_dir.join("throttle_reason_vr_tdc");
+        let fpath = self.freqs_dir.join("throttle_reason_vr_tdc");
         let vr_tdc = fs::read_to_string(&fpath)?.trim() == "1";
 
-        let fpath = self.gt_dir.join("throttle_reason_vr_thermalert");
+        let fpath = self.freqs_dir.join("throttle_reason_vr_thermalert");
         let vr_thermalert = fs::read_to_string(&fpath)?.trim() == "1";
 
-        let fpath = self.gt_dir.join("throttle_reason_status");
+        let fpath = self.freqs_dir.join("throttle_reason_status");
         let status = fs::read_to_string(&fpath)?.trim() == "1";
 
         let throttle = DrmDeviceThrottleReasons {
@@ -305,12 +333,13 @@ impl DrmDriveri915
             .file_name().unwrap().to_str().unwrap();
         cpath.push_str(card);
 
+        // TODO: handle more than one tile & gt
         Ok(Rc::new(RefCell::new(DrmDriveri915 {
             dn_file: file,
             dn_fd: fd,
-            freqs_dir: PathBuf::from(&cpath),
-            gt_dir: Path::new(&cpath).join("gt/gt0"),
+            freqs_dir: Path::new(&cpath).join("gt/gt0"),
             dev_type: None,
+            freq_limits: None,
         })))
     }
 }

@@ -6,7 +6,7 @@ use std::rc::Rc;
 use anyhow::Result;
 
 use crate::drm_devices::{
-    DrmDeviceType, DrmDeviceFreqs,
+    DrmDeviceType, DrmDeviceFreqLimits, DrmDeviceFreqs,
     DrmDeviceMemInfo, DrmDeviceInfo
 };
 use crate::drm_fdinfo::DrmMemRegion;
@@ -29,6 +29,11 @@ pub trait DrmDriver
     fn dev_type(&mut self) -> Result<DrmDeviceType>
     {
         Ok(DrmDeviceType::Unknown)
+    }
+
+    fn freq_limits(&mut self) -> Result<DrmDeviceFreqLimits>
+    {
+        Ok(DrmDeviceFreqLimits::new())
     }
 
     fn freqs(&mut self) -> Result<DrmDeviceFreqs>
