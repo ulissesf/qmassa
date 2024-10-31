@@ -249,15 +249,15 @@ impl DrmDriver for DrmDriveri915
         let status = fs::read_to_string(&fpath)?.trim() == "1";
 
         let throttle = DrmDeviceThrottleReasons {
-            pl1: pl1,
-            pl2: pl2,
-            pl4: pl4,
-            prochot: prochot,
-            ratl: ratl,
-            thermal: thermal,
-            vr_tdc: vr_tdc,
-            vr_thermalert: vr_thermalert,
-            status: status,
+            pl1,
+            pl2,
+            pl4,
+            prochot,
+            ratl,
+            thermal,
+            vr_tdc,
+            vr_thermalert,
+            status,
         };
 
         Ok(DrmDeviceFreqs {
