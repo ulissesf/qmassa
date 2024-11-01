@@ -5,6 +5,7 @@ use std::fs;
 
 use anyhow::Result;
 use libc;
+use log::debug;
 
 
 #[derive(Debug)]
@@ -224,24 +225,30 @@ impl DrmFdinfo
 
     pub fn from(fdinfo: &PathBuf, d_minor: u32) -> Result<DrmFdinfo>
     {
-        let lines: Vec<_> = fs::read_to_string(fdinfo)?
-            .lines()
-            .map(String::from)
-            .collect();
+        let all_str = fs::read_to_string(fdinfo)?;
 
         let mut info = DrmFdinfo {
             drm_minor: d_minor,
             path: PathBuf::from(fdinfo),
             ..Default::default()
         };
-        for l in lines {
-            let kv: Vec<&str> = l.split(":\t").collect();
-            let k = kv[0];
-            let v = kv[1];
 
-            if !k.starts_with("drm-") {
+        for line in all_str.lines() {
+            let tl = line.trim();
+            if !tl.starts_with("drm-") {
+                debug!("INF: discarding line [{:?}] from fdinfo {:?}",
+                    tl, fdinfo);
                 continue;
             }
+
+            let kv: Vec<_> = tl.splitn(2, ':').map(|it| it.trim()).collect();
+            if kv.len() < 2 {
+                debug!("INF: discarding line without key:value pair [{:?}] from fdinfo {:?}",
+                    tl, fdinfo);
+                continue;
+            }
+            let k = kv[0];
+            let v = kv[1];
 
             if k.starts_with("drm-pdev") {
                 info.pci_dev.push_str(v);
