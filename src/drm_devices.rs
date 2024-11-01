@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::cell::RefCell;
 use std::rc::{Rc, Weak};
 
@@ -238,6 +238,29 @@ impl DrmDeviceInfo
         }
 
         0.0
+    }
+
+    pub fn engines(&self) -> Vec<String>
+    {
+        let mut engs = Vec::new();
+
+        if let Some(vref) = &self.drm_clis {
+            let clis_b = vref.borrow();
+
+            let mut tst: HashSet<&str> = HashSet::new();
+            for cli in clis_b.iter() {
+                for en in cli.engines() {
+                    tst.insert(en);
+                }
+            }
+
+            for en in tst.iter() {
+                engs.push(en.to_string());
+            }
+            engs.sort();
+        }
+
+        engs
     }
 
     pub fn clients(&self) -> Option<Weak<RefCell<Vec<DrmClientInfo>>>>

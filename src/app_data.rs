@@ -194,8 +194,7 @@ impl AppDataDeviceState
         }
     }
 
-    fn from(dinfo: &DrmDeviceInfo,
-        cinfos_b: &Option<Ref<'_, Vec<DrmClientInfo>>>) -> AppDataDeviceState
+    fn from(dinfo: &DrmDeviceInfo) -> AppDataDeviceState
     {
         let cn = AppDataDeviceState::card_from(
             &dinfo.drm_minors[0].devnode);
@@ -208,14 +207,7 @@ impl AppDataDeviceState
             dnodes.push_str(cn);
         }
 
-        let mut enames: Vec<String> = Vec::new();
-        if let Some(clis_b) = cinfos_b {
-            if clis_b.len() > 0 {
-                for en in clis_b[0].engines() {
-                    enames.push(en.clone());
-                }
-            }
-        }
+        let enames = dinfo.engines();
         let dstats = AppDataDeviceStats::new(&enames);
 
         AppDataDeviceState {
@@ -325,7 +317,7 @@ impl AppData
             if let Some(dst) = self.state.remove_device(&d) {
                 ndst = dst;
             } else {
-                ndst = AppDataDeviceState::from(dinfo, &cinfos_b);
+                ndst = AppDataDeviceState::from(dinfo);
             }
 
             ndst.update_stats(dinfo, &cinfos_b);
