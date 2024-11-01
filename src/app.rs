@@ -500,11 +500,14 @@ impl App
             dinfo.vdr_dev_rev.clone().into(),
             " ".into(),
         ]).magenta().bold().on_black();
+        let dev_title_len = dinfo.vdr_dev_rev.len() + 2;
         frame.render_widget(Block::new()
             .borders(Borders::TOP)
             .border_type(BorderType::Double)
             .border_style(Style::new().white().bold().on_black())
-            .title_top(dev_title.alignment(Alignment::Center)),
+            .title_top(dev_title.alignment(
+                    if dev_title_len > dev_title_area.width as usize {
+                        Alignment::Left } else { Alignment::Center })),
             dev_title_area);
 
         self.render_dev_stats(dinfo, &tstamps, frame, dev_stats_area);
