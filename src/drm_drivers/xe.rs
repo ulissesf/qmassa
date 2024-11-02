@@ -63,8 +63,8 @@ struct drm_xe_query_config {
 
 const DRM_XE_QUERY_CONFIG_REV_AND_DEVICE_ID: u32 = 0;
 const DRM_XE_QUERY_CONFIG_FLAGS: u32 = 1;
-const DRM_XE_QUERY_CONFIG_FLAG_HAS_VRAM: u32 = 1;
-const DRM_XE_QUERY_CONFIG_MIN_ALIGNMENT: u32 = 2;
+const DRM_XE_QUERY_CONFIG_FLAG_HAS_VRAM: u64 = 1;
+const DRM_XE_QUERY_CONFIG_MIN_ALIGNMENT: u64 = 2;
 const DRM_XE_QUERY_CONFIG_VA_BITS: u32 = 3;
 const DRM_XE_QUERY_CONFIG_MAX_EXEC_QUEUE_PRIORITY: u32 = 4;
 
@@ -148,7 +148,7 @@ impl DrmDriver for DrmDriverXe
         let cfg = unsafe { (*qcfg).info.as_slice((*qcfg).num_params as usize) };
         let flags = cfg[DRM_XE_QUERY_CONFIG_FLAGS as usize];
 
-        let qmdt = if flags & DRM_XE_QUERY_CONFIG_FLAG_HAS_VRAM as u64 > 0 {
+        let qmdt = if flags & DRM_XE_QUERY_CONFIG_FLAG_HAS_VRAM > 0 {
             DrmDeviceType::Discrete
         } else {
             DrmDeviceType::Integrated
@@ -367,7 +367,8 @@ impl DrmDriverXe
             dn_file: file,
             dn_fd: fd,
             freqs_dir: Path::new(&cpath).join("device/tile0/gt0/freq0"),
-            throttle_dir: Path::new(&cpath).join("device/tile0/gt0/freq0/throttle"),
+            throttle_dir: Path::new(&cpath)
+                .join("device/tile0/gt0/freq0/throttle"),
             dev_type: None,
             freq_limits: None,
         })))
