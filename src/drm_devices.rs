@@ -179,10 +179,6 @@ impl DrmMinorInfo
 pub struct DrmDeviceInfo
 {
     pub pci_dev: String,                // sysname or PCI_SLOT_NAME in udev
-    pub dev_type: DrmDeviceType,
-    pub freq_limits: DrmDeviceFreqLimits,
-    pub freqs: DrmDeviceFreqs,
-    pub mem_info: DrmDeviceMemInfo,
     pub vendor_id: String,
     pub vendor: String,
     pub device_id: String,
@@ -190,6 +186,11 @@ pub struct DrmDeviceInfo
     pub revision: String,
     pub drv_name: String,
     pub drm_minors: Vec<DrmMinorInfo>,
+    pub dev_stats_enabled: bool,
+    pub dev_type: DrmDeviceType,
+    pub freq_limits: DrmDeviceFreqLimits,
+    pub freqs: DrmDeviceFreqs,
+    pub mem_info: DrmDeviceMemInfo,
     driver: Option<Rc<RefCell<dyn DrmDriver>>>,
     drm_clis: Option<Rc<RefCell<Vec<DrmClientInfo>>>>,
 }
@@ -200,10 +201,6 @@ impl Default for DrmDeviceInfo
     {
         DrmDeviceInfo {
             pci_dev: String::new(),
-            dev_type: DrmDeviceType::Unknown,
-            freq_limits: DrmDeviceFreqLimits::new(),
-            freqs: DrmDeviceFreqs::new(),
-            mem_info: DrmDeviceMemInfo::new(),
             vendor_id: String::new(),
             vendor: String::new(),
             device_id: String::new(),
@@ -211,6 +208,11 @@ impl Default for DrmDeviceInfo
             revision: String::new(),
             drv_name: String::new(),
             drm_minors: Vec::new(),
+            dev_stats_enabled: false,
+            dev_type: DrmDeviceType::Unknown,
+            freq_limits: DrmDeviceFreqLimits::new(),
+            freqs: DrmDeviceFreqs::new(),
+            mem_info: DrmDeviceMemInfo::new(),
             driver: None,
             drm_clis: None,
         }
@@ -219,6 +221,8 @@ impl Default for DrmDeviceInfo
 
 impl DrmDeviceInfo
 {
+    // relies on DRM clients list for now
+    // (could store after each refresh and read from driver later, if needed)
     pub fn eng_utilization(&self, eng: &String) -> f64
     {
         if let Some(vref) = &self.drm_clis {
@@ -240,6 +244,8 @@ impl DrmDeviceInfo
         0.0
     }
 
+    // relies on DRM clients list for now
+    // (could store after each refresh and read from driver later, if needed)
     pub fn engines(&self) -> Vec<String>
     {
         let mut engs = Vec::new();
@@ -315,12 +321,6 @@ impl DrmDevices
 
     pub fn refresh(&mut self) -> Result<()>
     {
-        // assumes devices don't vanish, so just update their
-        // driver-specific dynamic information (e.g. freqs)
-        for di in self.infos.values_mut() {
-            di.refresh()?;
-        }
-
         // update DRM clients information (if possible)
         if let Some(clis) = &mut self.qmclis {
             clis.refresh()?;
@@ -331,6 +331,14 @@ impl DrmDevices
                     let drv_wref = Rc::downgrade(drv_ref);
                     clis.set_dev_clients_driver(&di.pci_dev, drv_wref);
                 }
+            }
+        }
+
+        // assumes devices don't vanish, so just update their driver-specific
+        // dynamic information (e.g. mem info, engines, freqs, power)
+        for di in self.infos.values_mut() {
+            if di.dev_stats_enabled {
+                di.refresh()?;
             }
         }
 
@@ -386,6 +394,7 @@ impl DrmDevices
     pub fn find_devices() -> Result<DrmDevices>
     {
         let mut qmds = DrmDevices::new();
+        let dev_stats_enabled = unsafe { libc::geteuid() } == 0;
 
         let mut enumerator = udev::Enumerator::new()?;
         enumerator.match_subsystem("drm")?;
@@ -426,6 +435,7 @@ impl DrmDevices
                     device,
                     revision,
                     drv_name,
+                    dev_stats_enabled,
                     ..Default::default()
                 };
                 qmds.infos.insert(sysname.clone(), ndinf);
@@ -438,7 +448,7 @@ impl DrmDevices
             let dinf = qmds.infos.get_mut(&sysname).unwrap();
             dinf.drm_minors.push(minf);
 
-            if dinf.drm_minors.len() == 1 {
+            if dinf.dev_stats_enabled && dinf.drm_minors.len() == 1 {
                 if let Some(drv_ref) = drm_drivers::driver_from(dinf)? {
                     let dref = drv_ref.clone();
                     let mut drv_b = dref.borrow_mut();

@@ -137,6 +137,7 @@ pub struct AppDataDeviceState
     pub eng_names: Vec<String>,
     pub freq_limits: DrmDeviceFreqLimits,
     pub dev_stats: AppDataDeviceStats,
+    pub dev_stats_enabled: bool,
     pub clis_stats: Vec<AppDataClientStats>,
 }
 
@@ -163,7 +164,11 @@ impl AppDataDeviceState
     fn update_stats(&mut self, dinfo: &DrmDeviceInfo,
         cinfos_b: &Option<Ref<'_, Vec<DrmClientInfo>>>)
     {
-        self.dev_stats.update_stats(&self.eng_names, dinfo);
+        self.eng_names = dinfo.engines();
+
+        if self.dev_stats_enabled {
+            self.dev_stats.update_stats(&self.eng_names, dinfo);
+        }
 
         let mut ncstats: Vec<AppDataClientStats> = Vec::new();
         if let Some(clis_b) = cinfos_b {
@@ -181,7 +186,6 @@ impl AppDataDeviceState
                 ncstats.push(ncli_st);
             }
         }
-
         self.clis_stats = ncstats;
     }
 
@@ -220,6 +224,7 @@ impl AppDataDeviceState
             eng_names: enames,
             freq_limits: dinfo.freq_limits.clone(),
             dev_stats: dstats,
+            dev_stats_enabled: dinfo.dev_stats_enabled,
             clis_stats: Vec::new(),
         }
     }
