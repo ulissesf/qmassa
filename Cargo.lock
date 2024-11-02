@@ -708,6 +708,7 @@ dependencies = [
  "clap",
  "crossterm",
  "env_logger",
+ "itertools",
  "libc",
  "log",
  "nix",

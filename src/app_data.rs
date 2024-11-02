@@ -1,3 +1,4 @@
+use std::collections::{HashMap, HashSet};
 use std::cell::{RefCell, Ref};
 use std::rc::Rc;
 use std::time;
@@ -42,7 +43,7 @@ pub struct AppDataDeviceStats
 {
     pub freqs: Vec<DrmDeviceFreqs>,
     pub mem_info: Vec<DrmDeviceMemInfo>,
-    pub eng_stats: Vec<AppDataEngineStats>,
+    pub eng_stats: HashMap<String, AppDataEngineStats>,
 }
 
 impl AppDataDeviceStats
@@ -53,17 +54,21 @@ impl AppDataDeviceStats
         limited_vec_push(&mut self.freqs, dinfo.freqs.clone());
         limited_vec_push(&mut self.mem_info, dinfo.mem_info.clone());
 
-        for (en, est) in eng_names.iter().zip(self.eng_stats.iter_mut()) {
+        for en in eng_names.iter() {
+            if !self.eng_stats.contains_key(en) {
+                self.eng_stats.insert(en.clone(), AppDataEngineStats::new());
+            }
+            let est = self.eng_stats.get_mut(en).unwrap();
             limited_vec_push(&mut est.usage, dinfo.eng_utilization(en));
         }
     }
 
     fn new(eng_names: &Vec<String>) -> AppDataDeviceStats
     {
-        let mut estats: Vec<AppDataEngineStats> = Vec::new();
-        for _ in 0..eng_names.len() {
+        let mut estats = HashMap::new();
+        for en in eng_names.iter() {
             let n_est = AppDataEngineStats::new();
-            estats.push(n_est);
+            estats.insert(en.clone(), n_est);
         }
 
         AppDataDeviceStats {
@@ -83,7 +88,7 @@ pub struct AppDataClientStats
     pub comm: String,
     pub cmdline: String,
     pub cpu_usage: Vec<f64>,
-    pub eng_stats: Vec<AppDataEngineStats>,
+    pub eng_stats: HashMap<String, AppDataEngineStats>,
     pub mem_info: Vec<DrmClientMemInfo>,
     pub is_active: bool,
 }
@@ -95,7 +100,11 @@ impl AppDataClientStats
     {
         limited_vec_push(&mut self.cpu_usage, cinfo.proc.cpu_utilization());
 
-        for (en, est) in eng_names.iter().zip(self.eng_stats.iter_mut()) {
+        for en in eng_names.iter() {
+            if !self.eng_stats.contains_key(en) {
+                self.eng_stats.insert(en.clone(), AppDataEngineStats::new());
+            }
+            let est = self.eng_stats.get_mut(en).unwrap();
             limited_vec_push(&mut est.usage, cinfo.eng_utilization(en));
         }
         limited_vec_push(&mut self.mem_info, cinfo.mem_info());
@@ -106,10 +115,10 @@ impl AppDataClientStats
     fn from(eng_names: &Vec<String>,
         cinfo: &DrmClientInfo) -> AppDataClientStats
     {
-        let mut estats: Vec<AppDataEngineStats> = Vec::new();
-        for _ in 0..eng_names.len() {
+        let mut estats = HashMap::new();
+        for en in eng_names.iter() {
             let n_est = AppDataEngineStats::new();
-            estats.push(n_est);
+            estats.insert(en.clone(), n_est);
         }
 
         AppDataClientStats {
@@ -161,10 +170,31 @@ impl AppDataDeviceState
         Some(self.clis_stats.swap_remove(idx))
     }
 
+    fn update_eng_names(&mut self, dinfo: &DrmDeviceInfo)
+    {
+        let mut tst: HashSet<&str> = HashSet::new();
+        let nengs = dinfo.engines();
+
+        for en in self.eng_names.iter() {
+            tst.insert(en);
+        }
+        for en in nengs.iter() {
+            tst.insert(en);
+        }
+
+        let mut neng_names = Vec::new();
+        for en in tst.iter() {
+            neng_names.push(en.to_string());
+        }
+        neng_names.sort();
+
+        self.eng_names = neng_names;
+    }
+
     fn update_stats(&mut self, dinfo: &DrmDeviceInfo,
         cinfos_b: &Option<Ref<'_, Vec<DrmClientInfo>>>)
     {
-        self.eng_names = dinfo.engines();
+        self.update_eng_names(dinfo);
 
         if self.dev_stats_enabled {
             self.dev_stats.update_stats(&self.eng_names, dinfo);

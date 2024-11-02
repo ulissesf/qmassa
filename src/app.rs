@@ -1,4 +1,5 @@
 use std::io::{Write, Seek, SeekFrom};
+use itertools::Itertools;
 use std::cell::RefCell;
 use std::cmp::max;
 use std::fs::File;
@@ -137,7 +138,8 @@ impl App
         constrs: &Vec<Constraint>, clis_sv: &mut ScrollView, area: Rect)
     {
         let mut gauges: Vec<Gauge> = Vec::new();
-        for eng in cli.eng_stats.iter() {
+        for en in cli.eng_stats.keys().sorted() {
+            let eng = cli.eng_stats.get(en).unwrap();
             let eut = eng.usage.last().unwrap();  // always present
             let label = Span::styled(
                 format!("{:.1}%", eut), Style::new().white());
@@ -257,7 +259,8 @@ impl App
         engs_gs.push(App::gauge_colored_from(smem_label, smem_ratio));
         engs_gs.push(App::gauge_colored_from(vram_label, vram_ratio));
 
-        for eng in dinfo.dev_stats.eng_stats.iter() {
+        for en in dinfo.dev_stats.eng_stats.keys().sorted() {
+            let eng = dinfo.dev_stats.eng_stats.get(en).unwrap();
             let eut = eng.usage.last().unwrap();  // always present
             let label = Span::styled(
                   format!("{:.1}%", eut), Style::new().white());
