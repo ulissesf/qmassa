@@ -87,6 +87,7 @@ pub struct DrmClientInfo
     pub shared_procs: Vec<(ProcInfo, PathBuf)>,
     engs_last: HashMap<String, DrmEngine>,
     engs_delta: HashMap<String, DrmEngineDelta>,
+    engs_updates: HashMap<String, u64>,
     engs_acum: DrmEnginesAcum,
     mem_regions: HashMap<String, DrmMemRegion>,
     nr_updates: u64,
@@ -108,6 +109,7 @@ impl Default for DrmClientInfo
             shared_procs: Vec::new(),
             engs_last: HashMap::new(),
             engs_delta: HashMap::new(),
+            engs_updates: HashMap::new(),
             engs_acum: DrmEnginesAcum::new(),
             mem_regions: HashMap::new(),
             nr_updates: 0,
@@ -139,7 +141,7 @@ impl DrmClientInfo
         if !self.engs_last.contains_key(eng) {
             return 0.0;
         }
-        if self.nr_updates < 2 {
+        if *self.engs_updates.get(eng).unwrap() < 2 {
             return 0.0;
         }
 
@@ -202,6 +204,7 @@ impl DrmClientInfo
 
     pub fn update(&mut self, pinfo: ProcInfo, fdi: DrmFdinfo)
     {
+        // handle process and fdinfo path updates
         if self.proc != pinfo {
             self.proc = pinfo;  // fd might be shared
         }
@@ -211,6 +214,21 @@ impl DrmClientInfo
         }
         self.fdinfo_path = fdi.path;
 
+        // handle new engines showing up in a client's DRM fdinfo
+        // or the very unlikely (not possible?) removal of an engine
+        for nm in fdi.engines.keys() {
+            if !self.engs_last.contains_key(nm) {
+                self.engs_last.insert(nm.clone(),
+                    DrmEngine::new(nm.as_str()));
+                self.engs_delta.insert(nm.clone(), DrmEngineDelta::new());
+                self.engs_updates.insert(nm.clone(), 0);
+            }
+        }
+        self.engs_last.retain(|k, _| fdi.engines.contains_key(k));
+        self.engs_delta.retain(|k, _| fdi.engines.contains_key(k));
+        self.engs_updates.retain(|k, _| fdi.engines.contains_key(k));
+
+        // handle engines and mem regions updates
         self.engs_acum.acum_time = 0;
         self.engs_acum.acum_cycles = 0;
         self.engs_acum.acum_total_cycles = 0;
@@ -236,9 +254,12 @@ impl DrmClientInfo
                 deng.delta_total_cycles = neng.total_cycles - oeng.total_cycles;
                 oeng.total_cycles = neng.total_cycles;
             }
+
+            self.engs_updates.entry(nm.clone()).and_modify(|nr| *nr += 1);
         }
         self.mem_regions = fdi.mem_regions;
 
+        // one more update for this DRM client
         self.nr_updates += 1;
         self.ms_elapsed = self.last_update.elapsed().as_millis() as u64;
         self.last_update = time::Instant::now();
@@ -261,6 +282,7 @@ impl DrmClientInfo
         for nm in fdi.engines.keys() {
             cli.engs_last.insert(nm.clone(), DrmEngine::new(nm.as_str()));
             cli.engs_delta.insert(nm.clone(), DrmEngineDelta::new());
+            cli.engs_updates.insert(nm.clone(), 0);
         }
 
         cli.update(pinfo, fdi);
