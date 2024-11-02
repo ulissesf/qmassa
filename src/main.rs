@@ -95,19 +95,16 @@ fn main() -> Result<()>
     if args.pid.is_some() {
         base_pid = args.pid.clone().unwrap();
     } else {
-        //
         // base_pid is not set, pick value depending on user:
         //   root       => "1", to scan process tree for whole system
         //   non-root   => "", all processes with accessible info are scanned
-        //
-        let euid: u32;
-        unsafe { euid = libc::geteuid(); }
+        let euid: u32 = unsafe { libc::geteuid() };
         base_pid = if euid == 0 { String::from("1") } else { String::from("") };
     }
 
     // find all DRM subsystem devices
     let mut qmds = DrmDevices::find_devices()
-        .context("Failed to find DRM devices")?;
+        .context("Failed finding DRM devices")?;
     if qmds.is_empty() {
         bail!("No DRM devices found");
     }

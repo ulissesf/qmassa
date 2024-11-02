@@ -316,12 +316,12 @@ impl App
             if fqs.throttle_reasons.pl1 {
                 tr_pl1.push((*xval, (miny + maxy) / 2.0));
             } else {
-                tr_pl1.push((*xval, 0.0));
+                tr_pl1.push((*xval, -1.0));  // hide it
             }
             if fqs.throttle_reasons.status {
                 tr_status.push((*xval, (miny + maxy) / 2.0));
             } else {
-                tr_status.push((*xval, 0.0));
+                tr_status.push((*xval, -1.0));  // hide it
             }
         }
 
