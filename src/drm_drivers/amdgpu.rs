@@ -25,6 +25,7 @@ use crate::drm_fdinfo::DrmMemRegion;
 use crate::drm_clients::DrmClientMemInfo;
 
 
+// rust-bindgen 0.69.5 on Linux kernel v6.12 uapi amdgpu_drm.h + changes
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
 struct drm_amdgpu_info_device {

@@ -26,7 +26,7 @@ use crate::drm_fdinfo::DrmMemRegion;
 use crate::drm_clients::DrmClientMemInfo;
 
 
-// code modified from rust-bindgen 0.69.4 run on part of kernel's xe_drm.h
+// rust-bindgen 0.69.4 on Linux kernel v6.12 uapi xe_drm.h + changes
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
 struct drm_xe_mem_region {
