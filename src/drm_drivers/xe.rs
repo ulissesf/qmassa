@@ -128,7 +128,7 @@ impl DrmDriver for DrmDriverXe
         }
 
         let layout = alloc::Layout::from_size_align(dq.size as usize,
-            mem::size_of::<u64>())?;
+            mem::align_of::<u64>())?;
         let qcfg = unsafe {
             let ptr = alloc::alloc(layout) as *mut drm_xe_query_config;
             if ptr.is_null() {
@@ -182,7 +182,7 @@ impl DrmDriver for DrmDriverXe
         }
 
         let layout = alloc::Layout::from_size_align(dq.size as usize,
-            mem::size_of::<u64>())?;
+            mem::align_of::<u64>())?;
         let qmrg = unsafe {
             let ptr = alloc::alloc(layout) as *mut drm_xe_query_mem_regions;
             if ptr.is_null() {
