@@ -484,12 +484,17 @@ impl DrmDriverAmdgpu
             .file_name().unwrap().to_str().unwrap();
         cpath.push_str(card);
 
-        Ok(Rc::new(RefCell::new(DrmDriverAmdgpu {
+        let mut amdgpu = DrmDriverAmdgpu {
             dn_file: file,
             dn_fd: fd,
             freqs_dir: Path::new(&cpath).join("device"),
             dev_type: None,
             freq_limits: None,
-        })))
+        };
+
+        amdgpu.dev_type()?;
+        amdgpu.freq_limits()?;
+
+        Ok(Rc::new(RefCell::new(amdgpu)))
     }
 }
