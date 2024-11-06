@@ -9,6 +9,7 @@ use env_logger;
 use clap::{Parser, ArgAction};
 use libc;
 
+mod perf_event;
 mod drm_devices;
 mod drm_drivers;
 mod drm_fdinfo;
