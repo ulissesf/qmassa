@@ -7,7 +7,7 @@ use anyhow::Result;
 use serde::{Deserialize, Serialize};
 
 use crate::drm_devices::{
-    DrmDeviceFreqLimits, DrmDeviceFreqs,
+    DrmDeviceFreqLimits, DrmDeviceFreqs, DrmDevicePower,
     DrmDeviceMemInfo, DrmDeviceInfo, DrmDevices};
 use crate::drm_clients::{DrmClientMemInfo, DrmClientInfo};
 
@@ -42,6 +42,7 @@ impl AppDataEngineStats
 pub struct AppDataDeviceStats
 {
     pub freqs: Vec<DrmDeviceFreqs>,
+    pub power: Vec<DrmDevicePower>,
     pub mem_info: Vec<DrmDeviceMemInfo>,
     pub eng_stats: HashMap<String, AppDataEngineStats>,
 }
@@ -52,6 +53,7 @@ impl AppDataDeviceStats
         eng_names: &Vec<String>, dinfo: &DrmDeviceInfo)
     {
         limited_vec_push(&mut self.freqs, dinfo.freqs.clone());
+        limited_vec_push(&mut self.power, dinfo.power.clone());
         limited_vec_push(&mut self.mem_info, dinfo.mem_info.clone());
 
         for en in eng_names.iter() {
@@ -73,6 +75,7 @@ impl AppDataDeviceStats
 
         AppDataDeviceStats {
             freqs: Vec::new(),
+            power: Vec::new(),
             mem_info: Vec::new(),
             eng_stats: estats,
         }

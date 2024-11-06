@@ -173,7 +173,7 @@ impl App
         dinfo: &AppDataDeviceState, tstamps: &Vec<u128>,
         frame: &mut Frame, area: Rect)
     {
-        let [inf_area, memengs_area, sep, freqs_area] = Layout::vertical([
+        let [inf_area, dstats_area, sep, freqs_area] = Layout::vertical([
             Constraint::Length(1),
             Constraint::Length(2),
             Constraint::Length(1),
@@ -208,29 +208,32 @@ impl App
         let [hdr_area, gauges_area] = Layout::vertical([
             Constraint::Length(1),
             Constraint::Length(1),
-        ]).areas(memengs_area);
+        ]).areas(dstats_area);
 
-        let mut memengs_widths = Vec::new();
+        let mut dstats_widths = Vec::new();
         let mut hdrs_lst = Vec::new();
 
-        memengs_widths.push(Constraint::Length(12));
-        memengs_widths.push(Constraint::Length(12));
+        dstats_widths.push(Constraint::Length(12));
+        dstats_widths.push(Constraint::Length(12));
         hdrs_lst.push(Text::from("SMEM").alignment(Alignment::Center));
         hdrs_lst.push(Text::from("VRAM").alignment(Alignment::Center));
 
         for en in dinfo.eng_names.iter() {
-            memengs_widths.push(Constraint::Fill(1));
+            dstats_widths.push(Constraint::Fill(1));
             hdrs_lst.push(Text::from(en.to_uppercase())
                 .alignment(Alignment::Center));
         }
 
-        let memengs_hdr = [Row::new(hdrs_lst)];
-        frame.render_widget(Table::new(memengs_hdr, &memengs_widths)
+        dstats_widths.push(Constraint::Length(11));
+        hdrs_lst.push(Text::from("POWER").alignment(Alignment::Center));
+
+        let dstats_hdr = [Row::new(hdrs_lst)];
+        frame.render_widget(Table::new(dstats_hdr, &dstats_widths)
             .style(Style::new().white().bold().on_dark_gray())
             .column_spacing(1),
             hdr_area);
 
-        let ind_gs = Layout::horizontal(&memengs_widths).split(gauges_area);
+        let ind_gs = Layout::horizontal(&dstats_widths).split(gauges_area);
 
         let mi = dinfo.dev_stats.mem_info.last().unwrap();  // always present
         let smem_label = Span::styled(format!("{}/{}",
@@ -246,9 +249,9 @@ impl App
         let vram_ratio = if mi.vram_total > 0 {
             mi.vram_used as f64 / mi.vram_total as f64 } else { 0.0 };
 
-        let mut engs_gs = Vec::new();
-        engs_gs.push(App::gauge_colored_from(smem_label, smem_ratio));
-        engs_gs.push(App::gauge_colored_from(vram_label, vram_ratio));
+        let mut dstats_gs = Vec::new();
+        dstats_gs.push(App::gauge_colored_from(smem_label, smem_ratio));
+        dstats_gs.push(App::gauge_colored_from(vram_label, vram_ratio));
 
         for en in dinfo.dev_stats.eng_stats.keys().sorted() {
             let eng = dinfo.dev_stats.eng_stats.get(en).unwrap();
@@ -256,10 +259,19 @@ impl App
             let label = Span::styled(
                   format!("{:.1}%", eut), Style::new().white());
 
-            engs_gs.push(App::gauge_colored_from(label, eut/100.0));
+            dstats_gs.push(App::gauge_colored_from(label, eut/100.0));
         }
 
-        for (eng_g, eng_a) in engs_gs.iter().zip(ind_gs.iter()) {
+        let pwr = dinfo.dev_stats.power.last().unwrap();  // always present
+        let pwr_label = Span::styled(
+                format!("{:.1}/{:.1}", pwr.gpu_cur_power, pwr.pkg_cur_power),
+                Style::new().white());
+        dstats_gs.push(App::gauge_colored_from(pwr_label,
+                if pwr.pkg_cur_power > 0.0 {
+                    pwr.gpu_cur_power / pwr.pkg_cur_power
+                } else { 0.0 }));
+
+        for (eng_g, eng_a) in dstats_gs.iter().zip(ind_gs.iter()) {
             frame.render_widget(eng_g, *eng_a);
         }
 
