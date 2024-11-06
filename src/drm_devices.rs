@@ -204,7 +204,6 @@ pub struct DrmDeviceInfo
     pub revision: String,
     pub drv_name: String,
     pub drm_minors: Vec<DrmMinorInfo>,
-    pub dev_stats_enabled: bool,
     pub dev_type: DrmDeviceType,
     pub freq_limits: DrmDeviceFreqLimits,
     pub freqs: DrmDeviceFreqs,
@@ -227,7 +226,6 @@ impl Default for DrmDeviceInfo
             revision: String::new(),
             drv_name: String::new(),
             drm_minors: Vec::new(),
-            dev_stats_enabled: false,
             dev_type: DrmDeviceType::Unknown,
             freq_limits: DrmDeviceFreqLimits::new(),
             freqs: DrmDeviceFreqs::new(),
@@ -358,9 +356,7 @@ impl DrmDevices
         // assumes devices don't vanish, so just update their driver-specific
         // dynamic information (e.g. mem info, engines, freqs, power)
         for di in self.infos.values_mut() {
-            if di.dev_stats_enabled {
-                di.refresh()?;
-            }
+            di.refresh()?;
         }
 
         debug!("DRM Devices: {:#?}", self.infos);
@@ -415,7 +411,6 @@ impl DrmDevices
     pub fn find_devices() -> Result<DrmDevices>
     {
         let mut qmds = DrmDevices::new();
-        let dev_stats_enabled = unsafe { libc::geteuid() } == 0;
 
         let mut enumerator = udev::Enumerator::new()?;
         enumerator.match_subsystem("drm")?;
@@ -456,11 +451,10 @@ impl DrmDevices
                     device,
                     revision,
                     drv_name,
-                    dev_stats_enabled,
                     ..Default::default()
                 };
                 qmds.infos.insert(sysname.clone(), ndinf);
-            };
+            }
 
             let devnode = String::from(d.devnode().unwrap().to_str().unwrap());
             let devnum = d.devnum().unwrap();
@@ -468,20 +462,16 @@ impl DrmDevices
 
             let dinf = qmds.infos.get_mut(&sysname).unwrap();
             dinf.drm_minors.push(minf);
+        }
 
-            if dinf.dev_stats_enabled && dinf.drm_minors.len() == 1 {
-                if let Some(drv_ref) = drm_drivers::driver_from(dinf)? {
-                    let dref = drv_ref.clone();
-                    let mut drv_b = dref.borrow_mut();
+        for dinf in qmds.infos.values_mut() {
+            if let Some(drv_ref) = drm_drivers::driver_from(dinf)? {
+                let dref = drv_ref.clone();
+                let mut drv_b = dref.borrow_mut();
 
-                    dinf.dev_type = drv_b.dev_type()?;
-                    dinf.freq_limits = drv_b.freq_limits()?;
-                    dinf.freqs = drv_b.freqs()?;
-                    dinf.power = drv_b.power()?;
-                    dinf.mem_info = drv_b.mem_info()?;
-
-                    dinf.driver = Some(drv_ref);
-                }
+                dinf.dev_type = drv_b.dev_type()?;
+                dinf.freq_limits = drv_b.freq_limits()?;
+                dinf.driver = Some(drv_ref);
             }
         }
 

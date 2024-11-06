@@ -476,12 +476,19 @@ impl DrmDriverAmdgpu
 
     pub fn new(qmd: &DrmDeviceInfo) -> Result<Rc<RefCell<dyn DrmDriver>>>
     {
-        let file = File::open(qmd.drm_minors[0].devnode.clone())?;
+        let mut dn: &str = "";
+        for c in qmd.drm_minors.iter() {
+            if c.devnode.contains("render") {
+                dn = &c.devnode;
+                break;
+            }
+        }
+
+        let file = File::open(dn)?;
         let fd = file.as_raw_fd();
 
         let mut cpath = String::from("/sys/class/drm/");
-        let card = Path::new(&qmd.drm_minors[0].devnode)
-            .file_name().unwrap().to_str().unwrap();
+        let card = Path::new(dn).file_name().unwrap().to_str().unwrap();
         cpath.push_str(card);
 
         let mut amdgpu = DrmDriverAmdgpu {

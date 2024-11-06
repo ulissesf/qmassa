@@ -173,12 +173,14 @@ impl App
         dinfo: &AppDataDeviceState, tstamps: &Vec<u128>,
         frame: &mut Frame, area: Rect)
     {
-        let [inf_area, stats_area] = Layout::vertical([
+        let [inf_area, memengs_area, sep, freqs_area] = Layout::vertical([
             Constraint::Length(1),
-            Constraint::Min(0),
+            Constraint::Length(2),
+            Constraint::Length(1),
+            Constraint::Min(1),
         ]).areas(area);
 
-        // render device info
+        // render some device info and mem/engines stats
         let widths = vec![
             Constraint::Fill(1),
             Constraint::Fill(1),
@@ -202,17 +204,6 @@ impl App
             .style(Style::new().white().on_black())
             .column_spacing(1),
             inf_area);
-
-        // render dev stats, if enabled
-        if !dinfo.dev_stats_enabled {
-            return;
-        }
-
-        let [memengs_area, sep, freqs_area] = Layout::vertical([
-            Constraint::Length(2),
-            Constraint::Length(1),
-            Constraint::Min(1),
-        ]).areas(stats_area);
 
         let [hdr_area, gauges_area] = Layout::vertical([
             Constraint::Length(1),
@@ -497,16 +488,15 @@ impl App
         dinfo: &AppDataDeviceState, tstamps: &Vec<u128>,
         frame: &mut Frame, area: Rect)
     {
-        let max_dev_blk = if dinfo.dev_stats_enabled { 21 } else { 2 };
         let [dev_blk_area, clis_blk_area] = Layout::vertical([
-            Constraint::Max(max_dev_blk),
+            Constraint::Max(21),
             Constraint::Min(8),
         ]).areas(area);
 
         // render pci device block and stats
         let [dev_title_area, dev_stats_area] = Layout::vertical([
             Constraint::Length(1),
-            Constraint::Min(1),
+            Constraint::Min(5),
         ]).areas(dev_blk_area);
         let dev_title = Line::from(vec![
             " ".into(),
