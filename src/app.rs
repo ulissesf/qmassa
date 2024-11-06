@@ -338,15 +338,17 @@ impl App
         ];
         let y_bounds = [miny, maxy];
 
+        let fq = dinfo.dev_stats.freqs.last().unwrap();  // always present
+
         let datasets = vec![
             Dataset::default()
-                .name("Requested")
+                .name(format!("Requested [{}]", fq.cur_freq))
                 .marker(symbols::Marker::Braille)
                 .style(tailwind::BLUE.c700)
                 .graph_type(GraphType::Line)
                 .data(&cur_freq_ds),
             Dataset::default()
-                .name("Actual")
+                .name(format!("Actual    [{}]", fq.act_freq))
                 .marker(symbols::Marker::Braille)
                 .style(tailwind::GREEN.c700)
                 .graph_type(GraphType::Line)
