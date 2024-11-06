@@ -6,8 +6,7 @@ Features
 
 * [Ulisses WIP] improve/find mainloop to support different resolution timers
 * [Ulisses WIP] option to create png files for different plotted graphs (great idea from Rodrigo Vivi)
-* show device power usage for igfx and dgfx (hwmon)
-  * [Ulisses WIP] get power levels for igfx from MSR or perf
+* show device power usage for dgfx (hwmon)
   * [Rodrigo Vivi WIP] expose generic HwMon interface to read the data
   * integrate with app data layer and UI
 * add driver feature support flags so the app UI knows what data to use/render

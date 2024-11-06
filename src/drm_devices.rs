@@ -121,6 +121,24 @@ impl DrmDeviceFreqs
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DrmDevicePower
+{
+    pub gpu_cur_power: f64,
+    pub pkg_cur_power: f64,
+}
+
+impl DrmDevicePower
+{
+    pub fn new() -> DrmDevicePower
+    {
+        DrmDevicePower {
+            gpu_cur_power: 0.0,
+            pkg_cur_power: 0.0,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DrmDeviceMemInfo
 {
     pub smem_total: u64,
@@ -190,6 +208,7 @@ pub struct DrmDeviceInfo
     pub dev_type: DrmDeviceType,
     pub freq_limits: DrmDeviceFreqLimits,
     pub freqs: DrmDeviceFreqs,
+    pub power: DrmDevicePower,
     pub mem_info: DrmDeviceMemInfo,
     driver: Option<Rc<RefCell<dyn DrmDriver>>>,
     drm_clis: Option<Rc<RefCell<Vec<DrmClientInfo>>>>,
@@ -212,6 +231,7 @@ impl Default for DrmDeviceInfo
             dev_type: DrmDeviceType::Unknown,
             freq_limits: DrmDeviceFreqLimits::new(),
             freqs: DrmDeviceFreqs::new(),
+            power: DrmDevicePower::new(),
             mem_info: DrmDeviceMemInfo::new(),
             driver: None,
             drm_clis: None,
@@ -285,6 +305,7 @@ impl DrmDeviceInfo
 
             // note: dev_type and freq_limits don't change
             self.freqs = drv_b.freqs()?;
+            self.power = drv_b.power()?;
             self.mem_info = drv_b.mem_info()?;
         }
 
@@ -456,6 +477,7 @@ impl DrmDevices
                     dinf.dev_type = drv_b.dev_type()?;
                     dinf.freq_limits = drv_b.freq_limits()?;
                     dinf.freqs = drv_b.freqs()?;
+                    dinf.power = drv_b.power()?;
                     dinf.mem_info = drv_b.mem_info()?;
 
                     dinf.driver = Some(drv_ref);

@@ -7,12 +7,13 @@ use anyhow::Result;
 
 use crate::drm_devices::{
     DrmDeviceType, DrmDeviceFreqLimits, DrmDeviceFreqs,
-    DrmDeviceMemInfo, DrmDeviceInfo
+    DrmDevicePower, DrmDeviceMemInfo, DrmDeviceInfo
 };
 use crate::drm_fdinfo::DrmMemRegion;
 use crate::drm_clients::DrmClientMemInfo;
 
 mod helpers;
+mod intel_power;
 mod xe;
 use xe::DrmDriverXe;
 mod i915;
@@ -41,6 +42,11 @@ pub trait DrmDriver
     fn freqs(&mut self) -> Result<DrmDeviceFreqs>
     {
         Ok(DrmDeviceFreqs::new())
+    }
+
+    fn power(&mut self) -> Result<DrmDevicePower>
+    {
+        Ok(DrmDevicePower::new())
     }
 
     fn mem_info(&mut self) -> Result<DrmDeviceMemInfo>

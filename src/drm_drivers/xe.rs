@@ -16,11 +16,13 @@ use anyhow::Result;
 use log::warn;
 use libc;
 
-use crate::drm_drivers::DrmDriver;
-use crate::drm_drivers::helpers::{drm_iowr, __IncompleteArrayField};
+use crate::drm_drivers::{
+    DrmDriver, helpers::{drm_iowr, __IncompleteArrayField},
+    intel_power::GpuPowerIntel,
+};
 use crate::drm_devices::{
     DrmDeviceType, DrmDeviceFreqLimits, DrmDeviceFreqs,
-    DrmDeviceThrottleReasons, DrmDeviceMemInfo, DrmDeviceInfo
+    DrmDeviceThrottleReasons, DrmDevicePower, DrmDeviceMemInfo, DrmDeviceInfo
 };
 use crate::drm_fdinfo::DrmMemRegion;
 use crate::drm_clients::DrmClientMemInfo;
@@ -93,6 +95,7 @@ pub struct DrmDriverXe
     throttle_dir: PathBuf,
     dev_type: Option<DrmDeviceType>,
     freq_limits: Option<DrmDeviceFreqLimits>,
+    power: Option<GpuPowerIntel>,
 }
 
 impl DrmDriver for DrmDriverXe
@@ -320,6 +323,15 @@ impl DrmDriver for DrmDriverXe
         })
     }
 
+    fn power(&mut self) -> Result<DrmDevicePower>
+    {
+        if self.power.is_none() {
+            return Ok(DrmDevicePower::new());
+        }
+
+        self.power.as_mut().unwrap().power_usage()
+    }
+
     fn client_mem_info(&mut self,
         mem_regs: &HashMap<String, DrmMemRegion>) -> Result<DrmClientMemInfo>
     {
@@ -363,7 +375,7 @@ impl DrmDriverXe
         cpath.push_str(card);
 
         // TODO: handle more than one tile & gt
-        Ok(Rc::new(RefCell::new(DrmDriverXe {
+        let mut xe = DrmDriverXe {
             dn_file: file,
             dn_fd: fd,
             freqs_dir: Path::new(&cpath).join("device/tile0/gt0/freq0"),
@@ -371,6 +383,13 @@ impl DrmDriverXe
                 .join("device/tile0/gt0/freq0/throttle"),
             dev_type: None,
             freq_limits: None,
-        })))
+            power: None,
+        };
+
+        let dtype = xe.dev_type()?;
+        xe.freq_limits()?;
+        xe.power = GpuPowerIntel::from(dtype)?;
+
+        Ok(Rc::new(RefCell::new(xe)))
     }
 }

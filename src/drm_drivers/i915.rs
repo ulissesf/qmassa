@@ -16,11 +16,13 @@ use anyhow::Result;
 use log::warn;
 use libc;
 
-use crate::drm_drivers::DrmDriver;
-use crate::drm_drivers::helpers::{drm_iowr, __IncompleteArrayField};
+use crate::drm_drivers::{
+    DrmDriver, helpers::{drm_iowr, __IncompleteArrayField},
+    intel_power::GpuPowerIntel,
+};
 use crate::drm_devices::{
     DrmDeviceType, DrmDeviceFreqs, DrmDeviceFreqLimits,
-    DrmDeviceThrottleReasons, DrmDeviceMemInfo, DrmDeviceInfo
+    DrmDeviceThrottleReasons, DrmDevicePower, DrmDeviceMemInfo, DrmDeviceInfo
 };
 use crate::drm_fdinfo::DrmMemRegion;
 use crate::drm_clients::DrmClientMemInfo;
@@ -99,6 +101,7 @@ pub struct DrmDriveri915
     freqs_dir: PathBuf,
     dev_type: Option<DrmDeviceType>,
     freq_limits: Option<DrmDeviceFreqLimits>,
+    power: Option<GpuPowerIntel>,
 }
 
 impl DrmDriver for DrmDriveri915
@@ -297,6 +300,15 @@ impl DrmDriver for DrmDriveri915
         })
     }
 
+    fn power(&mut self) -> Result<DrmDevicePower>
+    {
+        if self.power.is_none() {
+            return Ok(DrmDevicePower::new());
+        }
+
+        self.power.as_mut().unwrap().power_usage()
+    }
+
     fn client_mem_info(&mut self,
         mem_regs: &HashMap<String, DrmMemRegion>) -> Result<DrmClientMemInfo>
     {
@@ -334,12 +346,19 @@ impl DrmDriveri915
         cpath.push_str(card);
 
         // TODO: handle more than one tile & gt
-        Ok(Rc::new(RefCell::new(DrmDriveri915 {
+        let mut i915 = DrmDriveri915 {
             dn_file: file,
             dn_fd: fd,
             freqs_dir: Path::new(&cpath).join("gt/gt0"),
             dev_type: None,
             freq_limits: None,
-        })))
+            power: None,
+        };
+
+        let dtype = i915.dev_type()?;
+        i915.freq_limits()?;
+        i915.power = GpuPowerIntel::from(dtype)?;
+
+        Ok(Rc::new(RefCell::new(i915)))
     }
 }
