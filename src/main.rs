@@ -10,6 +10,7 @@ use clap::{Parser, ArgAction};
 use libc;
 
 mod perf_event;
+mod hwmon;
 mod drm_devices;
 mod drm_drivers;
 mod drm_fdinfo;
