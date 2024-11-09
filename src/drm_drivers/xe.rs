@@ -18,7 +18,7 @@ use libc;
 
 use crate::drm_drivers::{
     DrmDriver, helpers::{drm_iowr, __IncompleteArrayField},
-    intel_power::GpuPowerIntel,
+    intel_power::{GpuPowerIntel, IGpuPowerIntel, DGpuPowerIntel},
 };
 use crate::drm_devices::{
     DrmDeviceType, DrmDeviceFreqLimits, DrmDeviceFreqs,
@@ -95,7 +95,7 @@ pub struct DrmDriverXe
     throttle_dir: PathBuf,
     dev_type: Option<DrmDeviceType>,
     freq_limits: Option<DrmDeviceFreqLimits>,
-    power: Option<GpuPowerIntel>,
+    power: Option<Box<dyn GpuPowerIntel>>,
 }
 
 impl DrmDriver for DrmDriverXe
@@ -373,14 +373,14 @@ impl DrmDriverXe
         let card = Path::new(&qmd.drm_minors[0].devnode)
             .file_name().unwrap().to_str().unwrap();
         cpath.push_str(card);
+        let dev_path = Path::new(&cpath).join("device");
 
         // TODO: handle more than one tile & gt
         let mut xe = DrmDriverXe {
             dn_file: file,
             dn_fd: fd,
-            freqs_dir: Path::new(&cpath).join("device/tile0/gt0/freq0"),
-            throttle_dir: Path::new(&cpath)
-                .join("device/tile0/gt0/freq0/throttle"),
+            freqs_dir: dev_path.join("tile0/gt0/freq0"),
+            throttle_dir: dev_path.join("tile0/gt0/freq0/throttle"),
             dev_type: None,
             freq_limits: None,
             power: None,
@@ -388,7 +388,13 @@ impl DrmDriverXe
 
         let dtype = xe.dev_type()?;
         xe.freq_limits()?;
-        xe.power = GpuPowerIntel::from(dtype)?;
+        xe.power = if dtype.is_integrated() {
+            IGpuPowerIntel::new()?
+        } else if dtype.is_discrete() {
+            DGpuPowerIntel::from(&dev_path)?
+        } else {
+            None
+        };
 
         Ok(Rc::new(RefCell::new(xe)))
     }

@@ -18,7 +18,7 @@ use libc;
 
 use crate::drm_drivers::{
     DrmDriver, helpers::{drm_iowr, __IncompleteArrayField},
-    intel_power::GpuPowerIntel,
+    intel_power::{GpuPowerIntel, IGpuPowerIntel, DGpuPowerIntel},
 };
 use crate::drm_devices::{
     DrmDeviceType, DrmDeviceFreqs, DrmDeviceFreqLimits,
@@ -101,7 +101,7 @@ pub struct DrmDriveri915
     freqs_dir: PathBuf,
     dev_type: Option<DrmDeviceType>,
     freq_limits: Option<DrmDeviceFreqLimits>,
-    power: Option<GpuPowerIntel>,
+    power: Option<Box<dyn GpuPowerIntel>>,
 }
 
 impl DrmDriver for DrmDriveri915
@@ -357,7 +357,13 @@ impl DrmDriveri915
 
         let dtype = i915.dev_type()?;
         i915.freq_limits()?;
-        i915.power = GpuPowerIntel::from(dtype)?;
+        i915.power = if dtype.is_integrated() {
+            IGpuPowerIntel::new()?
+        } else if dtype.is_discrete() {
+            DGpuPowerIntel::from(&Path::new(&cpath).join("device"))?
+        } else {
+            None
+        };
 
         Ok(Rc::new(RefCell::new(i915)))
     }
