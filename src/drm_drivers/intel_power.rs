@@ -104,6 +104,12 @@ impl GpuPowerIntel
 
         let evt_dir = Path::new("/sys/devices/power/events");
 
+        if !evt_dir.join("energy-gpu").exists() ||
+            !evt_dir.join("energy-pkg").exists() {
+            debug!("Missing either energy-gpu or energy-pkg, aborting.");
+            return Ok(None);
+        }
+
         let gpu_unit = fs::read_to_string(evt_dir.join("energy-gpu.unit"))?;
         let pkg_unit = fs::read_to_string(evt_dir.join("energy-pkg.unit"))?;
         if gpu_unit.trim() != "Joules" || pkg_unit.trim() != "Joules" {
