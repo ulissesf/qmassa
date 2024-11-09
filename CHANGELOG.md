@@ -1,5 +1,19 @@
 # Changelog
 
+## [v0.2.2](https://github.com/ulissesf/qmassa/releases/tag/v0.2.2) - 2024-11-11
+
+### Features
+
+- Displays power usage for GPU and package on Intel integrated and discrete GPUs. (@ulissesf, leveraging initial work on Hwmon from @rodrigovivi)
+- Added initial amdgpu support. (@ulissesf)
+- Improved visibility of very long GPU device names (@ulissesf)
+- Improved GPU frequency graph: using Braille markers, moved legend out of the way of the newest data, increased number of data points plotted, showing latest requested and actual frequencies in the legend. (@ulissesf)
+
+### Fixes
+
+- Don't abort when perf event is not supported. (@ulissesf)
+- Make parsing DRM fdinfo files more robust and fix crash on amdgpu. (@ulissesf)
+
 ## [v0.2.1](https://github.com/ulissesf/qmassa/releases/tag/v0.2.1) - 2024-10-26
 
 ### Features
