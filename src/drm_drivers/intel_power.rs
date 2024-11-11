@@ -151,11 +151,11 @@ impl DGpuPowerIntel
         let pwrlst = self.hwmon.sensors("power");
         for s in pwrlst.iter() {
             if s.has_item("input") || s.has_item("average") {
-                if s.label == "card" {
+                if s.label == "pkg" || s.label.is_empty() {
                     gpu_sensor = &s.sensor;
                     gpu_item = if s.has_item("input") {
                         "input" } else { "average" };
-                } else if s.label == "pkg" || s.label.is_empty() {
+                } else if s.label == "card" {
                     pkg_sensor = &s.sensor;
                     pkg_item = if s.has_item("input") {
                         "input" } else { "average" };
@@ -177,10 +177,10 @@ impl DGpuPowerIntel
         let elst = self.hwmon.sensors("energy");
         for s in elst.iter() {
             if s.has_item("input") {
-                if s.label == "card" {
+                if s.label == "pkg" || s.label.is_empty() {
                     gpu_sensor = &s.sensor;
                     gpu_item = "input";
-                } else if s.label == "pkg" || s.label.is_empty() {
+                } else if s.label == "card" {
                     pkg_sensor = &s.sensor;
                     pkg_item = "input";
                 }
