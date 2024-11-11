@@ -1,6 +1,6 @@
 [package]
 name = "qmassa"
-version = "0.2.2"
+version = "0.2.3"
 description = "Terminal-based tool for displaying GPUs usage stats on Linux."
 repository = "https://github.com/ulissesf/qmassa"
 readme = "README.md"

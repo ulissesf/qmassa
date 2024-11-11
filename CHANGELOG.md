@@ -1,5 +1,15 @@
 # Changelog
 
+## [v0.2.3](https://github.com/ulissesf/qmassa/releases/tag/v0.2.3) - 2024-11-11
+
+### Features
+
+- Same as v0.2.2.
+
+### Fixes
+
+- Fixes README links on GitHub and crates.io. (@ulissesf)
+
 ## [v0.2.2](https://github.com/ulissesf/qmassa/releases/tag/v0.2.2) - 2024-11-11
 
 ### Features

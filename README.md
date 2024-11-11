@@ -1,16 +1,17 @@
 # qmassa!
 
 <div align="center">
-[!https://img.shields.io/crates/v/qmassa?logo=rust&style=flat-square&logoColor=E05D44&color=E05D44][https://crates.io/crates/qmassa]
+
+[![Crate Badge]][Crate]
+
 </div>
 
-qmassa is a Rust terminal-based tool for displaying GPUs usage stats on Linux.
-
-![qmassa](http://honeh.4kim.org/qmassa/qmassa-v0.2.2.gif)
+![qmassa](https://github.com/ulissesf/qmassa/blob/assets/assets/qmassa-v0.2.2.gif?raw=true)
 
 ## General description
 
-qmassa tries to display as much device and DRM clients (processes using the
+qmassa is a Rust terminal-based tool for displaying GPUs usage stats on Linux.
+It aims to display as much device and DRM clients (processes using the
 GPU) information as possible. Command-line options and which user is running
 the tool control how much can be displayed.
 
@@ -140,7 +141,7 @@ The table below shows the current drivers and features supported in qmassa
 to get device information.
 
 | Driver | Dev Type | Mem Info | Engines | Freqs   | Power   | Client Mem Info |
-| ------ | -------- | -------- | ------- | ------- | ------- | --------------- |
+| ------ | :------: | :------: | :-----: | :-----: | :-----: | :-------------: |
 | xe     | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: |
 | i915   | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: |
 | amdgpu | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: |                    |                    |
@@ -190,3 +191,7 @@ Copyright © 2024 Ulisses Furquim
 
 This project is distributed under the terms of the Apache License (Version 2.0).
 See [LICENSE](LICENSE) for details.
+
+
+[Crate Badge]: https://img.shields.io/crates/v/qmassa?logo=rust&style=flat-square&logoColor=E05D44&color=E05D44
+[Crate]: https://crates.io/crates/qmassa
