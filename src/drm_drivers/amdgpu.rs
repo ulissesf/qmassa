@@ -12,14 +12,15 @@ use std::mem;
 use std::io;
 
 use anyhow::Result;
-use log::warn;
+use log::{debug, warn};
 use libc;
 
 use crate::drm_drivers::DrmDriver;
 use crate::drm_drivers::helpers::drm_iow;
+use crate::hwmon::Hwmon;
 use crate::drm_devices::{
     DrmDeviceType, DrmDeviceFreqLimits, DrmDeviceFreqs,
-    DrmDeviceMemInfo, DrmDeviceInfo
+    DrmDevicePower, DrmDeviceMemInfo, DrmDeviceInfo
 };
 use crate::drm_fdinfo::DrmMemRegion;
 use crate::drm_clients::DrmClientMemInfo;
@@ -312,6 +313,8 @@ pub struct DrmDriverAmdgpu
     freqs_dir: PathBuf,
     dev_type: Option<DrmDeviceType>,
     freq_limits: Option<DrmDeviceFreqLimits>,
+    hwmon: Option<Hwmon>,
+    sensor: String,
 }
 
 impl DrmDriver for DrmDriverAmdgpu
@@ -431,6 +434,22 @@ impl DrmDriver for DrmDriverAmdgpu
         Ok(freqs)
     }
 
+    fn power(&mut self) -> Result<DrmDevicePower>
+    {
+        if self.hwmon.is_none() || self.sensor.is_empty() {
+            // TODO: need to add integrated support, only hwmon/discrete now
+            return Ok(DrmDevicePower::new());
+        }
+        let hwmon = self.hwmon.as_ref().unwrap();
+
+        let val = hwmon.read_sensor(&self.sensor, "average")?;
+
+        Ok(DrmDevicePower {
+            gpu_cur_power: val as f64 / 1000000.0,
+            pkg_cur_power: 0.0,
+        })
+    }
+
     fn client_mem_info(&mut self,
         mem_regs: &HashMap<String, DrmMemRegion>) -> Result<DrmClientMemInfo>
     {
@@ -497,10 +516,38 @@ impl DrmDriverAmdgpu
             freqs_dir: Path::new(&cpath).join("device"),
             dev_type: None,
             freq_limits: None,
+            hwmon: None,
+            sensor: String::new(),
         };
 
         amdgpu.dev_type()?;
         amdgpu.freq_limits()?;
+
+        if amdgpu.dev_type.is_some() &&
+            amdgpu.dev_type.as_ref().unwrap().is_discrete() {
+            let hwmon_path = fs::read_dir(
+                Path::new(&cpath).join("device/hwmon"))?
+                .into_iter()
+                .filter(|r| r.is_ok())
+                .map(|r| r.unwrap().path())
+                .find(|r| r.file_name().unwrap()
+                .to_str().unwrap().starts_with("hwmon"));
+
+            if let Some(hmp) = hwmon_path {
+                let hm_opt = Hwmon::from(hmp.to_path_buf())?;
+                if let Some(hwmon) = hm_opt {
+                    let plist = hwmon.sensors("power");
+                    for s in plist.iter() {
+                        if s.has_item("average") {
+                            amdgpu.sensor = s.sensor.clone();
+                        }
+                    }
+                    amdgpu.hwmon = Some(hwmon);
+                }
+            } else {
+                debug!("INF: no {:?}/device/hwmon/hwmon* directory.", cpath);
+            }
+        }
 
         Ok(Rc::new(RefCell::new(amdgpu)))
     }
