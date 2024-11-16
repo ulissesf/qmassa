@@ -308,7 +308,7 @@ const DRM_IOCTL_AMDGPU_INFO: u64 = drm_iow!(DRM_AMDGPU_INFO,
 #[derive(Debug)]
 pub struct DrmDriverAmdgpu
 {
-    dn_file: File,
+    _dn_file: File,
     dn_fd: RawFd,
     freqs_dir: PathBuf,
     dev_type: Option<DrmDeviceType>,
@@ -511,7 +511,7 @@ impl DrmDriverAmdgpu
         cpath.push_str(card);
 
         let mut amdgpu = DrmDriverAmdgpu {
-            dn_file: file,
+            _dn_file: file,
             dn_fd: fd,
             freqs_dir: Path::new(&cpath).join("device"),
             dev_type: None,

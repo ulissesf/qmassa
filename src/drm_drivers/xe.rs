@@ -89,7 +89,7 @@ const DRM_IOCTL_XE_DEVICE_QUERY: u64 = drm_iowr!(DRM_XE_DEVICE_QUERY,
 #[derive(Debug)]
 pub struct DrmDriverXe
 {
-    dn_file: File,
+    _dn_file: File,
     dn_fd: RawFd,
     freqs_dir: PathBuf,
     throttle_dir: PathBuf,
@@ -377,7 +377,7 @@ impl DrmDriverXe
 
         // TODO: handle more than one tile & gt
         let mut xe = DrmDriverXe {
-            dn_file: file,
+            _dn_file: file,
             dn_fd: fd,
             freqs_dir: dev_path.join("tile0/gt0/freq0"),
             throttle_dir: dev_path.join("tile0/gt0/freq0/throttle"),

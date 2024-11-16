@@ -96,7 +96,7 @@ const DRM_IOCTL_I915_QUERY: u64 = drm_iowr!(DRM_I915_QUERY,
 #[derive(Debug)]
 pub struct DrmDriveri915
 {
-    dn_file: File,
+    _dn_file: File,
     dn_fd: RawFd,
     freqs_dir: PathBuf,
     dev_type: Option<DrmDeviceType>,
@@ -347,7 +347,7 @@ impl DrmDriveri915
 
         // TODO: handle more than one tile & gt
         let mut i915 = DrmDriveri915 {
-            dn_file: file,
+            _dn_file: file,
             dn_fd: fd,
             freqs_dir: Path::new(&cpath).join("gt/gt0"),
             dev_type: None,
