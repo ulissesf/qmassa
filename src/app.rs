@@ -406,7 +406,7 @@ impl App
         }
 
         let mut datasets = Vec::new();
-        let mut color_idx = 0;
+        let mut color_idx = 1;
 
         for (en, ed) in dinfo.eng_names.iter().zip(eng_vals.iter()) {
             datasets.push(Dataset::default()
