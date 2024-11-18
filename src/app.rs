@@ -1,6 +1,6 @@
 use std::io::{Write, Seek, SeekFrom};
 use std::cell::RefCell;
-use std::cmp::{max, min};
+use std::cmp::max;
 use std::fs::File;
 use std::time;
 
@@ -285,10 +285,12 @@ impl App
 
         let mut texts = Vec::new();
         let mut eng_widths = Vec::new();
+        let en_width = if !dinfo.eng_names.is_empty() {
+            engines_hdr.width as usize / dinfo.eng_names.len() } else { 0 };
         for en in dinfo.eng_names.iter() {
-            let en_len = min(en.len(), 8);
-            texts.push(Text::from(en[..en_len].to_uppercase())
-                .alignment(Alignment::Center));
+            texts.push(Text::from(en.to_uppercase())
+                .alignment(if en.len() > en_width {
+                    Alignment::Left } else { Alignment::Center }));
             eng_widths.push(Constraint::Fill(1));
         }
         clis_sv.render_widget(Table::new([Row::new(texts)], &eng_widths)
@@ -615,12 +617,23 @@ impl App
         ]).areas(dstats_area);
 
         let mut dstats_widths = Vec::new();
+        dstats_widths.push(Constraint::Length(12));   // SMEM
+        dstats_widths.push(Constraint::Length(12));   // VRAM
+        for _ in dinfo.eng_names.iter() {
+            dstats_widths.push(Constraint::Fill(1));  // ENGINES
+        }
+        dstats_widths.push(Constraint::Length(9));    // FREQS
+        dstats_widths.push(Constraint::Length(11));   // POWER
+
+        // split area for gauges early to calculate max engine name length
+        let ind_gs = Layout::horizontal(&dstats_widths).split(gauges_area);
+        let en_width = if !dinfo.eng_names.is_empty() {
+            ind_gs[2].width as usize } else { 0 };
+
         let mut hdrs_lst = Vec::new();
         let wh_bold = Style::new().white().bold();
         let ly_bold = Style::new().light_yellow().bold();
 
-        dstats_widths.push(Constraint::Length(12));
-        dstats_widths.push(Constraint::Length(12));
         hdrs_lst.push(Text::from("SMEM")
             .alignment(Alignment::Center)
             .style(if ds_st.sel == DEVICE_STATS_MEMINFO {
@@ -629,23 +642,17 @@ impl App
             .alignment(Alignment::Center)
             .style(if ds_st.sel == DEVICE_STATS_MEMINFO {
                 ly_bold } else { wh_bold }));
-
         for en in dinfo.eng_names.iter() {
-            dstats_widths.push(Constraint::Fill(1));
-            let en_len = min(en.len(), 8);
-            hdrs_lst.push(Text::from(en[..en_len].to_uppercase())
-                .alignment(Alignment::Center)
+            hdrs_lst.push(Text::from(en.to_uppercase())
+                .alignment(if en.len() > en_width {
+                    Alignment::Left } else { Alignment::Center })
                 .style(if ds_st.sel == DEVICE_STATS_ENGINES {
                     ly_bold } else { wh_bold }));
         }
-
-        dstats_widths.push(Constraint::Length(9));
         hdrs_lst.push(Text::from("FREQS")
             .alignment(Alignment::Center)
             .style(if ds_st.sel == DEVICE_STATS_FREQS {
                 ly_bold } else { wh_bold }));
-
-        dstats_widths.push(Constraint::Length(11));
         hdrs_lst.push(Text::from("POWER")
             .alignment(Alignment::Center)
             .style(if ds_st.sel == DEVICE_STATS_POWER {
@@ -657,7 +664,7 @@ impl App
             .column_spacing(1),
             hdr_area);
 
-        let ind_gs = Layout::horizontal(&dstats_widths).split(gauges_area);
+        let mut dstats_gs = Vec::new();
 
         let mi = dinfo.dev_stats.mem_info.last().unwrap();  // always present
         let smem_label = Span::styled(format!("{}/{}",
@@ -672,8 +679,6 @@ impl App
             Style::new().white());
         let vram_ratio = if mi.vram_total > 0 {
             mi.vram_used as f64 / mi.vram_total as f64 } else { 0.0 };
-
-        let mut dstats_gs = Vec::new();
         dstats_gs.push(App::gauge_colored_from(smem_label, smem_ratio));
         dstats_gs.push(App::gauge_colored_from(vram_label, vram_ratio));
 
