@@ -622,8 +622,8 @@ impl App
         for _ in dinfo.eng_names.iter() {
             dstats_widths.push(Constraint::Fill(1));  // ENGINES
         }
-        dstats_widths.push(Constraint::Length(9));    // FREQS
-        dstats_widths.push(Constraint::Length(11));   // POWER
+        dstats_widths.push(Constraint::Length(10));   // FREQS
+        dstats_widths.push(Constraint::Length(12));   // POWER
 
         // split area for gauges early to calculate max engine name length
         let ind_gs = Layout::horizontal(&dstats_widths).split(gauges_area);
