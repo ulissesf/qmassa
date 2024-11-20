@@ -99,40 +99,6 @@ where
     }
 }
 
-pub const PERF_SAMPLE_IP: u64 = 1;
-pub const PERF_SAMPLE_TID: u64 = 2;
-pub const PERF_SAMPLE_TIME: u64 = 4;
-pub const PERF_SAMPLE_ADDR: u64 = 8;
-pub const PERF_SAMPLE_READ: u64 = 16;
-pub const PERF_SAMPLE_CALLCHAIN: u64 = 32;
-pub const PERF_SAMPLE_ID: u64 = 64;
-pub const PERF_SAMPLE_CPU: u64 = 128;
-pub const PERF_SAMPLE_PERIOD: u64 = 256;
-pub const PERF_SAMPLE_STREAM_ID: u64 = 512;
-pub const PERF_SAMPLE_RAW: u64 = 1024;
-pub const PERF_SAMPLE_BRANCH_STACK: u64 = 2048;
-pub const PERF_SAMPLE_REGS_USER: u64 = 4096;
-pub const PERF_SAMPLE_STACK_USER: u64 = 8192;
-pub const PERF_SAMPLE_WEIGHT: u64 = 16384;
-pub const PERF_SAMPLE_DATA_SRC: u64 = 32768;
-pub const PERF_SAMPLE_IDENTIFIER: u64 = 65536;
-pub const PERF_SAMPLE_TRANSACTION: u64 = 131072;
-pub const PERF_SAMPLE_REGS_INTR: u64 = 262144;
-pub const PERF_SAMPLE_PHYS_ADDR: u64 = 524288;
-pub const PERF_SAMPLE_AUX: u64 = 1048576;
-pub const PERF_SAMPLE_CGROUP: u64 = 2097152;
-pub const PERF_SAMPLE_DATA_PAGE_SIZE: u64 = 4194304;
-pub const PERF_SAMPLE_CODE_PAGE_SIZE: u64 = 8388608;
-pub const PERF_SAMPLE_WEIGHT_STRUCT: u64 = 16777216;
-pub const PERF_SAMPLE_MAX: u64 = 33554432;
-
-pub const PERF_FORMAT_TOTAL_TIME_ENABLED: u64 = 1;
-pub const PERF_FORMAT_TOTAL_TIME_RUNNING: u64 = 2;
-pub const PERF_FORMAT_ID: u64 = 4;
-pub const PERF_FORMAT_GROUP: u64 = 8;
-pub const PERF_FORMAT_LOST: u64 = 16;
-pub const PERF_FORMAT_MAX: u64 = 32;
-
 #[repr(C)]
 #[derive(Copy, Clone)]
 pub union perf_event_attr_sample {
@@ -891,8 +857,8 @@ impl perf_event_attr {
     pub fn new() -> perf_event_attr
     {
         let bitfield1 = perf_event_attr::new_bitfield_1(
-            0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-            0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
+            0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+            0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
 
         perf_event_attr {
             type_: 0,
@@ -922,6 +888,40 @@ impl perf_event_attr {
         }
     }
 }
+
+pub const PERF_SAMPLE_IP: u64 = 1;
+pub const PERF_SAMPLE_TID: u64 = 2;
+pub const PERF_SAMPLE_TIME: u64 = 4;
+pub const PERF_SAMPLE_ADDR: u64 = 8;
+pub const PERF_SAMPLE_READ: u64 = 16;
+pub const PERF_SAMPLE_CALLCHAIN: u64 = 32;
+pub const PERF_SAMPLE_ID: u64 = 64;
+pub const PERF_SAMPLE_CPU: u64 = 128;
+pub const PERF_SAMPLE_PERIOD: u64 = 256;
+pub const PERF_SAMPLE_STREAM_ID: u64 = 512;
+pub const PERF_SAMPLE_RAW: u64 = 1024;
+pub const PERF_SAMPLE_BRANCH_STACK: u64 = 2048;
+pub const PERF_SAMPLE_REGS_USER: u64 = 4096;
+pub const PERF_SAMPLE_STACK_USER: u64 = 8192;
+pub const PERF_SAMPLE_WEIGHT: u64 = 16384;
+pub const PERF_SAMPLE_DATA_SRC: u64 = 32768;
+pub const PERF_SAMPLE_IDENTIFIER: u64 = 65536;
+pub const PERF_SAMPLE_TRANSACTION: u64 = 131072;
+pub const PERF_SAMPLE_REGS_INTR: u64 = 262144;
+pub const PERF_SAMPLE_PHYS_ADDR: u64 = 524288;
+pub const PERF_SAMPLE_AUX: u64 = 1048576;
+pub const PERF_SAMPLE_CGROUP: u64 = 2097152;
+pub const PERF_SAMPLE_DATA_PAGE_SIZE: u64 = 4194304;
+pub const PERF_SAMPLE_CODE_PAGE_SIZE: u64 = 8388608;
+pub const PERF_SAMPLE_WEIGHT_STRUCT: u64 = 16777216;
+pub const PERF_SAMPLE_MAX: u64 = 33554432;
+
+pub const PERF_FORMAT_TOTAL_TIME_ENABLED: u64 = 1;
+pub const PERF_FORMAT_TOTAL_TIME_RUNNING: u64 = 2;
+pub const PERF_FORMAT_ID: u64 = 4;
+pub const PERF_FORMAT_GROUP: u64 = 8;
+pub const PERF_FORMAT_LOST: u64 = 16;
+pub const PERF_FORMAT_MAX: u64 = 32;
 
 // from unistd*.h files
 #[cfg(target_arch = "x86_64")]
