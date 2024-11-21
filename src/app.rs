@@ -13,7 +13,7 @@ use crossterm::event::{self, Event, KeyCode, KeyEvent, KeyEventKind};
 use ratatui::{
     layout::{Alignment, Constraint, Layout, Rect, Size},
     style::{palette::tailwind, Color, Style, Stylize},
-    text::{Span, Line, Text},
+    text::{Span, Line},
     widgets::{Axis, Block, Borders, BorderType, Chart,
         Dataset, Gauge, GraphType, LegendPosition, Row, Table, Tabs},
     symbols, DefaultTerminal, Frame,
@@ -166,13 +166,13 @@ impl App
         let mem_info = cli.mem_info.last().unwrap();  // always present
 
         let rows = [Row::new([
-                Text::from(cli.pid.to_string())
+                Line::from(cli.pid.to_string())
                     .alignment(Alignment::Center),
-                Text::from(App::short_mem_string(mem_info.smem_rss))
+                Line::from(App::short_mem_string(mem_info.smem_rss))
                     .alignment(Alignment::Center),
-                Text::from(App::short_mem_string(mem_info.vram_rss))
+                Line::from(App::short_mem_string(mem_info.vram_rss))
                     .alignment(Alignment::Center),
-                Text::from(cli.drm_minor.to_string())
+                Line::from(cli.drm_minor.to_string())
                     .alignment(Alignment::Center),
         ])];
 
@@ -209,9 +209,9 @@ impl App
         App::gauge_colored_from(label, cpu/100.0)
     }
 
-    fn client_cmd(&self, cli: &AppDataClientStats) -> Text
+    fn client_cmd(&self, cli: &AppDataClientStats) -> Line
     {
-        Text::from(format!("[{}] {}", &cli.comm, &cli.cmdline))
+        Line::from(format!("[{}] {}", &cli.comm, &cli.cmdline))
             .alignment(Alignment::Left)
             .style(Style::new().white().on_black())
     }
@@ -265,10 +265,10 @@ impl App
             Layout::horizontal(&line_widths).areas(hdr_area);
 
         let texts = vec![
-            Text::from("PID").alignment(Alignment::Center),
-            Text::from("SMEM").alignment(Alignment::Center),
-            Text::from("VRAM").alignment(Alignment::Center),
-            Text::from("MIN").alignment(Alignment::Center),
+            Line::from("PID").alignment(Alignment::Center),
+            Line::from("SMEM").alignment(Alignment::Center),
+            Line::from("VRAM").alignment(Alignment::Center),
+            Line::from("MIN").alignment(Alignment::Center),
         ];
         let pidmem_widths = vec![
             Constraint::Max(6),
@@ -288,7 +288,7 @@ impl App
         let en_width = if !dinfo.eng_names.is_empty() {
             engines_hdr.width as usize / dinfo.eng_names.len() } else { 0 };
         for en in dinfo.eng_names.iter() {
-            texts.push(Text::from(en.to_uppercase())
+            texts.push(Line::from(en.to_uppercase())
                 .alignment(if en.len() > en_width {
                     Alignment::Left } else { Alignment::Center }));
             eng_widths.push(Constraint::Fill(1));
@@ -300,11 +300,11 @@ impl App
                 .style(Style::new().white().bold().on_dark_gray())),
             engines_hdr);
 
-        clis_sv.render_widget(Text::from("CPU")
+        clis_sv.render_widget(Line::from("CPU")
             .alignment(Alignment::Center)
             .style(Style::new().white().bold().on_dark_gray()),
             cpu_hdr);
-        clis_sv.render_widget(Text::from("COMMAND")
+        clis_sv.render_widget(Line::from("COMMAND")
             .alignment(Alignment::Left)
             .style(Style::new().white().bold().on_dark_gray()),
             cmd_hdr);
@@ -634,26 +634,26 @@ impl App
         let wh_bold = Style::new().white().bold();
         let ly_bold = Style::new().light_yellow().bold();
 
-        hdrs_lst.push(Text::from("SMEM")
+        hdrs_lst.push(Line::from("SMEM")
             .alignment(Alignment::Center)
             .style(if ds_st.sel == DEVICE_STATS_MEMINFO {
                 ly_bold } else { wh_bold }));
-        hdrs_lst.push(Text::from("VRAM")
+        hdrs_lst.push(Line::from("VRAM")
             .alignment(Alignment::Center)
             .style(if ds_st.sel == DEVICE_STATS_MEMINFO {
                 ly_bold } else { wh_bold }));
         for en in dinfo.eng_names.iter() {
-            hdrs_lst.push(Text::from(en.to_uppercase())
+            hdrs_lst.push(Line::from(en.to_uppercase())
                 .alignment(if en.len() > en_width {
                     Alignment::Left } else { Alignment::Center })
                 .style(if ds_st.sel == DEVICE_STATS_ENGINES {
                     ly_bold } else { wh_bold }));
         }
-        hdrs_lst.push(Text::from("FREQS")
+        hdrs_lst.push(Line::from("FREQS")
             .alignment(Alignment::Center)
             .style(if ds_st.sel == DEVICE_STATS_FREQS {
                 ly_bold } else { wh_bold }));
-        hdrs_lst.push(Text::from("POWER")
+        hdrs_lst.push(Line::from("POWER")
             .alignment(Alignment::Center)
             .style(if ds_st.sel == DEVICE_STATS_POWER {
                 ly_bold } else { wh_bold }));
@@ -891,7 +891,7 @@ impl App
         let devs_ts = self.tab_state.as_ref().unwrap();
 
         if devs_ts.devs.is_empty() {
-            frame.render_widget(Text::from("No DRM GPU devices")
+            frame.render_widget(Line::from("No DRM GPU devices")
                 .alignment(Alignment::Center), tab_area);
             return;
         }
@@ -902,7 +902,7 @@ impl App
             let tstamps = self.data.timestamps();
             self.render_drm_device(dinfo, tstamps, frame, main_area);
         } else {
-            frame.render_widget(Text::from(
+            frame.render_widget(Line::from(
                     format!("No DRM GPU device at PCI slot: {:?}", dn))
                 .alignment(Alignment::Center), tab_area);
         }
