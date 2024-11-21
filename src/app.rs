@@ -18,7 +18,7 @@ use ratatui::{
         Dataset, Gauge, GraphType, LegendPosition, Row, Table, Tabs},
     symbols, DefaultTerminal, Frame,
 };
-use tui_widgets::scrollview::{ScrollView, ScrollViewState};
+use tui_scrollview::{ScrollView, ScrollViewState, ScrollbarVisibility};
 
 use crate::app_data::{AppData, AppDataDeviceState, AppDataClientStats};
 use crate::Args;
@@ -108,13 +108,58 @@ impl DeviceStatsState
     }
 }
 
+struct ClientsViewState
+{
+    hdr_state: ScrollViewState,
+    stats_state: ScrollViewState,
+}
+
+impl ClientsViewState
+{
+    fn scroll_right(&mut self)
+    {
+        self.hdr_state.scroll_right();
+        self.stats_state.scroll_right();
+    }
+
+    fn scroll_left(&mut self)
+    {
+        self.hdr_state.scroll_left();
+        self.stats_state.scroll_left();
+    }
+
+    fn scroll_up(&mut self)
+    {
+        self.stats_state.scroll_up();
+    }
+
+    fn scroll_down(&mut self)
+    {
+        self.stats_state.scroll_down();
+    }
+
+    fn scroll_to_top(&mut self)
+    {
+        self.hdr_state.scroll_to_top();
+        self.stats_state.scroll_to_top();
+    }
+
+    fn new() -> ClientsViewState
+    {
+        ClientsViewState {
+            hdr_state: ScrollViewState::new(),
+            stats_state: ScrollViewState::new(),
+        }
+    }
+}
+
 pub struct App
 {
     data: AppData,
     args: Args,
     tab_state: Option<DevicesTabState>,
     stats_state: RefCell<DeviceStatsState>,
-    clis_state: RefCell<ScrollViewState>,
+    clis_state: RefCell<ClientsViewState>,
     exit: bool,
 }
 
@@ -219,11 +264,11 @@ impl App
     fn render_drm_clients(&self,
         dinfo: &AppDataDeviceState, frame: &mut Frame, visible_area: Rect)
     {
-        // get all client info and create scrollview with right size
+        // get all client info and create scrollviews with right size
         let mut cinfos: Vec<&AppDataClientStats> = Vec::new();
         let mut constrs = Vec::new();
         let mut clis_sv_w = visible_area.width;
-        let mut clis_sv_h: u16 = 1;
+        let mut clis_sv_h: u16 = 0;
 
         for cli in dinfo.clis_stats.iter() {
             if self.args.all_clients || cli.is_active {
@@ -235,24 +280,22 @@ impl App
            }
         }
 
+        let mut hdr_sv = ScrollView::new(Size::new(clis_sv_w, 1))
+            .scrollbars_visibility(ScrollbarVisibility::Never);
+        let hdr_sv_area = hdr_sv.area();
         let mut clis_sv = ScrollView::new(Size::new(clis_sv_w, clis_sv_h));
         let clis_sv_area = clis_sv.area();
 
-        clis_sv.render_widget(Block::new()
-            .borders(Borders::NONE)
-            .style(Style::new().on_black()),
-            clis_sv_area);
-
-        // render DRM clients table headers
-        let [hdr_area, data_area] = Layout::vertical([
+        let [vis_hdr_area, vis_clis_area] = Layout::vertical(vec![
             Constraint::Length(1),
-            Constraint::Min(1),
-        ]).areas(clis_sv_area);
+            Constraint::Fill(1),
+        ]).areas(visible_area);
 
-        clis_sv.render_widget(Block::new()
+        // render DRM clients headers scrollview
+        hdr_sv.render_widget(Block::new()
                 .borders(Borders::NONE)
                 .style(Style::new().on_dark_gray()),
-                hdr_area);
+                hdr_sv_area);
         let line_widths = vec![
             Constraint::Max(22),
             Constraint::Length(1),
@@ -262,7 +305,7 @@ impl App
             Constraint::Min(5),
         ];
         let [pidmem_hdr, _, engines_hdr, cpu_hdr, _, cmd_hdr] =
-            Layout::horizontal(&line_widths).areas(hdr_area);
+            Layout::horizontal(&line_widths).areas(hdr_sv_area);
 
         let texts = vec![
             Line::from("PID").alignment(Alignment::Center),
@@ -276,7 +319,7 @@ impl App
             Constraint::Max(5),
             Constraint::Max(3),
         ];
-        clis_sv.render_widget(Table::new([Row::new(texts)], &pidmem_widths)
+        hdr_sv.render_widget(Table::new([Row::new(texts)], &pidmem_widths)
             .column_spacing(1)
             .block(Block::new()
                 .borders(Borders::NONE)
@@ -293,44 +336,49 @@ impl App
                     Alignment::Left } else { Alignment::Center }));
             eng_widths.push(Constraint::Fill(1));
         }
-        clis_sv.render_widget(Table::new([Row::new(texts)], &eng_widths)
+        hdr_sv.render_widget(Table::new([Row::new(texts)], &eng_widths)
             .column_spacing(1)
             .block(Block::new()
                 .borders(Borders::NONE)
                 .style(Style::new().white().bold().on_dark_gray())),
             engines_hdr);
 
-        clis_sv.render_widget(Line::from("CPU")
+        hdr_sv.render_widget(Line::from("CPU")
             .alignment(Alignment::Center)
             .style(Style::new().white().bold().on_dark_gray()),
             cpu_hdr);
-        clis_sv.render_widget(Line::from("COMMAND")
+        hdr_sv.render_widget(Line::from("COMMAND")
             .alignment(Alignment::Left)
             .style(Style::new().white().bold().on_dark_gray()),
             cmd_hdr);
 
-        // render DRM clients data (if any)
-        if cinfos.is_empty() {
-            frame.render_stateful_widget(
-                clis_sv, visible_area, &mut self.clis_state.borrow_mut());
-            return;
+        // render DRM clients data (if any) scrollview
+        clis_sv.render_widget(Block::new()
+            .borders(Borders::NONE)
+            .style(Style::new().on_black()),
+            clis_sv_area);
+
+        if !cinfos.is_empty() {
+            let clis_area = Layout::vertical(constrs).split(clis_sv_area);
+            for (cli, area) in cinfos.iter().zip(clis_area.iter()) {
+                let [pidmem_area, _, engines_area, cpu_area, _, cmd_area] =
+                    Layout::horizontal(&line_widths).areas(*area);
+
+                clis_sv.render_widget(
+                    self.client_pidmem(cli, &pidmem_widths), pidmem_area);
+                self.render_client_engines(
+                    cli, &eng_widths, &mut clis_sv, engines_area);
+                clis_sv.render_widget(self.client_cpu_usage(cli), cpu_area);
+                clis_sv.render_widget(self.client_cmd(cli), cmd_area);
+            }
         }
 
-        let clis_area = Layout::vertical(constrs).split(data_area);
-        for (cli, area) in cinfos.iter().zip(clis_area.iter()) {
-            let [pidmem_area, _, engines_area, cpu_area, _, cmd_area] =
-                Layout::horizontal(&line_widths).areas(*area);
-
-            clis_sv.render_widget(
-                self.client_pidmem(cli, &pidmem_widths), pidmem_area);
-            self.render_client_engines(
-                cli, &eng_widths, &mut clis_sv, engines_area);
-            clis_sv.render_widget(self.client_cpu_usage(cli), cpu_area);
-            clis_sv.render_widget(self.client_cmd(cli), cmd_area);
-        }
-
+        // render header and clients data to frame's visible area
+        let mut st = self.clis_state.borrow_mut();
         frame.render_stateful_widget(
-            clis_sv, visible_area, &mut self.clis_state.borrow_mut());
+            hdr_sv, vis_hdr_area, &mut st.hdr_state);
+        frame.render_stateful_widget(
+            clis_sv, vis_clis_area, &mut st.stats_state);
     }
 
     fn render_meminfo_chart(&self, x_vals: &Vec<f64>, x_axis: Axis,
@@ -1026,7 +1074,7 @@ impl App
             args,
             tab_state: None,
             stats_state: RefCell::new(DeviceStatsState::new()),
-            clis_state: RefCell::new(ScrollViewState::new()),
+            clis_state: RefCell::new(ClientsViewState::new()),
             exit: false,
         }
     }
