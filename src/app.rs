@@ -915,12 +915,16 @@ impl App
             },
             KeyCode::Tab => {
                 if let Some(devs_ts) = &mut self.tab_state {
+                    let mut st = self.clis_state.borrow_mut();
                     devs_ts.next();
+                    st.scroll_to_top();
                 }
             },
             KeyCode::BackTab => {
                 if let Some(devs_ts) = &mut self.tab_state {
+                    let mut st = self.clis_state.borrow_mut();
                     devs_ts.previous();
+                    st.scroll_to_top();
                 }
             },
             KeyCode::Char('>') | KeyCode::Char('.') => {
