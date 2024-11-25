@@ -6,7 +6,7 @@
 
 </div>
 
-![qmassa](https://github.com/ulissesf/qmassa/blob/assets/assets/qmassa-v0.2.2.gif?raw=true)
+![qmassa](https://github.com/ulissesf/qmassa/blob/assets/assets/qmassa-v0.3.0.gif?raw=true)
 
 ## General description
 
@@ -126,7 +126,7 @@ closest possible to the power usage from both the GPU and the larger package
 different on integrated vs discrete GPUs, and there are limitations on what
 drivers expose and what they have visibility on so expect the information
 to vary a lot across GPUs and vendors. All the power usage values are in
-watt (W).
+watts (W).
 
 The frequency graph ranges from min to max values and plots the instant
 driver-requested (if supported) and actual device frequency for each
@@ -144,7 +144,7 @@ to get device information.
 | ------ | :------: | :------: | :-----: | :-----: | :-----: | :-------------: |
 | xe     | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: |
 | i915   | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: |
-| amdgpu | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: |                    |                    |
+| amdgpu | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: (only dGPUs) | :white_check_mark: (Linux kernel 6.12+) |
 
 qmassa is tested on some Intel and AMD GPUs but it relies heavily on kernel
 drivers exposing consistent support across GPUs. If you have a problem,

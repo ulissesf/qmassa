@@ -1,5 +1,18 @@
 # Changelog
 
+## [v0.3.0](https://github.com/ulissesf/qmassa/releases/tag/v0.3.0) - 2024-11-26
+
+### Features
+
+- GPU power reporting for AMD dGPUs through Hwmon. (@ulissesf)
+- Display charts for all device statistics available. (@ulissesf)
+- Gets power for Intel iGPUs from MSR as fallback for no perf event support. (@ulissesf)
+- Minor UI improvements: better readability of long engine names; frozen headers in the DRM clients list. (@ulissesf)
+
+### Fixes
+
+- Do not override PL1 with Status in frequency chart. (@ulissesf)
+
 ## [v0.2.3](https://github.com/ulissesf/qmassa/releases/tag/v0.2.3) - 2024-11-11
 
 ### Features
