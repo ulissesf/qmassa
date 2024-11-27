@@ -585,17 +585,17 @@ impl App
                 .graph_type(GraphType::Line)
                 .data(&act_freq_ds),
             Dataset::default()
-                .name("Throttle: PL1")
-                .marker(symbols::Marker::Braille)
-                .style(tailwind::RED.c700)
-                .graph_type(GraphType::Line)
-                .data(&tr_pl1),
-            Dataset::default()
                 .name("Throttle: Status")
                 .marker(symbols::Marker::Braille)
                 .style(tailwind::ORANGE.c700)
                 .graph_type(GraphType::Line)
                 .data(&tr_status),
+            Dataset::default()
+                .name("Throttle: PL1")
+                .marker(symbols::Marker::Braille)
+                .style(tailwind::RED.c700)
+                .graph_type(GraphType::Line)
+                .data(&tr_pl1),
         ];
 
         let y_bounds = [miny, maxy];
