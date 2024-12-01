@@ -110,6 +110,7 @@ impl DeviceStatsState
 
 struct ClientsViewState
 {
+    sel_row: u16,
     hdr_state: ScrollViewState,
     stats_state: ScrollViewState,
 }
@@ -130,16 +131,17 @@ impl ClientsViewState
 
     fn scroll_up(&mut self)
     {
-        self.stats_state.scroll_up();
+        self.sel_row = self.sel_row.saturating_sub(1);
     }
 
     fn scroll_down(&mut self)
     {
-        self.stats_state.scroll_down();
+        self.sel_row = self.sel_row.saturating_add(1);
     }
 
     fn scroll_to_top(&mut self)
     {
+        self.sel_row = 0;
         self.hdr_state.scroll_to_top();
         self.stats_state.scroll_to_top();
     }
@@ -147,6 +149,7 @@ impl ClientsViewState
     fn new() -> ClientsViewState
     {
         ClientsViewState {
+            sel_row: 0,
             hdr_state: ScrollViewState::new(),
             stats_state: ScrollViewState::new(),
         }
@@ -158,7 +161,7 @@ pub struct App
     data: AppData,
     args: Args,
     tab_state: Option<DevicesTabState>,
-    stats_state: RefCell<DeviceStatsState>,
+    dstats_state: RefCell<DeviceStatsState>,
     clis_state: RefCell<ClientsViewState>,
     exit: bool,
 }
@@ -223,7 +226,7 @@ impl App
 
         Table::new(rows, widths)
             .column_spacing(1)
-            .style(Style::new().white().on_black())
+            .style(Style::new().white())
     }
 
     fn render_client_engines(&self, cli: &AppDataClientStats,
@@ -258,7 +261,7 @@ impl App
     {
         Line::from(format!("[{}] {}", &cli.comm, &cli.cmdline))
             .alignment(Alignment::Left)
-            .style(Style::new().white().on_black())
+            .style(Style::new().white())
     }
 
     fn render_drm_clients(&self,
@@ -290,6 +293,26 @@ impl App
             Constraint::Length(1),
             Constraint::Fill(1),
         ]).areas(visible_area);
+
+        // adjust selected row and data scrollview state
+        let mut state = self.clis_state.borrow_mut();
+        let y_offset = state.stats_state.offset().y;
+        let horiz_bar = (clis_sv_w > vis_clis_area.width) as u16;
+        let nr_vis_clis = vis_clis_area.height.saturating_sub(horiz_bar);
+
+        if cinfos.is_empty() {
+            state.sel_row = 0;
+        } else {
+            if state.sel_row >= cinfos.len() as u16 {
+                state.sel_row = cinfos.len() as u16 - 1;
+            }
+            if state.sel_row < y_offset {
+                state.stats_state.scroll_up();
+            }
+            if state.sel_row >= y_offset + nr_vis_clis {
+                state.stats_state.scroll_down();
+            }
+        }
 
         // render DRM clients headers scrollview
         hdr_sv.render_widget(Block::new()
@@ -359,8 +382,15 @@ impl App
             clis_sv_area);
 
         if !cinfos.is_empty() {
+            let mut row_nr = 0;
             let clis_area = Layout::vertical(constrs).split(clis_sv_area);
             for (cli, area) in cinfos.iter().zip(clis_area.iter()) {
+               if row_nr == state.sel_row {
+                    clis_sv.render_widget(Block::new()
+                        .borders(Borders::NONE)
+                        .style(Style::new().on_light_blue()),
+                        *area);
+                }
                 let [pidmem_area, _, engines_area, cpu_area, _, cmd_area] =
                     Layout::horizontal(&line_widths).areas(*area);
 
@@ -370,15 +400,16 @@ impl App
                     cli, &eng_widths, &mut clis_sv, engines_area);
                 clis_sv.render_widget(self.client_cpu_usage(cli), cpu_area);
                 clis_sv.render_widget(self.client_cmd(cli), cmd_area);
+
+                row_nr += 1;
             }
         }
 
         // render header and clients data to frame's visible area
-        let mut st = self.clis_state.borrow_mut();
         frame.render_stateful_widget(
-            hdr_sv, vis_hdr_area, &mut st.hdr_state);
+            hdr_sv, vis_hdr_area, &mut state.hdr_state);
         frame.render_stateful_widget(
-            clis_sv, vis_clis_area, &mut st.stats_state);
+            clis_sv, vis_clis_area, &mut state.stats_state);
     }
 
     fn render_meminfo_chart(&self, x_vals: &Vec<f64>, x_axis: Axis,
@@ -654,7 +685,7 @@ impl App
             .column_spacing(1),
             inf_area);
 
-        let mut ds_st = self.stats_state.borrow_mut();
+        let mut ds_st = self.dstats_state.borrow_mut();
         if ds_st.sel == DEVICE_STATS_ENGINES && dinfo.eng_names.is_empty() {
             ds_st.repeat_op();
         }
@@ -976,11 +1007,11 @@ impl App
                 }
             },
             KeyCode::Char('>') | KeyCode::Char('.') => {
-                let mut st = self.stats_state.borrow_mut();
+                let mut st = self.dstats_state.borrow_mut();
                 st.next();
             },
             KeyCode::Char('<') | KeyCode::Char(',') => {
-                let mut st = self.stats_state.borrow_mut();
+                let mut st = self.dstats_state.borrow_mut();
                 st.previous();
             },
             KeyCode::Right => {
@@ -1073,7 +1104,7 @@ impl App
             data,
             args,
             tab_state: None,
-            stats_state: RefCell::new(DeviceStatsState::new()),
+            dstats_state: RefCell::new(DeviceStatsState::new()),
             clis_state: RefCell::new(ClientsViewState::new()),
             exit: false,
         }
