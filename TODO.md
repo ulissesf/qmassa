@@ -4,11 +4,11 @@ TODO
 Features
 --------
 
-* [Ulisses WIP] option to create png files for different plotted graphs (great idea from Rodrigo Vivi)
-* refactor UI code to support multiple screens
-  * simplify and consolidate UI styles being used
-  * add detailed info screen for clients
-  * show graphs for mem per region and for engines
+* UI
+  * (wip) add detailed info screen for clients
+  * (wip) show graphs for mem per region and for engines
+* secondary tool to create png files for different plotted charts (enhancement #5)
+* explore more data to be gathered from PMT (enhancement #6)
 * get power limits per driver
   * use limits in power chart
 * add driver feature support flags so the app UI knows what data to use/render
