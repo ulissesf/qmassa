@@ -64,6 +64,7 @@ struct drm_i915_memory_region_info {
 }
 
 #[repr(C)]
+#[derive(Debug)]
 struct drm_i915_query_memory_regions {
     num_regions: u32,
     rsvd: [u32; 3usize],
