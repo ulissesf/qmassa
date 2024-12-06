@@ -106,7 +106,7 @@ impl Eq for ProcInfo {}
 
 impl ProcInfo
 {
-    pub fn get_children_procs(&self) -> Result<VecDeque<String>>
+    pub fn children_pids(&self) -> Result<VecDeque<String>>
     {
         let mut chids: VecDeque<String> = VecDeque::new();
 
@@ -126,7 +126,7 @@ impl ProcInfo
         Ok(chids)
     }
 
-    pub fn get_drm_fdinfos(&self) -> Result<Vec<DrmFdinfo>>
+    pub fn drm_fdinfos(&self) -> Result<Vec<DrmFdinfo>>
     {
         let mut res: Vec<DrmFdinfo> = Vec::new();
         let fddir = self.proc_dir.join("fd");

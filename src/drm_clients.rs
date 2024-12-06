@@ -428,7 +428,7 @@ impl DrmClients
                 let nproc = nproc.unwrap();
 
                 // search and parse all DRM fdinfo from npid process
-                let fdinfos = nproc.get_drm_fdinfos();
+                let fdinfos = nproc.drm_fdinfos();
                 if let Err(err) = fdinfos {
                     debug!("ERR: failed to get DRM fdinfos from {:?}: {:?}",
                         nproc.pid, err);
@@ -465,7 +465,7 @@ impl DrmClients
             let nproc = nproc.unwrap();
 
             // search and parse all DRM fdinfo from npid process
-            let fdinfos = nproc.get_drm_fdinfos();
+            let fdinfos = nproc.drm_fdinfos();
             if let Err(err) = fdinfos {
                 debug!("ERR: failed to get DRM fdinfos from {:?}: {:?}",
                     npid, err);
@@ -477,9 +477,9 @@ impl DrmClients
             self.process_fdinfos(&mut ninfos, &nproc, fdinfos);
 
             // add all child processes
-            let chids = nproc.get_children_procs();
+            let chids = nproc.children_pids();
             if let Err(err) = chids {
-                debug!("ERR: failed to get children procs for {:?}: {:?}",
+                debug!("ERR: failed to get children pids for {:?}: {:?}",
                     npid, err);
             } else {
                 let mut chids = chids.unwrap();
