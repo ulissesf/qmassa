@@ -21,6 +21,7 @@ use crate::app_data::AppData;
 use crate::Args;
 
 mod main_screen;
+mod drm_client_screen;
 use main_screen::MainScreen;
 
 

@@ -4,9 +4,6 @@ TODO
 Features
 --------
 
-* UI
-  * (wip) add detailed info screen for clients
-  * (wip) show graphs for mem per region and for engines
 * secondary tool to create png files for different plotted charts (enhancement #5)
 * explore more data to be gathered from PMT (enhancement #6)
 * get power limits per driver

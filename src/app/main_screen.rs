@@ -19,6 +19,7 @@ use tui_scrollview::{ScrollView, ScrollViewState, ScrollbarVisibility};
 
 use crate::app_data::{AppDataDeviceState, AppDataClientStats};
 use crate::app::{App, AppModel, Screen, ScreenAction};
+use crate::app::drm_client_screen::{DrmClientScreen, DrmClientSelected};
 
 
 #[derive(Debug)]
@@ -116,6 +117,7 @@ impl DeviceStatsState
 struct ClientsViewState
 {
     sel_row: u16,
+    sel_client: Option<DrmClientSelected>,
     hdr_state: ScrollViewState,
     stats_state: ScrollViewState,
 }
@@ -137,16 +139,19 @@ impl ClientsViewState
     fn scroll_up(&mut self)
     {
         self.sel_row = self.sel_row.saturating_sub(1);
+        self.sel_client = None;
     }
 
     fn scroll_down(&mut self)
     {
         self.sel_row = self.sel_row.saturating_add(1);
+        self.sel_client = None;
     }
 
     fn scroll_to_top(&mut self)
     {
         self.sel_row = 0;
+        self.sel_client = None;
         self.hdr_state.scroll_to_top();
         self.stats_state.scroll_to_top();
     }
@@ -155,6 +160,7 @@ impl ClientsViewState
     {
         ClientsViewState {
             sel_row: 0,
+            sel_client: None,
             hdr_state: ScrollViewState::new(),
             stats_state: ScrollViewState::new(),
         }
@@ -257,6 +263,14 @@ impl Screen for MainScreen
             KeyCode::Down => {
                 let mut st = self.clis_state.borrow_mut();
                 st.scroll_down();
+            },
+            KeyCode::Enter => {
+                let mut st = self.clis_state.borrow_mut();
+                let sel_opt = st.sel_client.take();
+                if let Some(sel) = sel_opt {
+                    let nscr = DrmClientScreen::new(self.model.clone(), sel);
+                    return Some(ScreenAction::Enter(nscr));
+                }
             },
             _ => {}
         }
@@ -364,7 +378,7 @@ impl MainScreen
             Constraint::Fill(1),
         ]).areas(visible_area);
 
-        // adjust selected row and data scrollview state
+        // adjust selected row/client and data scrollview state
         let mut state = self.clis_state.borrow_mut();
         let y_offset = state.stats_state.offset().y;
         let horiz_bar = (clis_sv_w > vis_clis_area.width) as u16;
@@ -376,6 +390,10 @@ impl MainScreen
             if state.sel_row >= cinfos.len() as u16 {
                 state.sel_row = cinfos.len() as u16 - 1;
             }
+            let sel = cinfos[state.sel_row as usize];
+            state.sel_client = Some(DrmClientSelected::new(
+                dinfo.pci_dev.clone(), sel.pid, sel.drm_minor, sel.client_id));
+
             if state.sel_row < y_offset {
                 state.stats_state.scroll_up();
             }
