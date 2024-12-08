@@ -1,5 +1,6 @@
 use std::cell::RefCell;
 use std::cmp::max;
+use std::collections::VecDeque;
 use std::rc::Rc;
 
 use itertools::Itertools;
@@ -279,7 +280,7 @@ impl MainScreen
     fn client_pidmem(&self,
         cli: &AppDataClientStats, widths: &Vec<Constraint>) -> Table
     {
-        let mem_info = cli.mem_info.last().unwrap();  // always present
+        let mem_info = cli.mem_info.back().unwrap();  // always present
 
         let rows = [Row::new([
                 Line::from(cli.pid.to_string())
@@ -303,7 +304,7 @@ impl MainScreen
         let mut gauges: Vec<Gauge> = Vec::new();
         for en in cli.eng_stats.keys().sorted() {
             let eng = cli.eng_stats.get(en).unwrap();
-            let eut = eng.usage.last().unwrap();  // always present
+            let eut = eng.usage.back().unwrap();  // always present
             let label = Span::styled(
                 format!("{:.1}%", eut), Style::new().white());
 
@@ -318,7 +319,7 @@ impl MainScreen
 
     fn client_cpu_usage(&self, cli: &AppDataClientStats) -> Gauge
     {
-        let cpu = cli.cpu_usage.last().unwrap();  // always present
+        let cpu = cli.cpu_usage.back().unwrap();  // always present
         let label = Span::styled(
             format!("{:.1}%", cpu), Style::new().white());
 
@@ -506,7 +507,7 @@ impl MainScreen
                 .data(&vram_vals),
         ];
 
-        let lmi = dinfo.dev_stats.mem_info.last().unwrap();  // always present
+        let lmi = dinfo.dev_stats.mem_info.back().unwrap();  // always present
         let maxy = max(lmi.smem_total, lmi.vram_total);
         let miny = 0;
 
@@ -669,7 +670,7 @@ impl MainScreen
                 tr_status.push((*xval, -1.0));  // hide it
             }
         }
-        let fq = dinfo.dev_stats.freqs.last().unwrap();  // always present
+        let fq = dinfo.dev_stats.freqs.back().unwrap();  // always present
 
         let datasets = vec![
             Dataset::default()
@@ -720,7 +721,7 @@ impl MainScreen
     }
 
     fn render_dev_stats(&self, dinfo: &AppDataDeviceState,
-        tstamps: &Vec<u128>, frame: &mut Frame, area: Rect)
+        tstamps: &VecDeque<u128>, frame: &mut Frame, area: Rect)
     {
         let [inf_area, dstats_area, sep, chart_area] = Layout::vertical([
             Constraint::Length(1),
@@ -814,7 +815,7 @@ impl MainScreen
 
         let mut dstats_gs = Vec::new();
 
-        let mi = dinfo.dev_stats.mem_info.last().unwrap();  // always present
+        let mi = dinfo.dev_stats.mem_info.back().unwrap();  // always present
         let smem_label = Span::styled(format!("{}/{}",
             App::short_mem_string(mi.smem_used),
             App::short_mem_string(mi.smem_total)),
@@ -832,14 +833,14 @@ impl MainScreen
 
         for en in dinfo.eng_names.iter() {
             let eng = dinfo.dev_stats.eng_stats.get(en).unwrap();
-            let eut = eng.usage.last().unwrap();  // always present
+            let eut = eng.usage.back().unwrap();  // always present
             let label = Span::styled(
                 format!("{:.1}%", eut), Style::new().white());
 
             dstats_gs.push(App::gauge_colored_from(label, eut/100.0));
         }
 
-        let freqs = dinfo.dev_stats.freqs.last().unwrap();  // always present
+        let freqs = dinfo.dev_stats.freqs.back().unwrap();  // always present
         let freqs_label = Span::styled(
             format!("{}/{}", freqs.act_freq, freqs.cur_freq),
             Style::new().white());
@@ -847,7 +848,7 @@ impl MainScreen
             freqs.act_freq as f64 / freqs.cur_freq as f64 } else { 0.0 };
         dstats_gs.push(App::gauge_colored_from(freqs_label, freqs_ratio));
 
-        let pwr = dinfo.dev_stats.power.last().unwrap();  // always present
+        let pwr = dinfo.dev_stats.power.back().unwrap();  // always present
         let pwr_label = Span::styled(
             format!("{:.1}/{:.1}", pwr.gpu_cur_power, pwr.pkg_cur_power),
             Style::new().white());
@@ -921,7 +922,7 @@ impl MainScreen
     }
 
     fn render_drm_device(&self, dinfo: &AppDataDeviceState,
-        tstamps: &Vec<u128>, frame: &mut Frame, area: Rect)
+        tstamps: &VecDeque<u128>, frame: &mut Frame, area: Rect)
     {
         let [dev_blk_area, clis_blk_area] = Layout::vertical([
             Constraint::Max(21),
@@ -948,7 +949,7 @@ impl MainScreen
                         Alignment::Left } else { Alignment::Center })),
             dev_title_area);
 
-        self.render_dev_stats(dinfo, &tstamps, frame, dev_stats_area);
+        self.render_dev_stats(dinfo, tstamps, frame, dev_stats_area);
 
         // render DRM clients block and stats
         let [clis_title_area, clis_stats_area] = Layout::vertical([

@@ -1,4 +1,4 @@
-use std::collections::{HashMap, HashSet};
+use std::collections::{HashMap, HashSet, VecDeque};
 use std::cell::{RefCell, Ref};
 use std::rc::Rc;
 use std::time;
@@ -14,18 +14,18 @@ use crate::drm_clients::{DrmClientMemInfo, DrmClientInfo};
 
 const APP_DATA_MAX_NR_STATS: usize = 40;
 
-fn limited_vec_push<T>(vlst: &mut Vec<T>, vitem: T)
+fn limited_vec_push<T>(vlst: &mut VecDeque<T>, vitem: T)
 {
     if vlst.len() == APP_DATA_MAX_NR_STATS {
-        vlst.drain(..1);
+        vlst.pop_front();
     }
-    vlst.push(vitem);
+    vlst.push_back(vitem);
 }
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct AppDataEngineStats
 {
-    pub usage: Vec<f64>,
+    pub usage: VecDeque<f64>,
 }
 
 impl AppDataEngineStats
@@ -33,7 +33,7 @@ impl AppDataEngineStats
     fn new() -> AppDataEngineStats
     {
         AppDataEngineStats {
-            usage: Vec::new(),
+            usage: VecDeque::new(),
         }
     }
 }
@@ -41,9 +41,9 @@ impl AppDataEngineStats
 #[derive(Debug, Serialize, Deserialize)]
 pub struct AppDataDeviceStats
 {
-    pub freqs: Vec<DrmDeviceFreqs>,
-    pub power: Vec<DrmDevicePower>,
-    pub mem_info: Vec<DrmDeviceMemInfo>,
+    pub freqs: VecDeque<DrmDeviceFreqs>,
+    pub power: VecDeque<DrmDevicePower>,
+    pub mem_info: VecDeque<DrmDeviceMemInfo>,
     pub eng_stats: HashMap<String, AppDataEngineStats>,
 }
 
@@ -74,9 +74,9 @@ impl AppDataDeviceStats
         }
 
         AppDataDeviceStats {
-            freqs: Vec::new(),
-            power: Vec::new(),
-            mem_info: Vec::new(),
+            freqs: VecDeque::new(),
+            power: VecDeque::new(),
+            mem_info: VecDeque::new(),
             eng_stats: estats,
         }
     }
@@ -90,9 +90,9 @@ pub struct AppDataClientStats
     pub pid: u32,
     pub comm: String,
     pub cmdline: String,
-    pub cpu_usage: Vec<f64>,
+    pub cpu_usage: VecDeque<f64>,
     pub eng_stats: HashMap<String, AppDataEngineStats>,
-    pub mem_info: Vec<DrmClientMemInfo>,
+    pub mem_info: VecDeque<DrmClientMemInfo>,
     pub is_active: bool,
 }
 
@@ -130,9 +130,9 @@ impl AppDataClientStats
             pid: cinfo.proc.pid,
             comm: cinfo.proc.comm.clone(),
             cmdline: cinfo.proc.cmdline.clone(),
-            cpu_usage: Vec::new(),
+            cpu_usage: VecDeque::new(),
             eng_stats: estats,
-            mem_info: Vec::new(),
+            mem_info: VecDeque::new(),
             is_active: false,
         }
     }
@@ -263,7 +263,7 @@ impl AppDataDeviceState
 #[derive(Debug, Serialize, Deserialize)]
 pub struct AppDataState
 {
-    pub timestamps: Vec<u128>,
+    pub timestamps: VecDeque<u128>,
     pub devs_state: Vec<AppDataDeviceState>,
 }
 
@@ -289,7 +289,7 @@ impl AppDataState
     fn new() -> AppDataState
     {
         AppDataState {
-                timestamps: Vec::new(),
+                timestamps: VecDeque::new(),
                 devs_state: Vec::new(),
         }
     }
@@ -305,7 +305,7 @@ pub struct AppData
 
 impl AppData
 {
-    pub fn timestamps(&self) -> &Vec<u128>
+    pub fn timestamps(&self) -> &VecDeque<u128>
     {
         &self.state.timestamps
     }
