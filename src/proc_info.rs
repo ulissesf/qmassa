@@ -4,7 +4,7 @@ use std::time;
 use std::fs;
 
 use anyhow::Result;
-use log::debug;
+use log::{debug, warn};
 use libc;
 
 use crate::drm_fdinfo::DrmFdinfo;
@@ -182,7 +182,14 @@ impl ProcInfo
             }
         });
 
-        (self.cputime_delta as f64 / total_cpu_time ) * 100.0
+        let mut res = (self.cputime_delta as f64 / total_cpu_time ) * 100.0;
+
+        if res > 100.0 {
+            warn!("Process {:?} (pid {:?}) CPU utilization at {:?}, \
+                clamped to 100%.", self.comm, self.pid, res);
+            res = 100.0;
+        }
+        res
     }
 
     pub fn update(&mut self) -> Result<()>
