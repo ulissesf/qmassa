@@ -358,7 +358,7 @@ impl MainScreen
 
         let model = self.model.borrow();
         for cli in dinfo.clis_stats.iter() {
-            if model.args.all_clients || cli.is_active {
+            if cli.is_active || model.args.all_clients {
                 cinfos.push(cli);
                 constrs.push(Constraint::Length(1));
                 clis_sv_w = max(clis_sv_w,
