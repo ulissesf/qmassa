@@ -216,9 +216,9 @@ impl App
         }
     }
 
-    fn handle_events(&mut self, ival: time::Duration) -> Result<()>
+    fn handle_events(&mut self, timer: time::Duration) -> Result<()>
     {
-        if event::poll(ival)? {
+        if event::poll(timer)? {
             match event::read()? {
                 Event::Key(key_event)
                     if key_event.kind == KeyEventKind::Press => {
@@ -246,30 +246,44 @@ impl App
         }
         drop(model);
 
+        let mut last_check = time::Instant::now();
+        let mut timer = time::Duration::ZERO;
         let mut nr = 0;
+
         while !self.exit {
             if max_iterations >= 0 && nr == max_iterations {
                 self.exit = true;
                 break;
             }
 
-            let mut model = self.model.borrow_mut();
-            model.data.refresh()?;
-            if let Some(jf) = &mut json_file {
-                // overwrite last 2 bytes == "]\n" with new state
-                jf.seek(SeekFrom::End(-2))?;
-                if nr >= 1 {
-                    writeln!(jf, ",")?;
+            let elapsed = last_check.elapsed();
+            last_check = time::Instant::now();
+
+            if elapsed >= timer {
+                let mut model = self.model.borrow_mut();
+
+                // refresh stats and update accounting
+                model.data.refresh()?;
+                timer = ival;
+                nr += 1;
+
+                // write new state to JSON file (if needed)
+                if let Some(jf) = &mut json_file {
+                    // overwrite last 2 bytes == "]\n" with new state
+                    jf.seek(SeekFrom::End(-2))?;
+                    if nr >= 1 {
+                        writeln!(jf, ",")?;
+                    }
+                    serde_json::to_writer_pretty(&mut *jf, model.data.state())?;
+                    writeln!(jf, "\n]")?;
                 }
-                serde_json::to_writer_pretty(&mut *jf, model.data.state())?;
-                writeln!(jf, "\n]")?;
+                drop(model);
+            } else {
+                timer -= elapsed;
             }
-            drop(model);
 
             terminal.draw(|frame| self.draw(frame))?;
-            self.handle_events(ival)?;
-
-            nr += 1;
+            self.handle_events(timer)?;
         }
 
         Ok(())

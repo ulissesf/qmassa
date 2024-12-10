@@ -10,7 +10,6 @@ Features
   * use limits in power chart
 * add driver feature support flags so the app UI knows what data to use/render
   * probably another method in DrmDriver trait
-* improve/find mainloop to support different resolution timers
 
 Code Quality/Structure
 ----------------------
