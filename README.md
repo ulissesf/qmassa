@@ -6,7 +6,7 @@
 
 </div>
 
-![qmassa](https://github.com/ulissesf/qmassa/blob/assets/assets/qmassa-v0.3.0.gif?raw=true)
+![qmassa](https://github.com/ulissesf/qmassa/blob/assets/assets/qmassa-v0.4.0.gif?raw=true)
 
 ## General description
 
@@ -73,13 +73,14 @@ Only show DRM clients from the process tree starting at a specific PID.
 sudo qmassa -p 2876
 ```
 
-Running for only 5 iterations (UI updates).
+Running for only 5 iterations (stats updates).
 
 ```shell
 sudo qmassa -n 5
 ```
 
-Changing the interval between updates to 1s (1000 ms).
+Changing the interval between stats updates to 1s (1000 ms). The UI will be
+updated on the same frequency or whenever user interaction happens.
 
 ```shell
 sudo qmassa -m 1000
@@ -100,7 +101,7 @@ sudo qmassa -t data.json
 
 ## Fields description
 
-### Per device
+### Per device (on main screen)
 
 | Field        | Description                                    |
 | ------------ | ---------------------------------------------- |
@@ -144,7 +145,7 @@ to get device information.
 | ------ | :------: | :------: | :-----: | :-----: | :-----: | :-------------: |
 | xe     | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: |
 | i915   | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: |
-| amdgpu | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: (only dGPUs) | :white_check_mark: (Linux kernel 6.12+) |
+| amdgpu | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: (only dGPUs) | :white_check_mark: (Linux kernel 6.13+) |
 
 qmassa is tested on some Intel and AMD GPUs but it relies heavily on kernel
 drivers exposing consistent support across GPUs. If you have a problem,
@@ -155,7 +156,7 @@ please file an issue so we can debug it.
 * i915: the kernel driver doesn't track/report system memory used and thus
 qmassa can't display it.
 
-### Per DRM client
+### Per DRM client (on main screen)
 
 | Field        | Description                                       |
 | ------------ | ------------------------------------------------- |
@@ -179,6 +180,19 @@ total available CPU time across all online CPUs in the system for that
 iteration. The total available CPU time is the time between two samples
 multiplied by the number of online CPUs. This allows this value to stay
 between 0% and 100%.
+
+#### DRM client screen
+
+The DRM client list can be scrolled up, down, left and right to select a row
+or to show long command lines. Selecting a row in the list (pressing Enter)
+opens a screen with just that DRM client stats and charts. In this screen,
+the memory stats in the table provide some more information (see description
+below), while the other data is the same as on the main screen.
+
+| Field  | Description                                 |
+| ------ | ------------------------------------------- |
+| SMEM   | System memory resident / System memory used |
+| VRAM   | Device memory resident / Device memory used |
 
 ## Acknowledgements
 

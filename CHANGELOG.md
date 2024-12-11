@@ -1,5 +1,14 @@
 # Changelog
 
+## [v0.4.0](https://github.com/ulissesf/qmassa/releases/tag/v0.4.0) - 2024-12-10
+
+### Features
+
+- Add multiple screens support. (@ulissesf)
+- Highlight and selection of DRM client in the list. (@ulissesf)
+- Display DRM client stats and charts in a separate screen. (@ulissesf)
+- Update stats at fixed intervals and render UI whenever needed (new data or reacting to user events). (@ulissesf)
+
 ## [v0.3.0](https://github.com/ulissesf/qmassa/releases/tag/v0.3.0) - 2024-11-26
 
 ### Features
