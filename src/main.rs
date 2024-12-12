@@ -111,7 +111,8 @@ fn main() -> Result<()>
         bail!("No DRM devices found");
     }
     // get DRM clients from pid process tree starting at base_pid
-    qmds.clients_pid_tree(base_pid.as_str());
+    qmds.set_clients_pid_tree(base_pid.as_str())
+        .context("Failed to set DRM clients pid tree")?;
 
     // get app data from live system info
     let appdata = AppData::from(qmds);

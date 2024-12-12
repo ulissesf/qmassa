@@ -4,7 +4,7 @@ use std::path::PathBuf;
 use std::rc::{Rc, Weak};
 use std::time;
 
-use anyhow::Result;
+use anyhow::{bail, Result};
 use log::{debug, warn};
 use serde::{Deserialize, Serialize};
 
@@ -515,11 +515,15 @@ impl DrmClients
         Ok(())
     }
 
-    pub fn from_pid_tree(at_pid: &str) -> DrmClients
+    pub fn from_pid_tree(at_pid: &str) -> Result<DrmClients>
     {
-        DrmClients {
+        if !at_pid.is_empty() && !ProcInfo::is_valid_pid(at_pid) {
+            bail!("Not a valid PID: {}", at_pid);
+        }
+
+        Ok(DrmClients {
             base_pid: at_pid.to_string(),
             infos: HashMap::new(),
-        }
+        })
     }
 }

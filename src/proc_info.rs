@@ -40,13 +40,12 @@ impl Iterator for ProcPids
             }
             let nval = nval.unwrap();
 
-            if !nval.path().is_dir() {
+            let fpath = nval.path();
+            if !fpath.is_dir() {
                 continue;
             }
 
-            let fpath = nval.path();
             let fp = fpath.file_name().unwrap().to_str().unwrap();
-
             if !fp.chars().next().unwrap().is_digit(10) {
                 continue;
             }
@@ -106,6 +105,20 @@ impl Eq for ProcInfo {}
 
 impl ProcInfo
 {
+    pub fn is_valid_pid(pid: &str) -> bool
+    {
+        if !pid.chars().next().unwrap().is_digit(10) {
+            return false;
+        }
+
+        let ppath = Path::new("/proc").join(pid);
+        if !ppath.is_dir() {
+            return false;
+        }
+
+        true
+    }
+
     pub fn children_pids(&self) -> Result<VecDeque<String>>
     {
         let mut chids: VecDeque<String> = VecDeque::new();

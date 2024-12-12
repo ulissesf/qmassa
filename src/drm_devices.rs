@@ -364,9 +364,11 @@ impl DrmDevices
         Ok(())
     }
 
-    pub fn clients_pid_tree(&mut self, at_pid: &str)
+    pub fn set_clients_pid_tree(&mut self, at_pid: &str) -> Result<()>
     {
-        self.qmclis = Some(DrmClients::from_pid_tree(at_pid));
+        self.qmclis = Some(DrmClients::from_pid_tree(at_pid)?);
+
+        Ok(())
     }
 
     fn new() -> DrmDevices
