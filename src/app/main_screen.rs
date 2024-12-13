@@ -974,7 +974,15 @@ impl MainScreen
             Constraint::Length(1),
             Constraint::Min(2),
         ]).areas(clis_blk_area);
-        let clis_title = Line::from(vec![" DRM clients ".into(),])
+        let mut clis_title_str = String::from(" DRM clients ");
+        let pid_opt = self.model.borrow().args.pid.clone();
+        if let Some(base_pid) = pid_opt {
+            if !base_pid.is_empty() {
+                clis_title_str.push_str(
+                    &format!("(PID tree at {}) ", &base_pid));
+            }
+        }
+        let clis_title = Line::from(vec![clis_title_str.into(),])
             .magenta().bold().on_black();
         frame.render_widget(Block::new()
             .borders(Borders::TOP)
