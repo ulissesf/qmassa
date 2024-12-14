@@ -16,8 +16,8 @@ use ratatui::{
 };
 use tui_scrollview::{ScrollView, ScrollViewState, ScrollbarVisibility};
 
-use crate::app_data::AppDataClientStats;
-use crate::app::{App, AppModel, Screen, ScreenAction};
+use crate::app_data::{AppData, AppDataClientStats};
+use crate::app::{App, Screen, ScreenAction};
 
 
 #[derive(Debug)]
@@ -94,7 +94,7 @@ impl ClientStatsState
 #[derive(Debug)]
 pub struct DrmClientScreen
 {
-    model: Rc<RefCell<AppModel>>,
+    model: Rc<RefCell<AppData>>,
     sel: DrmClientSelected,
     cmd_sv_state: RefCell<ScrollViewState>,
     stats_state: RefCell<ClientStatsState>,
@@ -142,7 +142,7 @@ impl Screen for DrmClientScreen
         ]).areas(main_area);
 
         let model = self.model.borrow();
-        let di = model.data.get_device(&self.sel.pci_dev).unwrap();
+        let di = model.get_device(&self.sel.pci_dev).unwrap();
 
         let mut sel_cli: Option<&AppDataClientStats> = None;
         for cli in di.clis_stats.iter() {
@@ -535,7 +535,7 @@ impl DrmClientScreen
         cli: &AppDataClientStats, frame: &mut Frame, area: Rect)
     {
         let model = self.model.borrow();
-        let tstamps = model.data.timestamps();
+        let tstamps = model.timestamps();
 
         let mut x_vals = Vec::new();
         for ts in tstamps.iter() {
@@ -584,7 +584,7 @@ impl DrmClientScreen
         }
     }
 
-    pub fn new(model: Rc<RefCell<AppModel>>,
+    pub fn new(model: Rc<RefCell<AppData>>,
         sel: DrmClientSelected) -> Box<dyn Screen>
     {
         Box::new(DrmClientScreen {

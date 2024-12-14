@@ -115,10 +115,10 @@ fn main() -> Result<()>
         .context("Failed to set DRM clients pid tree")?;
 
     // get app data from live system info
-    let appdata = AppData::from(qmds);
+    let appdata = AppData::from(args, qmds);
 
     // create tui app and run its mainloop
-    let mut app = App::from(appdata, args);
+    let mut app = App::from(appdata);
     app.run()?;
 
     Ok(())

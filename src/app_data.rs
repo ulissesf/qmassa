@@ -6,6 +6,7 @@ use std::time;
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
 
+use crate::Args;
 use crate::drm_devices::{
     DrmDeviceFreqLimits, DrmDeviceFreqs, DrmDevicePower,
     DrmDeviceMemInfo, DrmDeviceInfo, DrmDevices};
@@ -298,8 +299,9 @@ impl AppDataState
 #[derive(Debug)]
 pub struct AppData
 {
-    state: AppDataState,
+    pub args: Args,
     qmds: DrmDevices,
+    state: AppDataState,
     start_time: time::Instant,
 }
 
@@ -368,11 +370,12 @@ impl AppData
         Ok(())
     }
 
-    pub fn from(qmds: DrmDevices) -> AppData
+    pub fn from(args: Args, qmds: DrmDevices) -> AppData
     {
         AppData {
-            state: AppDataState::new(),
+            args,
             qmds,
+            state: AppDataState::new(),
             start_time: time::Instant::now(),
         }
     }

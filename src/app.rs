@@ -18,19 +18,11 @@ use ratatui::{
 };
 
 use crate::app_data::AppData;
-use crate::Args;
 
 mod main_screen;
 mod drm_client_screen;
 use main_screen::MainScreen;
 
-
-#[derive(Debug)]
-pub struct AppModel
-{
-    pub data: AppData,
-    pub args: Args,
-}
 
 #[derive(Debug)]
 #[allow(dead_code)]
@@ -97,7 +89,7 @@ impl AppScreens
 #[derive(Debug)]
 pub struct App
 {
-    model: Rc<RefCell<AppModel>>,
+    model: Rc<RefCell<AppData>>,
     screens: AppScreens,
     exit: bool,
 }
@@ -263,7 +255,7 @@ impl App
                 let mut model = self.model.borrow_mut();
 
                 // refresh stats and update accounting
-                model.data.refresh()?;
+                model.refresh()?;
                 timer = ival;
                 nr += 1;
 
@@ -274,7 +266,7 @@ impl App
                     if nr > 1 {
                         writeln!(jf, ",")?;
                     }
-                    serde_json::to_writer_pretty(&mut *jf, model.data.state())?;
+                    serde_json::to_writer_pretty(&mut *jf, model.state())?;
                     writeln!(jf, "\n]")?;
                 }
                 drop(model);
@@ -301,13 +293,10 @@ impl App
         res
     }
 
-    pub fn from(data: AppData, args: Args) -> App
+    pub fn from(data: AppData) -> App
     {
         App {
-            model: Rc::new(RefCell::new(AppModel {
-                data,
-                args,
-            })),
+            model: Rc::new(RefCell::new(data)),
             screens: AppScreens::new(),
             exit: false,
         }

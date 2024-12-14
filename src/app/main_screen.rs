@@ -17,8 +17,8 @@ use ratatui::{
 };
 use tui_scrollview::{ScrollView, ScrollViewState, ScrollbarVisibility};
 
-use crate::app_data::{AppDataDeviceState, AppDataClientStats};
-use crate::app::{App, AppModel, Screen, ScreenAction};
+use crate::app_data::{AppData, AppDataDeviceState, AppDataClientStats};
+use crate::app::{App, Screen, ScreenAction};
 use crate::app::drm_client_screen::{DrmClientScreen, DrmClientSelected};
 
 
@@ -170,7 +170,7 @@ impl ClientsViewState
 #[derive(Debug)]
 pub struct MainScreen
 {
-    model: Rc<RefCell<AppModel>>,
+    model: Rc<RefCell<AppData>>,
     tab_state: Option<DevicesTabState>,
     dstats_state: RefCell<DeviceStatsState>,
     clis_state: RefCell<ClientsViewState>,
@@ -193,7 +193,7 @@ impl Screen for MainScreen
             if let Some(pdev) = &model.args.dev_slot {
                 dv.push(pdev.clone());
             } else {
-                for di in model.data.devices() {
+                for di in model.devices() {
                     dv.push(di.pci_dev.clone());
                 }
             }
@@ -212,9 +212,9 @@ impl Screen for MainScreen
 
         let model = self.model.borrow();
         let dn = &devs_ts.devs[devs_ts.sel];
-        if let Some(dinfo) = model.data.get_device(dn) {
+        if let Some(dinfo) = model.get_device(dn) {
             self.render_devs_tab(devs_ts, frame, tab_area);
-            let tstamps = model.data.timestamps();
+            let tstamps = model.timestamps();
             self.render_drm_device(dinfo, tstamps, frame, main_area);
         } else {
             frame.render_widget(Line::from(
@@ -1009,7 +1009,7 @@ impl MainScreen
             area);
     }
 
-    pub fn new(model: Rc<RefCell<AppModel>>) -> Box<dyn Screen>
+    pub fn new(model: Rc<RefCell<AppData>>) -> Box<dyn Screen>
     {
         Box::new(MainScreen {
             model,
