@@ -8,6 +8,7 @@ use anyhow::{bail, Context, Result};
 use env_logger;
 use clap::{Parser, ArgAction};
 use libc;
+use serde::{Deserialize, Serialize};
 
 mod perf_event;
 mod hwmon;
@@ -25,7 +26,7 @@ use app::App;
 
 
 /// qmassa! - display DRM clients usage stats
-#[derive(Parser, Debug)]
+#[derive(Parser, Clone, Debug, Deserialize, Serialize)]
 #[command(version, about, long_about = None)]
 pub struct Args {
     /// show only specific PCI device (default: all devices)

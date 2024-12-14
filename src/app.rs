@@ -1,12 +1,9 @@
 use core::fmt::Debug;
 use std::cell::RefCell;
-use std::io::{Write, Seek, SeekFrom};
-use std::fs::File;
 use std::rc::Rc;
 use std::time;
 
 use anyhow::Result;
-use serde_json;
 
 use crossterm::event::{self, Event, KeyCode, KeyEvent, KeyEventKind};
 use ratatui::{
@@ -225,17 +222,13 @@ impl App
 
     fn do_run(&mut self, terminal: &mut DefaultTerminal) -> Result<()>
     {
-        let model = self.model.borrow();
+        let mut model = self.model.borrow_mut();
+        // get command line options for the main loop
         let ival = time::Duration::from_millis(model.args.ms_interval);
         let max_iterations = model.args.nr_iterations;
 
-        let mut json_file: Option<File> = None;
-        if let Some(fname) = &model.args.to_json {
-            let mut f = File::create(fname)?;
-            // start json data array
-            writeln!(f, "[\n]")?;
-            json_file = Some(f);
-        }
+        // start saving to JSON file (if asked by the user)
+        model.start_json_file()?;
         drop(model);
 
         let mut last_check = time::Instant::now();
@@ -260,15 +253,8 @@ impl App
                 nr += 1;
 
                 // write new state to JSON file (if needed)
-                if let Some(jf) = &mut json_file {
-                    // overwrite last 2 bytes == "]\n" with new state
-                    jf.seek(SeekFrom::End(-2))?;
-                    if nr > 1 {
-                        writeln!(jf, ",")?;
-                    }
-                    serde_json::to_writer_pretty(&mut *jf, model.state())?;
-                    writeln!(jf, "\n]")?;
-                }
+                model.update_json_file()?;
+
                 drop(model);
             } else {
                 timer -= elapsed;

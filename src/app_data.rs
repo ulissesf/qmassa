@@ -1,10 +1,13 @@
 use std::collections::{HashMap, HashSet, VecDeque};
 use std::cell::{RefCell, Ref};
+use std::fs::File;
+use std::io::{Write, Seek, SeekFrom};
 use std::rc::Rc;
 use std::time;
 
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
+use serde_json;
 
 use crate::Args;
 use crate::drm_devices::{
@@ -296,6 +299,24 @@ impl AppDataState
     }
 }
 
+#[derive(Debug, Deserialize, Serialize)]
+pub struct AppDataJson
+{
+    pub args: Args,
+    states: VecDeque<AppDataState>,
+}
+
+impl AppDataJson
+{
+    fn new(args: Args) -> AppDataJson
+    {
+        AppDataJson {
+            args,
+            states: VecDeque::new(),
+        }
+    }
+}
+
 #[derive(Debug)]
 pub struct AppData
 {
@@ -303,6 +324,8 @@ pub struct AppData
     qmds: DrmDevices,
     state: AppDataState,
     start_time: time::Instant,
+    json: Option<File>,
+    is_json_initial: bool,
 }
 
 impl AppData
@@ -326,11 +349,6 @@ impl AppData
         }
 
         None
-    }
-
-    pub fn state(&self) -> &AppDataState
-    {
-        &self.state
     }
 
     pub fn refresh(&mut self) -> Result<()>
@@ -370,6 +388,45 @@ impl AppData
         Ok(())
     }
 
+    pub fn update_json_file(&mut self) -> Result<()>
+    {
+        if let Some(jf) = &mut self.json {
+            // overwrite last 4 bytes ("]\n}\n") with new state
+            jf.seek(SeekFrom::End(-4))?;
+            if !self.is_json_initial {
+                writeln!(jf, ",")?;
+            }
+            serde_json::to_writer_pretty(&mut *jf, &self.state)?;
+
+            // make it a valid JSON again
+            writeln!(jf, "]\n}}")?;
+
+            self.is_json_initial = false;
+        }
+
+        Ok(())
+    }
+
+    pub fn start_json_file(&mut self) -> Result<()>
+    {
+        if let Some(fname) = &self.args.to_json {
+            // create JSON structure, drop saving to JSON option
+            let mut args = self.args.clone();
+            args.to_json = None;
+            let jd = AppDataJson::new(args);
+
+            // create file and write initial JSON
+            let mut jf = File::create(fname)?;
+            serde_json::to_writer_pretty(&mut jf, &jd)?;
+            writeln!(jf)?;
+
+            self.json = Some(jf);
+            self.is_json_initial = true;
+        }
+
+        Ok(())
+    }
+
     pub fn from(args: Args, qmds: DrmDevices) -> AppData
     {
         AppData {
@@ -377,6 +434,8 @@ impl AppData
             qmds,
             state: AppDataState::new(),
             start_time: time::Instant::now(),
+            json: None,
+            is_json_initial: true,
         }
     }
 }
