@@ -21,10 +21,12 @@ mod proc_info;
 mod drm_clients;
 mod app_data;
 mod app;
+mod plotter;
 
 use drm_devices::DrmDevices;
 use app_data::{AppDataLive, AppDataJson};
 use app::App;
+use plotter::Plotter;
 
 
 /// qmassa! - display DRM clients usage stats
@@ -68,12 +70,31 @@ enum Command
 {
     /// replay from a JSON file
     Replay(ReplayArgs),
+
+    /// Plots charts from JSON data
+    Plot(PlotArgs)
 }
 
 #[derive(Args, Clone, Debug, Deserialize, Serialize)]
 struct ReplayArgs
 {
     json_file: String,
+}
+
+#[derive(Args, Clone, Debug, Deserialize, Serialize)]
+struct PlotArgs
+{
+    /// Input JSON file
+    #[arg(short, long)]
+    json_file: String,
+
+    /// Output PNG file
+    #[arg(short, long)]
+    png_file: String,
+
+    /// Optional comma-separated list of charts to be plotted
+    #[arg(short, long, required = false)]
+    charts: Option<String>,
 }
 
 fn run_replay_cmd(args: ReplayArgs) -> Result<()>
@@ -85,6 +106,30 @@ fn run_replay_cmd(args: ReplayArgs) -> Result<()>
     // create tui app and run the mainloop
     let mut app = App::from(Rc::new(RefCell::new(jsondata)));
     app.run()?;
+
+    Ok(())
+}
+
+fn run_plot_cmd(args: PlotArgs) -> Result<()>
+{
+    println!("Plotting charts from {} to {}", &args.json_file, &args.png_file);
+
+    // get app data from JSON file
+    let jsondata = AppDataJson::from(&args.json_file)
+        .context("Failed to load data from JSON file")?;
+
+    let charts_filter = args.charts.clone()
+        .map(|s| s.split(',')
+        .map(|s| s.to_string())
+        .collect());
+
+    // create plotter and plot the charts
+    let plotter = Plotter::new(
+        jsondata,
+        args.png_file.to_string(),
+        charts_filter,
+    );
+    plotter.plot()?;
 
     Ok(())
 }
@@ -162,6 +207,9 @@ fn main() -> Result<()>
         match cmd {
             Command::Replay(cmd_args) => {
                 run_replay_cmd(cmd_args)
+            },
+            Command::Plot(cmd_args) => {
+                run_plot_cmd(cmd_args)
             },
         }
     } else {
