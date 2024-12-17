@@ -1,6 +1,7 @@
+use core::fmt::Debug;
 use std::collections::{HashMap, HashSet, VecDeque};
 use std::cell::{RefCell, Ref};
-use std::fs::File;
+use std::fs::{self, File};
 use std::io::{Write, Seek, SeekFrom};
 use std::rc::Rc;
 use std::time;
@@ -9,7 +10,7 @@ use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use serde_json;
 
-use crate::Args;
+use crate::CliArgs;
 use crate::drm_devices::{
     DrmDeviceFreqLimits, DrmDeviceFreqs, DrmDevicePower,
     DrmDeviceMemInfo, DrmDeviceInfo, DrmDevices};
@@ -299,28 +300,112 @@ impl AppDataState
     }
 }
 
+pub trait AppData
+{
+    fn start_json_file(&mut self) -> Result<()>
+    {
+        Ok(())
+    }
+
+    fn update_json_file(&mut self) -> Result<()>
+    {
+        Ok(())
+    }
+
+    fn args(&self) -> &CliArgs;
+
+    fn timestamps(&self) -> &VecDeque<u128>;
+
+    fn devices(&self) -> &Vec<AppDataDeviceState>;
+
+    fn get_device(&self, dev: &String) -> Option<&AppDataDeviceState>;
+
+    fn refresh(&mut self) -> Result<bool>;
+}
+
+impl Debug for dyn AppData
+{
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        write!(f, "AppData()")
+    }
+}
+
 #[derive(Debug, Deserialize, Serialize)]
 pub struct AppDataJson
 {
-    pub args: Args,
+    args: CliArgs,
     states: VecDeque<AppDataState>,
+}
+
+impl AppData for AppDataJson
+{
+    fn args(&self) -> &CliArgs
+    {
+        &self.args
+    }
+
+    fn timestamps(&self) -> &VecDeque<u128>
+    {
+        let state = self.states.front().unwrap();
+
+        &state.timestamps
+    }
+
+    fn devices(&self) -> &Vec<AppDataDeviceState>
+    {
+        let state = self.states.front().unwrap();
+
+        &state.devs_state
+    }
+
+    fn get_device(&self, dev: &String) -> Option<&AppDataDeviceState>
+    {
+        let state = self.states.front().unwrap();
+
+        for ds in state.devs_state.iter() {
+            if ds.pci_dev == *dev {
+                return Some(ds);
+            }
+        }
+
+        None
+    }
+
+    fn refresh(&mut self) -> Result<bool>
+    {
+        self.states.pop_front();
+        if self.states.is_empty() {
+            // End of JSON data!
+            return Ok(false);
+        }
+
+        Ok(true)
+    }
 }
 
 impl AppDataJson
 {
-    fn new(args: Args) -> AppDataJson
+    fn new(args: CliArgs) -> AppDataJson
     {
         AppDataJson {
             args,
             states: VecDeque::new(),
         }
     }
+
+    pub fn from(json_fname: &str) -> Result<AppDataJson>
+    {
+        let json_str = fs::read_to_string(json_fname)?;
+        let res: AppDataJson = serde_json::from_str(&json_str)?;
+
+        Ok(res)
+    }
 }
 
 #[derive(Debug)]
-pub struct AppData
+pub struct AppDataLive
 {
-    pub args: Args,
+    args: CliArgs,
     qmds: DrmDevices,
     state: AppDataState,
     start_time: time::Instant,
@@ -328,19 +413,63 @@ pub struct AppData
     is_json_initial: bool,
 }
 
-impl AppData
+impl AppData for AppDataLive
 {
-    pub fn timestamps(&self) -> &VecDeque<u128>
+    fn start_json_file(&mut self) -> Result<()>
+    {
+        if let Some(fname) = &self.args.to_json {
+            // create JSON structure, drop saving to JSON option
+            let mut args = self.args.clone();
+            args.to_json = None;
+            let jd = AppDataJson::new(args);
+
+            // create file and write initial JSON
+            let mut jf = File::create(fname)?;
+            serde_json::to_writer_pretty(&mut jf, &jd)?;
+            writeln!(jf)?;
+
+            self.json = Some(jf);
+            self.is_json_initial = true;
+        }
+
+        Ok(())
+    }
+
+    fn update_json_file(&mut self) -> Result<()>
+    {
+        if let Some(jf) = &mut self.json {
+            // overwrite last 4 bytes ("]\n}\n") with new state
+            jf.seek(SeekFrom::End(-4))?;
+            if !self.is_json_initial {
+                writeln!(jf, ",")?;
+            }
+            serde_json::to_writer_pretty(&mut *jf, &self.state)?;
+
+            // make it a valid JSON again
+            writeln!(jf, "]\n}}")?;
+
+            self.is_json_initial = false;
+        }
+
+        Ok(())
+    }
+
+    fn args(&self) -> &CliArgs
+    {
+        &self.args
+    }
+
+    fn timestamps(&self) -> &VecDeque<u128>
     {
         &self.state.timestamps
     }
 
-    pub fn devices(&self) -> &Vec<AppDataDeviceState>
+    fn devices(&self) -> &Vec<AppDataDeviceState>
     {
         &self.state.devs_state
     }
 
-    pub fn get_device(&self, dev: &String) -> Option<&AppDataDeviceState>
+    fn get_device(&self, dev: &String) -> Option<&AppDataDeviceState>
     {
         for ds in self.state.devs_state.iter() {
             if ds.pci_dev == *dev {
@@ -351,7 +480,7 @@ impl AppData
         None
     }
 
-    pub fn refresh(&mut self) -> Result<()>
+    fn refresh(&mut self) -> Result<bool>
     {
         self.qmds.refresh()?;
 
@@ -385,51 +514,15 @@ impl AppData
 
         self.state = nstate;
 
-        Ok(())
+        Ok(true)
     }
+}
 
-    pub fn update_json_file(&mut self) -> Result<()>
+impl AppDataLive
+{
+    pub fn from(args: CliArgs, qmds: DrmDevices) -> AppDataLive
     {
-        if let Some(jf) = &mut self.json {
-            // overwrite last 4 bytes ("]\n}\n") with new state
-            jf.seek(SeekFrom::End(-4))?;
-            if !self.is_json_initial {
-                writeln!(jf, ",")?;
-            }
-            serde_json::to_writer_pretty(&mut *jf, &self.state)?;
-
-            // make it a valid JSON again
-            writeln!(jf, "]\n}}")?;
-
-            self.is_json_initial = false;
-        }
-
-        Ok(())
-    }
-
-    pub fn start_json_file(&mut self) -> Result<()>
-    {
-        if let Some(fname) = &self.args.to_json {
-            // create JSON structure, drop saving to JSON option
-            let mut args = self.args.clone();
-            args.to_json = None;
-            let jd = AppDataJson::new(args);
-
-            // create file and write initial JSON
-            let mut jf = File::create(fname)?;
-            serde_json::to_writer_pretty(&mut jf, &jd)?;
-            writeln!(jf)?;
-
-            self.json = Some(jf);
-            self.is_json_initial = true;
-        }
-
-        Ok(())
-    }
-
-    pub fn from(args: Args, qmds: DrmDevices) -> AppData
-    {
-        AppData {
+        AppDataLive {
             args,
             qmds,
             state: AppDataState::new(),

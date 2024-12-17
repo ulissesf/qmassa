@@ -86,7 +86,7 @@ impl AppScreens
 #[derive(Debug)]
 pub struct App
 {
-    model: Rc<RefCell<AppData>>,
+    model: Rc<RefCell<dyn AppData>>,
     screens: AppScreens,
     exit: bool,
 }
@@ -224,8 +224,8 @@ impl App
     {
         let mut model = self.model.borrow_mut();
         // get command line options for the main loop
-        let ival = time::Duration::from_millis(model.args.ms_interval);
-        let max_iterations = model.args.nr_iterations;
+        let ival = time::Duration::from_millis(model.args().ms_interval);
+        let max_iterations = model.args().nr_iterations;
 
         // start saving to JSON file (if asked by the user)
         model.start_json_file()?;
@@ -248,7 +248,10 @@ impl App
                 let mut model = self.model.borrow_mut();
 
                 // refresh stats and update accounting
-                model.refresh()?;
+                if !model.refresh()? {
+                    self.exit = true;
+                    break;
+                }
                 timer = ival;
                 nr += 1;
 
@@ -279,10 +282,10 @@ impl App
         res
     }
 
-    pub fn from(data: AppData) -> App
+    pub fn from(data: Rc<RefCell<dyn AppData>>) -> App
     {
         App {
-            model: Rc::new(RefCell::new(data)),
+            model: data,
             screens: AppScreens::new(),
             exit: false,
         }

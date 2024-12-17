@@ -170,7 +170,7 @@ impl ClientsViewState
 #[derive(Debug)]
 pub struct MainScreen
 {
-    model: Rc<RefCell<AppData>>,
+    model: Rc<RefCell<dyn AppData>>,
     tab_state: Option<DevicesTabState>,
     dstats_state: RefCell<DeviceStatsState>,
     clis_state: RefCell<ClientsViewState>,
@@ -190,7 +190,7 @@ impl Screen for MainScreen
             let model = self.model.borrow();
             let mut dv: Vec<String> = Vec::new();
 
-            if let Some(pdev) = &model.args.dev_slot {
+            if let Some(pdev) = &model.args().dev_slot {
                 dv.push(pdev.clone());
             } else {
                 for di in model.devices() {
@@ -358,7 +358,7 @@ impl MainScreen
 
         let model = self.model.borrow();
         for cli in dinfo.clis_stats.iter() {
-            if cli.is_active || model.args.all_clients {
+            if cli.is_active || model.args().all_clients {
                 cinfos.push(cli);
                 constrs.push(Constraint::Length(1));
                 clis_sv_w = max(clis_sv_w,
@@ -893,7 +893,7 @@ impl MainScreen
         let mut x_labels: Vec<Span>;
         if x_vals.len() == 1 {
             let model = self.model.borrow();
-            let int_secs = model.args.ms_interval as f64 / 1000.0;
+            let int_secs = model.args().ms_interval as f64 / 1000.0;
             x_bounds = [x_vals[0], x_vals[0] + int_secs];
             x_labels = vec![
                 Span::raw(format!("{:.1}", x_bounds[0])),
@@ -975,7 +975,7 @@ impl MainScreen
             Constraint::Min(2),
         ]).areas(clis_blk_area);
         let mut clis_title_str = String::from(" DRM clients ");
-        let pid_opt = self.model.borrow().args.pid.clone();
+        let pid_opt = self.model.borrow().args().pid.clone();
         if let Some(base_pid) = pid_opt {
             if !base_pid.is_empty() {
                 clis_title_str.push_str(
@@ -1009,7 +1009,7 @@ impl MainScreen
             area);
     }
 
-    pub fn new(model: Rc<RefCell<AppData>>) -> Box<dyn Screen>
+    pub fn new(model: Rc<RefCell<dyn AppData>>) -> Box<dyn Screen>
     {
         Box::new(MainScreen {
             model,

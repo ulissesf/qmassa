@@ -94,7 +94,7 @@ impl ClientStatsState
 #[derive(Debug)]
 pub struct DrmClientScreen
 {
-    model: Rc<RefCell<AppData>>,
+    model: Rc<RefCell<dyn AppData>>,
     sel: DrmClientSelected,
     cmd_sv_state: RefCell<ScrollViewState>,
     stats_state: RefCell<ClientStatsState>,
@@ -544,7 +544,7 @@ impl DrmClientScreen
         let x_bounds: [f64; 2];
         let mut x_labels: Vec<Span>;
         if x_vals.len() == 1 {
-            let int_secs = model.args.ms_interval as f64 / 1000.0;
+            let int_secs = model.args().ms_interval as f64 / 1000.0;
             x_bounds = [x_vals[0], x_vals[0] + int_secs];
             x_labels = vec![
                 Span::raw(format!("{:.1}", x_bounds[0])),
@@ -584,7 +584,7 @@ impl DrmClientScreen
         }
     }
 
-    pub fn new(model: Rc<RefCell<AppData>>,
+    pub fn new(model: Rc<RefCell<dyn AppData>>,
         sel: DrmClientSelected) -> Box<dyn Screen>
     {
         Box::new(DrmClientScreen {

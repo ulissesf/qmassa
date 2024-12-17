@@ -1,12 +1,14 @@
+use std::cell::RefCell;
+use std::env;
+use std::fs::File;
 use std::io::{self, IsTerminal};
 use std::path::Path;
-use std::fs::File;
 use std::process;
-use std::env;
+use std::rc::Rc;
 
 use anyhow::{bail, Context, Result};
 use env_logger;
-use clap::{Parser, ArgAction};
+use clap::{ArgAction, Args, Parser, Subcommand};
 use libc;
 use serde::{Deserialize, Serialize};
 
@@ -21,14 +23,14 @@ mod app_data;
 mod app;
 
 use drm_devices::DrmDevices;
-use app_data::AppData;
+use app_data::{AppDataLive, AppDataJson};
 use app::App;
 
 
 /// qmassa! - display DRM clients usage stats
 #[derive(Parser, Clone, Debug, Deserialize, Serialize)]
 #[command(version, about, long_about = None)]
-pub struct Args {
+pub struct CliArgs {
     /// show only specific PCI device (default: all devices)
     #[arg(short, long)]
     dev_slot: Option<String>,
@@ -56,14 +58,76 @@ pub struct Args {
     /// file to log to when RUST_LOG is used [default: stderr (if not tty) or qmassa-<pid>.log]
     #[arg(short, long)]
     log_file: Option<String>,
+
+    #[command(subcommand)]
+    command: Option<Command>,
+}
+
+#[derive(Subcommand, Clone, Debug, Deserialize, Serialize)]
+enum Command
+{
+    /// replay from a JSON file
+    Replay(ReplayArgs),
+}
+
+#[derive(Args, Clone, Debug, Deserialize, Serialize)]
+struct ReplayArgs
+{
+    json_file: String,
+}
+
+fn run_replay_cmd(args: ReplayArgs) -> Result<()>
+{
+    // get app data from JSON file
+    let jsondata = AppDataJson::from(&args.json_file)
+        .context("Failed to load data from JSON file")?;
+
+    // create tui app and run the mainloop
+    let mut app = App::from(Rc::new(RefCell::new(jsondata)));
+    app.run()?;
+
+    Ok(())
+}
+
+fn run_tui_cmd(args: CliArgs) -> Result<()>
+{
+    let base_pid: String;
+    if args.pid.is_some() {
+        base_pid = args.pid.clone().unwrap();
+    } else {
+        // base_pid is not set, pick value depending on user:
+        //   root       => "1", to scan process tree for whole system
+        //   non-root   => "", all processes with accessible info are scanned
+        let euid: u32 = unsafe { libc::geteuid() };
+        base_pid = if euid == 0 { String::from("1") } else { String::from("") };
+    }
+
+    // find all DRM subsystem devices
+    let mut qmds = DrmDevices::find_devices()
+        .context("Failed finding DRM devices")?;
+    if qmds.is_empty() {
+        bail!("No DRM devices found");
+    }
+    // get DRM clients from pid process tree starting at base_pid
+    qmds.set_clients_pid_tree(base_pid.as_str())
+        .context("Failed to set DRM clients pid tree")?;
+
+    // get app data from live system info
+    let appdata = AppDataLive::from(args, qmds);
+
+    // create tui app and run its mainloop
+    let mut app = App::from(Rc::new(RefCell::new(appdata)));
+    app.run()?;
+
+    Ok(())
 }
 
 fn main() -> Result<()>
 {
     // parse command-line args
-    let args = Args::parse();
+    let args = CliArgs::parse();
 
-    // set up logging, if needed
+    // set up logging for all subcommands (if needed)
     if env::var_os(env_logger::DEFAULT_FILTER_ENV).is_some() {
         let mut logger = env_logger::Builder::from_default_env();
         let fname: &Path;
@@ -94,33 +158,13 @@ fn main() -> Result<()>
         }
     }
 
-    let base_pid: String;
-    if args.pid.is_some() {
-        base_pid = args.pid.clone().unwrap();
+    if let Some(cmd) = args.command {
+        match cmd {
+            Command::Replay(cmd_args) => {
+                run_replay_cmd(cmd_args)
+            },
+        }
     } else {
-        // base_pid is not set, pick value depending on user:
-        //   root       => "1", to scan process tree for whole system
-        //   non-root   => "", all processes with accessible info are scanned
-        let euid: u32 = unsafe { libc::geteuid() };
-        base_pid = if euid == 0 { String::from("1") } else { String::from("") };
+        run_tui_cmd(args)
     }
-
-    // find all DRM subsystem devices
-    let mut qmds = DrmDevices::find_devices()
-        .context("Failed finding DRM devices")?;
-    if qmds.is_empty() {
-        bail!("No DRM devices found");
-    }
-    // get DRM clients from pid process tree starting at base_pid
-    qmds.set_clients_pid_tree(base_pid.as_str())
-        .context("Failed to set DRM clients pid tree")?;
-
-    // get app data from live system info
-    let appdata = AppData::from(args, qmds);
-
-    // create tui app and run its mainloop
-    let mut app = App::from(appdata);
-    app.run()?;
-
-    Ok(())
 }
