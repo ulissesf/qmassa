@@ -53,7 +53,7 @@ user has access to in /proc.
 qmassa
 ```
 
-Running it as the root user and wihout any commnad-line options will display
+Running it as the root user without any command-line options will display
 all the device avaiable stats along with all active DRM clients in the system.
 
 ```shell
