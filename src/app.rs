@@ -271,7 +271,7 @@ impl App
                 if let Some(jf) = &mut json_file {
                     // overwrite last 2 bytes == "]\n" with new state
                     jf.seek(SeekFrom::End(-2))?;
-                    if nr >= 1 {
+                    if nr > 1 {
                         writeln!(jf, ",")?;
                     }
                     serde_json::to_writer_pretty(&mut *jf, model.data.state())?;
