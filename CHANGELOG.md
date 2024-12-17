@@ -1,5 +1,11 @@
 # Changelog
 
+## [v0.4.1](https://github.com/ulissesf/qmassa/releases/tag/v0.4.1) - 2024-12-16
+
+### Fixes
+
+- Fix off-by-one error leading to invalid JSON (found by @rodrigovivi, fixed by @ulissesf)
+
 ## [v0.4.0](https://github.com/ulissesf/qmassa/releases/tag/v0.4.0) - 2024-12-10
 
 ### Features
