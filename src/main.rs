@@ -68,7 +68,7 @@ pub struct CliArgs {
 #[derive(Subcommand, Clone, Debug, Deserialize, Serialize)]
 enum Command
 {
-    /// replay from a JSON file
+    /// Replay from a JSON file
     Replay(ReplayArgs),
 
     /// Plots charts from JSON data
@@ -78,6 +78,8 @@ enum Command
 #[derive(Args, Clone, Debug, Deserialize, Serialize)]
 struct ReplayArgs
 {
+    /// Input JSON file
+    #[arg(short, long)]
     json_file: String,
 }
 
