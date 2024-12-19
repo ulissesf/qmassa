@@ -1,21 +1,23 @@
 use std::collections::HashMap;
+
 use anyhow::Result;
 use plotters::prelude::*;
 
 use crate::app_data::AppDataJson;
 
-pub struct Plotter {
+
+pub struct Plotter
+{
     jsondata: AppDataJson,
     output_file: String,
     charts_filter: Option<Vec<String>>,
 }
 
-impl Plotter {
-    pub fn new(
-        jsondata: AppDataJson,
-        output_file: String,
-        charts_filter: Option<Vec<String>>,
-    ) -> Self {
+impl Plotter
+{
+    pub fn new(jsondata: AppDataJson, output_file: String,
+        charts_filter: Option<Vec<String>>) -> Plotter
+    {
         Plotter {
             jsondata,
             output_file,
@@ -23,7 +25,8 @@ impl Plotter {
         }
     }
 
-    pub fn plot(&self) -> Result<()> {
+    pub fn plot(&self) -> Result<()>
+    {
         let devices = self.jsondata.states();
 
         let metrics = vec![
@@ -32,8 +35,7 @@ impl Plotter {
             "vcs", "bcs",
         ];
 
-        let mut valid_charts: HashMap<String, Vec<(String, String, f64, usize, f64)>> =
-            HashMap::new();
+        let mut valid_charts: HashMap<String, Vec<(String, String, f64, usize, f64)>> = HashMap::new();
 
         let mut timestamp: usize = 0;
 

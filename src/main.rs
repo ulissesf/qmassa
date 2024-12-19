@@ -93,7 +93,7 @@ struct PlotArgs
     png_file: String,
 
     /// Optional comma-separated list of charts to be plotted
-    #[arg(short, long, required = false)]
+    #[arg(short, long)]
     charts: Option<String>,
 }
 

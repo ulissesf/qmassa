@@ -401,7 +401,8 @@ impl AppDataJson
         Ok(res)
     }
 
-    pub fn states(&self) -> &VecDeque<AppDataState> {
+    pub fn states(&self) -> &VecDeque<AppDataState>
+    {
         &self.states
     }
 }
