@@ -45,7 +45,7 @@ cargo install --locked --git https://github.com/ulissesf/qmassa
 > collect information from ioctls. If your user is not in the right groups
 > you'll likely get "Permission denied" errors.
 
-Running it as non-root user and wihout any command-line options will display
+Running it as non-root user without any command-line options will display
 limited device usage information and the DRM clients stats from processes that
 user has access to in /proc.
 
