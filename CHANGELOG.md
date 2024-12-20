@@ -1,5 +1,12 @@
 # Changelog
 
+## [v0.4.2](https://github.com/ulissesf/qmassa/releases/tag/v0.4.2) - 2024-12-19
+
+### Fixes
+
+- Fix typos in README (@ccallawa-intel)
+- Set MSRV to 1.74.0 and keep lock file on version 3 (@ulissesf)
+
 ## [v0.4.1](https://github.com/ulissesf/qmassa/releases/tag/v0.4.1) - 2024-12-16
 
 ### Fixes
