@@ -70,45 +70,79 @@ const DEVICE_STATS_MEMINFO: u8 = 2;
 const DEVICE_STATS_ENGINES: u8 = 3;
 const DEVICE_STATS_TOTAL: u8 = 4;
 
-const DEVICE_STATS_OP_NEXT: u8 = 0;
-const DEVICE_STATS_OP_PREV: u8 = 1;
+const DEVICE_STATS_OP_NEXT: i8 = 0;
+const DEVICE_STATS_OP_PREV: i8 = 1;
 
 #[derive(Debug)]
 struct DeviceStatsState
 {
     sel: u8,
-    last_op: u8,
+    sub_sel: u8,
+    req_op: i8,
 }
 
 impl DeviceStatsState
 {
-    fn next(&mut self)
+    fn exec_next(&mut self, nr_charts: &Vec<u8>)
     {
-        self.sel = (self.sel + 1) % DEVICE_STATS_TOTAL;
-        self.last_op = DEVICE_STATS_OP_NEXT;
-    }
-
-    fn previous(&mut self)
-    {
-        self.sel = if self.sel == 0 {
-            DEVICE_STATS_TOTAL - 1 } else { self.sel - 1 };
-        self.last_op = DEVICE_STATS_OP_PREV;
-    }
-
-    fn repeat_op(&mut self)
-    {
-        if self.last_op == DEVICE_STATS_OP_NEXT {
-            self.next();
+        let nr_cur = nr_charts[self.sel as usize];
+        if nr_cur > 1 && (self.sub_sel + 1) < nr_cur {
+            self.sub_sel += 1;
         } else {
-            self.previous();
+            self.sub_sel = 0;
+            self.sel = (self.sel + 1) % DEVICE_STATS_TOTAL;
+            if nr_charts[self.sel as usize] == 0 {  // engines can be empty
+                self.sel = (self.sel + 1) % DEVICE_STATS_TOTAL;
+            }
         }
+    }
+
+    fn exec_prev(&mut self, nr_charts: &Vec<u8>)
+    {
+        let nr_cur = nr_charts[self.sel as usize];
+        if nr_cur > 1 && self.sub_sel > 0 {
+            self.sub_sel -= 1;
+        } else {
+            self.sel = if self.sel == 0 {
+                DEVICE_STATS_TOTAL - 1 } else { self.sel - 1 };
+            if nr_charts[self.sel as usize] == 0 {  // engines can be empty
+                self.sel = if self.sel == 0 {
+                    DEVICE_STATS_TOTAL - 1 } else { self.sel - 1 };
+            }
+            self.sub_sel = nr_charts[self.sel as usize] - 1;
+        }
+    }
+
+    fn exec_req(&mut self, nr_charts: &Vec<u8>)
+    {
+        if self.req_op < 0 {
+            return;
+        }
+
+        if self.req_op == DEVICE_STATS_OP_NEXT {
+            self.exec_next(nr_charts);
+        } else if self.req_op == DEVICE_STATS_OP_PREV {
+            self.exec_prev(nr_charts);
+        }
+        self.req_op = -1;
+    }
+
+    fn req_next(&mut self)
+    {
+        self.req_op = DEVICE_STATS_OP_NEXT;
+    }
+
+    fn req_previous(&mut self)
+    {
+        self.req_op = DEVICE_STATS_OP_PREV;
     }
 
     fn new() -> DeviceStatsState
     {
         DeviceStatsState {
             sel: DEVICE_STATS_FREQS,
-            last_op: DEVICE_STATS_OP_NEXT,
+            sub_sel: 0,
+            req_op: -1,
         }
     }
 }
@@ -242,11 +276,11 @@ impl Screen for MainScreen
             },
             KeyCode::Char('>') | KeyCode::Char('.') => {
                 let mut st = self.dstats_state.borrow_mut();
-                st.next();
+                st.req_next();
             },
             KeyCode::Char('<') | KeyCode::Char(',') => {
                 let mut st = self.dstats_state.borrow_mut();
-                st.previous();
+                st.req_previous();
             },
             KeyCode::Right => {
                 let mut st = self.clis_state.borrow_mut();
@@ -761,12 +795,17 @@ impl MainScreen
         tstamps: &VecDeque<u128>, frame: &mut Frame, area: Rect)
     {
         let is_dgfx = dinfo.dev_type.is_discrete();
+        // nr_stats = smem + vram (if dgfx) + # engines + # freqs + power
+        let nr_stats = 1 + is_dgfx as usize + dinfo.eng_names.len() + 1 + 1;
+        // Can stats fit in just a single table row or not?
+        // If not, separate meminfo + engines and freqs + power
+        let one_row = nr_stats * 10 <= area.width as usize;
 
         let [inf_area, dstats_area, sep, chart_area] = Layout::vertical([
             Constraint::Length(1),
-            Constraint::Length(2),
+            Constraint::Length(if one_row { 2 } else { 4 }),
             Constraint::Length(1),
-            Constraint::Min(1),
+            Constraint::Fill(1),
         ]).areas(area);
 
         // render some device info and mem/engines/freqs/power stats
@@ -794,17 +833,37 @@ impl MainScreen
             .column_spacing(1),
             inf_area);
 
+        // change selected chart, if needed
+        let nr_charts: Vec<u8> = vec![
+            1, // dinfo.dev_stats.freqs.back().unwrap().len() as u8,  // FREQS
+            1,                                                  // POWER
+            1,                                                  // MEMINFO
+            !dinfo.eng_names.is_empty() as u8,                  // ENGINES
+        ];
         let mut ds_st = self.dstats_state.borrow_mut();
-        if ds_st.sel == DEVICE_STATS_ENGINES && dinfo.eng_names.is_empty() {
-            ds_st.repeat_op();
+        ds_st.exec_req(&nr_charts);
+
+        let hdr_area: Rect;
+        let mut hdr2_area = Rect::ZERO;
+        let gauges_area: Rect;
+        let mut gauges2_area = Rect::ZERO;
+        if one_row {
+            [hdr_area, gauges_area] = Layout::vertical([
+                Constraint::Length(1),
+                Constraint::Length(1),
+            ]).areas(dstats_area);
+        } else {
+            [hdr_area, gauges_area, hdr2_area, gauges2_area] =
+                Layout::vertical([
+                    Constraint::Length(1),
+                    Constraint::Length(1),
+                    Constraint::Length(1),
+                    Constraint::Length(1),
+                ]).areas(dstats_area);
         }
 
-        let [hdr_area, gauges_area] = Layout::vertical([
-            Constraint::Length(1),
-            Constraint::Length(1),
-        ]).areas(dstats_area);
-
-        let mut dstats_widths = Vec::new();
+        let mut dstats_widths: Vec<Constraint> = Vec::new();
+        let mut dstats2_widths: Vec<Constraint> = Vec::new();
         dstats_widths.push(Constraint::Length(12));   // SMEM
         if is_dgfx {
             dstats_widths.push(Constraint::Length(12));   // VRAM
@@ -812,15 +871,23 @@ impl MainScreen
         for _ in dinfo.eng_names.iter() {
             dstats_widths.push(Constraint::Fill(1));  // ENGINES
         }
-        dstats_widths.push(Constraint::Length(10));   // FREQS
-        dstats_widths.push(Constraint::Length(12));   // POWER
+        let ds_widths_ref: &mut Vec<Constraint> = if one_row {
+            &mut dstats_widths } else { &mut dstats2_widths };
+        ds_widths_ref.push(Constraint::Min(10));      // FREQS
+        ds_widths_ref.push(Constraint::Min(12));      // POWER
 
         // split area for gauges early to calculate max engine name length
         let gs_areas = Layout::horizontal(&dstats_widths).split(gauges_area);
         let en_width = if !dinfo.eng_names.is_empty() {
             gs_areas[if is_dgfx { 2 } else { 1 }].width as usize } else { 0 };
+        let gs2_areas = if one_row {
+            Rc::new([])
+        } else {
+            Layout::horizontal(&dstats2_widths).split(gauges2_area)
+        };
 
-        let mut hdrs_lst = Vec::new();
+        let mut hdrs_lst: Vec<Line> = Vec::new();
+        let mut hdrs2_lst: Vec<Line> = Vec::new();
         let wh_bold = Style::new().white().bold();
         let ly_bold = Style::new().light_yellow().bold();
 
@@ -841,11 +908,13 @@ impl MainScreen
                 .style(if ds_st.sel == DEVICE_STATS_ENGINES {
                     ly_bold } else { wh_bold }));
         }
-        hdrs_lst.push(Line::from("FREQS")
+        let hdrs_lst_ref: &mut Vec<Line> = if one_row {
+            &mut hdrs_lst } else { &mut hdrs2_lst };
+        hdrs_lst_ref.push(Line::from("FREQS")
             .alignment(Alignment::Center)
             .style(if ds_st.sel == DEVICE_STATS_FREQS {
                 ly_bold } else { wh_bold }));
-        hdrs_lst.push(Line::from("POWER")
+        hdrs_lst_ref.push(Line::from("POWER")
             .alignment(Alignment::Center)
             .style(if ds_st.sel == DEVICE_STATS_POWER {
                 ly_bold } else { wh_bold }));
@@ -855,8 +924,16 @@ impl MainScreen
             .style(Style::new().on_dark_gray())
             .column_spacing(1),
             hdr_area);
+        if !one_row {
+            let dstats2_hdr = [Row::new(hdrs2_lst)];
+            frame.render_widget(Table::new(dstats2_hdr, &dstats2_widths)
+                .style(Style::new().on_dark_gray())
+                .column_spacing(1),
+                hdr2_area);
+        }
 
-        let mut dstats_gs = Vec::new();
+        let mut dstats_gs: Vec<Gauge> = Vec::new();
+        let mut dstats2_gs: Vec<Gauge> = Vec::new();
 
         let mi = dinfo.dev_stats.mem_info.back().unwrap();  // always present
         let smem_label = Span::styled(format!("{}/{}",
@@ -885,13 +962,16 @@ impl MainScreen
             dstats_gs.push(App::gauge_colored_from(label, eut/100.0));
         }
 
-        let freqs = &dinfo.dev_stats.freqs.back().unwrap()[0];  // always present
+        let ds_gs_ref: &mut Vec<Gauge> = if one_row {
+            &mut dstats_gs } else { &mut dstats2_gs };
+
+        let freqs = &dinfo.dev_stats.freqs.back().unwrap()[0]; // always present
         let freqs_label = Span::styled(
             format!("{}/{}", freqs.act_freq, freqs.cur_freq),
             Style::new().white());
         let freqs_ratio = if freqs.cur_freq > 0 {
             freqs.act_freq as f64 / freqs.cur_freq as f64 } else { 0.0 };
-        dstats_gs.push(App::gauge_colored_from(freqs_label, freqs_ratio));
+        ds_gs_ref.push(App::gauge_colored_from(freqs_label, freqs_ratio));
 
         let pwr = dinfo.dev_stats.power.back().unwrap();  // always present
         let pwr_label = Span::styled(
@@ -899,10 +979,15 @@ impl MainScreen
             Style::new().white());
         let pwr_ratio = if pwr.pkg_cur_power > 0.0 {
             pwr.gpu_cur_power / pwr.pkg_cur_power } else { 0.0 };
-        dstats_gs.push(App::gauge_colored_from(pwr_label, pwr_ratio));
+        ds_gs_ref.push(App::gauge_colored_from(pwr_label, pwr_ratio));
 
         for (ds_g, ds_a) in dstats_gs.iter().zip(gs_areas.iter()) {
             frame.render_widget(ds_g, *ds_a);
+        }
+        if !one_row {
+            for (ds2_g, ds2_a) in dstats2_gs.iter().zip(gs2_areas.iter()) {
+                frame.render_widget(ds2_g, *ds2_a);
+            }
         }
 
         // render separator line
@@ -970,8 +1055,8 @@ impl MainScreen
         tstamps: &VecDeque<u128>, frame: &mut Frame, area: Rect)
     {
         let [dev_blk_area, clis_blk_area] = Layout::vertical([
-            Constraint::Max(21),
-            Constraint::Min(8),
+            Constraint::Max(24),
+            Constraint::Min(5),
         ]).areas(area);
 
         // render pci device block and stats
