@@ -46,7 +46,7 @@ impl AppDataEngineStats
 #[derive(Debug, Serialize, Deserialize)]
 pub struct AppDataDeviceStats
 {
-    pub freqs: VecDeque<DrmDeviceFreqs>,
+    pub freqs: VecDeque<Vec<DrmDeviceFreqs>>,
     pub power: VecDeque<DrmDevicePower>,
     pub mem_info: VecDeque<DrmDeviceMemInfo>,
     pub eng_stats: HashMap<String, AppDataEngineStats>,
@@ -152,7 +152,7 @@ pub struct AppDataDeviceState
     pub drv_name: String,
     pub dev_nodes: String,
     pub eng_names: Vec<String>,
-    pub freq_limits: DrmDeviceFreqLimits,
+    pub freq_limits: Vec<DrmDeviceFreqLimits>,
     pub dev_stats: AppDataDeviceStats,
     pub clis_stats: Vec<AppDataClientStats>,
 }

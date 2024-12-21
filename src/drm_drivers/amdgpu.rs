@@ -364,12 +364,13 @@ impl DrmDriver for DrmDriverAmdgpu
         })
     }
 
-    fn freq_limits(&mut self) -> Result<DrmDeviceFreqLimits>
+    fn freq_limits(&mut self) -> Result<Vec<DrmDeviceFreqLimits>>
     {
         if let Some(fls) = &self.freq_limits {
-            return Ok(fls.clone());
+            return Ok(vec![fls.clone(),]);
         }
 
+        // TODO: get non-gfx freq limits
         let fpath = self.freqs_dir.join("pp_dpm_sclk");
         let sclk_str = fs::read_to_string(&fpath)?;
 
@@ -378,7 +379,7 @@ impl DrmDriver for DrmDriverAmdgpu
             let kv: Vec<_> = line.split(':').map(|it| it.trim()).collect();
             if kv.len() < 2 {
                 warn!("Wrong line [{:?}] from {:?}, aborting.", line, fpath);
-                return Ok(fls);
+                return Ok(vec![fls,]);
             }
             let k: u32 = kv[0].parse()?;
             if k == 1 {
@@ -391,7 +392,7 @@ impl DrmDriver for DrmDriverAmdgpu
             }
             if !v.ends_with("Mhz") {
                 warn!("Wrong line [{:?}] from {:?}, aborting.", line, fpath);
-                return Ok(fls);
+                return Ok(vec![fls,]);
             }
             v = &v[..v.len() - 3];
 
@@ -406,16 +407,17 @@ impl DrmDriver for DrmDriverAmdgpu
                 fls.minimum = 0;
                 fls.maximum = 0;
                 warn!("Wrong line [{:?}] from {:?}, aborting.", line, fpath);
-                return Ok(fls);
+                return Ok(vec![fls,]);
             }
         }
 
         self.freq_limits = Some(fls.clone());
-        Ok(fls)
+        Ok(vec![fls,])
     }
 
-    fn freqs(&mut self) -> Result<DrmDeviceFreqs>
+    fn freqs(&mut self) -> Result<Vec<DrmDeviceFreqs>>
     {
+        // TODO: get non-gfx freqs
         let fpath = self.freqs_dir.join("pp_dpm_sclk");
         let sclk_str = fs::read_to_string(&fpath)?;
 
@@ -431,7 +433,7 @@ impl DrmDriver for DrmDriverAmdgpu
             freqs.act_freq = kv[1].parse()?;
         }
 
-        Ok(freqs)
+        Ok(vec![freqs,])
     }
 
     fn power(&mut self) -> Result<DrmDevicePower>

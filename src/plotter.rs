@@ -47,7 +47,7 @@ impl Plotter
                 let pci_dev = &dev_state.pci_dev;
                 let dev_name = &dev_state.vdr_dev_rev;
                 let stats = &dev_state.dev_stats;
-                let freq_limits_max = &dev_state.freq_limits.maximum;
+                let freq_limits_max = &dev_state.freq_limits[0].maximum;
 
                 for metric_name in &metrics {
                     if let Some(filter) = &self.charts_filter {
@@ -59,16 +59,16 @@ impl Plotter
                     let mut values = vec![];
                     match *metric_name {
                         "min_freq" => values.extend(
-                            stats.freqs.iter().map(|f| f.min_freq as f64),
+                            stats.freqs.iter().map(|f| f[0].min_freq as f64),
                         ),
                         "cur_freq" => values.extend(
-                            stats.freqs.iter().map(|f| f.cur_freq as f64),
+                            stats.freqs.iter().map(|f| f[0].cur_freq as f64),
                         ),
                         "act_freq" => values.extend(
-                            stats.freqs.iter().map(|f| f.act_freq as f64),
+                            stats.freqs.iter().map(|f| f[0].act_freq as f64),
                         ),
                         "max_freq" => values.extend(
-                            stats.freqs.iter().map(|f| f.max_freq as f64),
+                            stats.freqs.iter().map(|f| f[0].max_freq as f64),
                         ),
                         "gpu_cur_power" => values.extend(
                             stats.power.iter().map(|p| p.gpu_cur_power as f64),

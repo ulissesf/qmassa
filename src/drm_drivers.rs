@@ -34,14 +34,14 @@ pub trait DrmDriver
         Ok(DrmDeviceType::Unknown)
     }
 
-    fn freq_limits(&mut self) -> Result<DrmDeviceFreqLimits>
+    fn freq_limits(&mut self) -> Result<Vec<DrmDeviceFreqLimits>>
     {
-        Ok(DrmDeviceFreqLimits::new())
+        Ok(vec![DrmDeviceFreqLimits::new(),])
     }
 
-    fn freqs(&mut self) -> Result<DrmDeviceFreqs>
+    fn freqs(&mut self) -> Result<Vec<DrmDeviceFreqs>>
     {
-        Ok(DrmDeviceFreqs::new())
+        Ok(vec![DrmDeviceFreqs::new(),])
     }
 
     fn power(&mut self) -> Result<DrmDevicePower>

@@ -670,25 +670,25 @@ impl MainScreen
         let mut tr_pl1 = Vec::new();
         let mut tr_status = Vec::new();
 
-        let miny = dinfo.freq_limits.minimum as f64;
-        let maxy = dinfo.freq_limits.maximum as f64;
+        let miny = dinfo.freq_limits[0].minimum as f64;
+        let maxy = dinfo.freq_limits[0].maximum as f64;
 
         for (fqs, xval) in dinfo.dev_stats.freqs.iter().zip(x_vals.iter()) {
-            cur_freq_ds.push((*xval, fqs.cur_freq as f64));
-            act_freq_ds.push((*xval, fqs.act_freq as f64));
+            cur_freq_ds.push((*xval, fqs[0].cur_freq as f64));
+            act_freq_ds.push((*xval, fqs[0].act_freq as f64));
 
-            if fqs.throttle_reasons.pl1 {
+            if fqs[0].throttle_reasons.pl1 {
                 tr_pl1.push((*xval, (miny + maxy) / 2.0));
             } else {
                 tr_pl1.push((*xval, -1.0));  // hide it
             }
-            if fqs.throttle_reasons.status {
+            if fqs[0].throttle_reasons.status {
                 tr_status.push((*xval, (miny + maxy) / 2.0));
             } else {
                 tr_status.push((*xval, -1.0));  // hide it
             }
         }
-        let fq = dinfo.dev_stats.freqs.back().unwrap();  // always present
+        let fq = &dinfo.dev_stats.freqs.back().unwrap()[0];  // always present
 
         let datasets = vec![
             Dataset::default()
@@ -858,7 +858,7 @@ impl MainScreen
             dstats_gs.push(App::gauge_colored_from(label, eut/100.0));
         }
 
-        let freqs = dinfo.dev_stats.freqs.back().unwrap();  // always present
+        let freqs = &dinfo.dev_stats.freqs.back().unwrap()[0];  // always present
         let freqs_label = Span::styled(
             format!("{}/{}", freqs.act_freq, freqs.cur_freq),
             Style::new().white());

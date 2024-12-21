@@ -91,10 +91,9 @@ pub struct DrmDriverXe
 {
     _dn_file: File,
     dn_fd: RawFd,
-    freqs_dir: PathBuf,
-    throttle_dir: PathBuf,
+    base_gts_dir: PathBuf,
     dev_type: Option<DrmDeviceType>,
-    freq_limits: Option<DrmDeviceFreqLimits>,
+    freq_limits: Option<Vec<DrmDeviceFreqLimits>>,
     power: Option<Box<dyn GpuPowerIntel>>,
 }
 
@@ -229,98 +228,118 @@ impl DrmDriver for DrmDriverXe
         Ok(qmdmi)
     }
 
-    fn freq_limits(&mut self) -> Result<DrmDeviceFreqLimits>
+    fn freq_limits(&mut self) -> Result<Vec<DrmDeviceFreqLimits>>
     {
         if let Some(fls) = &self.freq_limits {
             return Ok(fls.clone());
         }
 
-        let fpath = self.freqs_dir.join("rpn_freq");
-        let fstr = fs::read_to_string(&fpath)?;
-        let rpn_val: u64 = fstr.trim_end().parse()?;
+        let mut fls = Vec::new();
+        for nr in 0.. {
+            let freqs_dir = self.base_gts_dir.join(format!("gt{}/freq0", nr));
+            if !freqs_dir.is_dir() {
+                break;
+            }
 
-        let fpath = self.freqs_dir.join("rpe_freq");
-        let fstr = fs::read_to_string(&fpath)?;
-        let rpe_val: u64 = fstr.trim_end().parse()?;
+            let fpath = freqs_dir.join("rpn_freq");
+            let fstr = fs::read_to_string(&fpath)?;
+            let rpn_val: u64 = fstr.trim_end().parse()?;
 
-        let fpath = self.freqs_dir.join("rp0_freq");
-        let fstr = fs::read_to_string(&fpath)?;
-        let rp0_val: u64 = fstr.trim_end().parse()?;
+            let fpath = freqs_dir.join("rpe_freq");
+            let fstr = fs::read_to_string(&fpath)?;
+            let rpe_val: u64 = fstr.trim_end().parse()?;
 
-        let fls = DrmDeviceFreqLimits {
-            minimum: rpn_val,
-            efficient: rpe_val,
-            maximum: rp0_val,
-        };
+            let fpath = freqs_dir.join("rp0_freq");
+            let fstr = fs::read_to_string(&fpath)?;
+            let rp0_val: u64 = fstr.trim_end().parse()?;
+
+            fls.push(DrmDeviceFreqLimits {
+                name: format!("gt{}", nr),
+                minimum: rpn_val,
+                efficient: rpe_val,
+                maximum: rp0_val,
+            });
+        }
 
         self.freq_limits = Some(fls.clone());
         Ok(fls)
     }
 
-    fn freqs(&mut self) -> Result<DrmDeviceFreqs>
+    fn freqs(&mut self) -> Result<Vec<DrmDeviceFreqs>>
     {
-        let fpath = self.freqs_dir.join("min_freq");
-        let fstr = fs::read_to_string(&fpath)?;
-        let min_val: u64 = fstr.trim_end().parse()?;
+        let mut fqs = Vec::new();
+        for nr in 0.. {
+            let freqs_dir = self.base_gts_dir.join(format!("gt{}/freq0", nr));
+            if !freqs_dir.is_dir() {
+                break;
+            }
+            let throttle_dir = freqs_dir.join("throttle");
 
-        let fpath = self.freqs_dir.join("cur_freq");
-        let fstr = fs::read_to_string(&fpath)?;
-        let cur_val: u64 = fstr.trim_end().parse()?;
+            let fpath = freqs_dir.join("min_freq");
+            let fstr = fs::read_to_string(&fpath)?;
+            let min_val: u64 = fstr.trim_end().parse()?;
 
-        let fpath = self.freqs_dir.join("act_freq");
-        let fstr = fs::read_to_string(&fpath)?;
-        let act_val: u64 = fstr.trim_end().parse()?;
+            let fpath = freqs_dir.join("cur_freq");
+            let fstr = fs::read_to_string(&fpath)?;
+            let cur_val: u64 = fstr.trim_end().parse()?;
 
-        let fpath = self.freqs_dir.join("max_freq");
-        let fstr = fs::read_to_string(&fpath)?;
-        let max_val: u64 = fstr.trim_end().parse()?;
+            let fpath = freqs_dir.join("act_freq");
+            let fstr = fs::read_to_string(&fpath)?;
+            let act_val: u64 = fstr.trim_end().parse()?;
 
-        let fpath = self.throttle_dir.join("reason_pl1");
-        let pl1 = fs::read_to_string(&fpath)?.trim() == "1";
+            let fpath = freqs_dir.join("max_freq");
+            let fstr = fs::read_to_string(&fpath)?;
+            let max_val: u64 = fstr.trim_end().parse()?;
 
-        let fpath = self.throttle_dir.join("reason_pl2");
-        let pl2 = fs::read_to_string(&fpath)?.trim() == "1";
+            let fpath = throttle_dir.join("reason_pl1");
+            let pl1 = fs::read_to_string(&fpath)?.trim() == "1";
 
-        let fpath = self.throttle_dir.join("reason_pl4");
-        let pl4 = fs::read_to_string(&fpath)?.trim() == "1";
+            let fpath = throttle_dir.join("reason_pl2");
+            let pl2 = fs::read_to_string(&fpath)?.trim() == "1";
 
-        let fpath = self.throttle_dir.join("reason_prochot");
-        let prochot = fs::read_to_string(&fpath)?.trim() == "1";
+            let fpath = throttle_dir.join("reason_pl4");
+            let pl4 = fs::read_to_string(&fpath)?.trim() == "1";
 
-        let fpath = self.throttle_dir.join("reason_ratl");
-        let ratl = fs::read_to_string(&fpath)?.trim() == "1";
+            let fpath = throttle_dir.join("reason_prochot");
+            let prochot = fs::read_to_string(&fpath)?.trim() == "1";
 
-        let fpath = self.throttle_dir.join("reason_thermal");
-        let thermal = fs::read_to_string(&fpath)?.trim() == "1";
+            let fpath = throttle_dir.join("reason_ratl");
+            let ratl = fs::read_to_string(&fpath)?.trim() == "1";
 
-        let fpath = self.throttle_dir.join("reason_vr_tdc");
-        let vr_tdc = fs::read_to_string(&fpath)?.trim() == "1";
+            let fpath = throttle_dir.join("reason_thermal");
+            let thermal = fs::read_to_string(&fpath)?.trim() == "1";
 
-        let fpath = self.throttle_dir.join("reason_vr_thermalert");
-        let vr_thermalert = fs::read_to_string(&fpath)?.trim() == "1";
+            let fpath = throttle_dir.join("reason_vr_tdc");
+            let vr_tdc = fs::read_to_string(&fpath)?.trim() == "1";
 
-        let fpath = self.throttle_dir.join("status");
-        let status = fs::read_to_string(&fpath)?.trim() == "1";
+            let fpath = throttle_dir.join("reason_vr_thermalert");
+            let vr_thermalert = fs::read_to_string(&fpath)?.trim() == "1";
 
-        let throttle = DrmDeviceThrottleReasons {
-            pl1,
-            pl2,
-            pl4,
-            prochot,
-            ratl,
-            thermal,
-            vr_tdc,
-            vr_thermalert,
-            status,
-        };
+            let fpath = throttle_dir.join("status");
+            let status = fs::read_to_string(&fpath)?.trim() == "1";
 
-        Ok(DrmDeviceFreqs {
-            min_freq: min_val,
-            cur_freq: cur_val,
-            act_freq: act_val,
-            max_freq: max_val,
-            throttle_reasons: throttle,
-        })
+            let throttle = DrmDeviceThrottleReasons {
+                pl1,
+                pl2,
+                pl4,
+                prochot,
+                ratl,
+                thermal,
+                vr_tdc,
+                vr_thermalert,
+                status,
+            };
+
+            fqs.push(DrmDeviceFreqs {
+                min_freq: min_val,
+                cur_freq: cur_val,
+                act_freq: act_val,
+                max_freq: max_val,
+                throttle_reasons: throttle,
+            });
+        }
+
+        Ok(fqs)
     }
 
     fn power(&mut self) -> Result<DrmDevicePower>
@@ -375,12 +394,11 @@ impl DrmDriverXe
         cpath.push_str(card);
         let dev_path = Path::new(&cpath).join("device");
 
-        // TODO: handle more than one tile & gt
+        // TODO: handle more than one tile
         let mut xe = DrmDriverXe {
             _dn_file: file,
             dn_fd: fd,
-            freqs_dir: dev_path.join("tile0/gt0/freq0"),
-            throttle_dir: dev_path.join("tile0/gt0/freq0/throttle"),
+            base_gts_dir: dev_path.join("tile0"),
             dev_type: None,
             freq_limits: None,
             power: None,

@@ -79,6 +79,7 @@ impl DrmDeviceThrottleReasons
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DrmDeviceFreqLimits
 {
+    pub name: String,
     pub minimum: u64,
     pub efficient: u64,
     pub maximum: u64,
@@ -89,6 +90,7 @@ impl DrmDeviceFreqLimits
     pub fn new() -> DrmDeviceFreqLimits
     {
         DrmDeviceFreqLimits {
+            name: String::new(),
             minimum: 0,
             efficient: 0,
             maximum: 0,
@@ -205,8 +207,8 @@ pub struct DrmDeviceInfo
     pub drv_name: String,
     pub drm_minors: Vec<DrmMinorInfo>,
     pub dev_type: DrmDeviceType,
-    pub freq_limits: DrmDeviceFreqLimits,
-    pub freqs: DrmDeviceFreqs,
+    pub freq_limits: Vec<DrmDeviceFreqLimits>,
+    pub freqs: Vec<DrmDeviceFreqs>,
     pub power: DrmDevicePower,
     pub mem_info: DrmDeviceMemInfo,
     driver: Option<Rc<RefCell<dyn DrmDriver>>>,
@@ -227,8 +229,8 @@ impl Default for DrmDeviceInfo
             drv_name: String::new(),
             drm_minors: Vec::new(),
             dev_type: DrmDeviceType::Unknown,
-            freq_limits: DrmDeviceFreqLimits::new(),
-            freqs: DrmDeviceFreqs::new(),
+            freq_limits: Vec::new(),
+            freqs: Vec::new(),
             power: DrmDevicePower::new(),
             mem_info: DrmDeviceMemInfo::new(),
             driver: None,
