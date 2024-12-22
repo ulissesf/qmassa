@@ -13,7 +13,7 @@ use serde_json;
 use crate::CliArgs;
 use crate::drm_devices::{
     DrmDeviceFreqLimits, DrmDeviceFreqs, DrmDevicePower,
-    DrmDeviceMemInfo, DrmDeviceInfo, DrmDevices};
+    DrmDeviceMemInfo, DrmDeviceType, DrmDeviceInfo, DrmDevices};
 use crate::drm_clients::{DrmClientMemInfo, DrmClientInfo};
 
 
@@ -148,7 +148,7 @@ pub struct AppDataDeviceState
 {
     pub pci_dev: String,
     pub vdr_dev_rev: String,
-    pub dev_type: String,
+    pub dev_type: DrmDeviceType,
     pub drv_name: String,
     pub dev_nodes: String,
     pub eng_names: Vec<String>,
@@ -254,7 +254,7 @@ impl AppDataDeviceState
             pci_dev: dinfo.pci_dev.clone(),
             vdr_dev_rev: format!("{} {} (rev {})",
                 dinfo.vendor, dinfo.device, dinfo.revision),
-            dev_type: dinfo.dev_type.to_string(),
+            dev_type: dinfo.dev_type.clone(),
             drv_name: dinfo.drv_name.clone(),
             dev_nodes: dnodes,
             eng_names: enames,

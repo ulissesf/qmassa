@@ -24,6 +24,7 @@ use crate::app::{App, Screen, ScreenAction};
 pub struct DrmClientSelected
 {
     pci_dev: String,
+    is_dgfx: bool,
     pid: u32,
     drm_minor: u32,
     client_id: u32,
@@ -31,11 +32,12 @@ pub struct DrmClientSelected
 
 impl DrmClientSelected
 {
-    pub fn new(pci_dev: String, pid: u32,
-        drm_minor: u32, client_id: u32) -> DrmClientSelected
+    pub fn new(pci_dev: String, is_dgfx: bool,
+        pid: u32, drm_minor: u32, client_id: u32) -> DrmClientSelected
     {
         DrmClientSelected {
             pci_dev,
+            is_dgfx,
             pid,
             drm_minor,
             client_id,
@@ -267,7 +269,9 @@ impl DrmClientScreen
 
         let mut widths = Vec::new();
         widths.push(Constraint::Length(12));   // SMEM
-        widths.push(Constraint::Length(12));   // VRAM
+        if self.sel.is_dgfx {
+            widths.push(Constraint::Length(12));   // VRAM
+        }
         for _ in cli.eng_stats.keys() {
             widths.push(Constraint::Fill(1));  // ENGINES
         }
@@ -275,7 +279,10 @@ impl DrmClientScreen
 
         let gs_areas = Layout::horizontal(&widths).split(gauges_area);
         let en_width = if !cli.eng_stats.is_empty() {
-            gs_areas[2].width as usize } else { 0 };
+            gs_areas[if self.sel.is_dgfx { 2 } else { 1 }].width as usize
+        } else {
+            0
+        };
 
         // render headers
         let mut hdrs_lst = Vec::new();
@@ -286,10 +293,12 @@ impl DrmClientScreen
             .alignment(Alignment::Center)
             .style(if stats_st.sel == CLIENT_STATS_MEMINFO {
                 ly_bold } else { wh_bold }));
-        hdrs_lst.push(Line::from("VRAM")
-            .alignment(Alignment::Center)
-            .style(if stats_st.sel == CLIENT_STATS_MEMINFO {
-                ly_bold } else { wh_bold }));
+        if self.sel.is_dgfx {
+            hdrs_lst.push(Line::from("VRAM")
+                .alignment(Alignment::Center)
+                .style(if stats_st.sel == CLIENT_STATS_MEMINFO {
+                    ly_bold } else { wh_bold }));
+        }
         for en in cli.eng_stats.keys().sorted() {
             hdrs_lst.push(Line::from(en.to_uppercase())
                 .alignment(if en.len() > en_width {
@@ -318,14 +327,16 @@ impl DrmClientScreen
             Style::new().white());
         let smem_ratio = if mi.smem_used > 0 {
             mi.smem_rss as f64 / mi.smem_used as f64 } else { 0.0 };
-        let vram_label = Span::styled(format!("{}/{}",
-            App::short_mem_string(mi.vram_rss),
-            App::short_mem_string(mi.vram_used)),
-            Style::new().white());
-        let vram_ratio = if mi.vram_used > 0 {
-            mi.vram_rss as f64 / mi.vram_used as f64 } else { 0.0 };
         stats_gs.push(App::gauge_colored_from(smem_label, smem_ratio));
-        stats_gs.push(App::gauge_colored_from(vram_label, vram_ratio));
+        if self.sel.is_dgfx {
+            let vram_label = Span::styled(format!("{}/{}",
+                App::short_mem_string(mi.vram_rss),
+                App::short_mem_string(mi.vram_used)),
+                Style::new().white());
+            let vram_ratio = if mi.vram_used > 0 {
+                mi.vram_rss as f64 / mi.vram_used as f64 } else { 0.0 };
+            stats_gs.push(App::gauge_colored_from(vram_label, vram_ratio));
+        }
 
         for en in cli.eng_stats.keys().sorted() {
             let eng = cli.eng_stats.get(en).unwrap();
@@ -364,8 +375,10 @@ impl DrmClientScreen
             for i in 0..idx {
                 sm_rss_vals.push((x_vals[i], 0.0));
                 sm_used_vals.push((x_vals[i], 0.0));
-                vr_rss_vals.push((x_vals[i], 0.0));
-                vr_used_vals.push((x_vals[i], 0.0));
+                if self.sel.is_dgfx {
+                    vr_rss_vals.push((x_vals[i], 0.0));
+                    vr_used_vals.push((x_vals[i], 0.0));
+                }
             }
         }
         for i in idx..nr_vals {
@@ -373,13 +386,15 @@ impl DrmClientScreen
 
             sm_rss_vals.push((x_vals[i], mi.smem_rss as f64));
             sm_used_vals.push((x_vals[i], mi.smem_used as f64));
-            vr_rss_vals.push((x_vals[i], mi.vram_rss as f64));
-            vr_used_vals.push((x_vals[i], mi.vram_used as f64));
-
             maxy = max(maxy, mi.smem_used);
-            maxy = max(maxy, mi.vram_used);
+
+            if self.sel.is_dgfx {
+                vr_rss_vals.push((x_vals[i], mi.vram_rss as f64));
+                vr_used_vals.push((x_vals[i], mi.vram_used as f64));
+                maxy = max(maxy, mi.vram_used);
+            }
         }
-        let datasets = vec![
+        let mut datasets = vec![
             Dataset::default()
                 .name("SMEM USED")
                 .marker(symbols::Marker::Braille)
@@ -392,19 +407,21 @@ impl DrmClientScreen
                 .style(tailwind::GREEN.c700)
                 .graph_type(GraphType::Line)
                 .data(&sm_rss_vals),
-            Dataset::default()
+        ];
+        if self.sel.is_dgfx {
+            datasets.push(Dataset::default()
                 .name("VRAM USED")
                 .marker(symbols::Marker::Braille)
                 .style(tailwind::ORANGE.c700)
                 .graph_type(GraphType::Line)
-                .data(&vr_used_vals),
-            Dataset::default()
+                .data(&vr_used_vals));
+            datasets.push(Dataset::default()
                 .name("VRAM RSS")
                 .marker(symbols::Marker::Braille)
                 .style(tailwind::YELLOW.c700)
                 .graph_type(GraphType::Line)
-                .data(&vr_rss_vals),
-        ];
+                .data(&vr_rss_vals));
+        }
 
         let y_bounds = [miny as f64, maxy as f64];
         let y_labels = vec![

@@ -291,22 +291,25 @@ impl Screen for MainScreen
 
 impl MainScreen
 {
-    fn client_pidmem(&self,
-        cli: &AppDataClientStats, widths: &Vec<Constraint>) -> Table
+    fn client_pidmem(&self, cli: &AppDataClientStats,
+        is_dgfx: bool, widths: &Vec<Constraint>) -> Table
     {
         let mem_info = cli.mem_info.back().unwrap();  // always present
 
-        let rows = [Row::new([
-                Line::from(cli.pid.to_string())
-                    .alignment(Alignment::Center),
-                Line::from(App::short_mem_string(mem_info.smem_rss))
-                    .alignment(Alignment::Center),
-                Line::from(App::short_mem_string(mem_info.vram_rss))
-                    .alignment(Alignment::Center),
-                Line::from(cli.drm_minor.to_string())
-                    .alignment(Alignment::Center),
-        ])];
+        let mut lines = vec![
+            Line::from(cli.pid.to_string())
+                .alignment(Alignment::Center),
+            Line::from(App::short_mem_string(mem_info.smem_rss))
+                .alignment(Alignment::Center),
+        ];
+        if is_dgfx {
+            lines.push(Line::from(App::short_mem_string(mem_info.vram_rss))
+                .alignment(Alignment::Center));
+        }
+        lines.push(Line::from(cli.drm_minor.to_string())
+            .alignment(Alignment::Center));
 
+        let rows = [Row::new(lines),];
         Table::new(rows, widths)
             .column_spacing(1)
             .style(Style::new().white())
@@ -350,6 +353,8 @@ impl MainScreen
     fn render_drm_clients(&self,
         dinfo: &AppDataDeviceState, frame: &mut Frame, visible_area: Rect)
     {
+        let is_dgfx = dinfo.dev_type.is_discrete();
+
         // get all client info and create scrollviews with right size
         let mut cinfos: Vec<&AppDataClientStats> = Vec::new();
         let mut constrs = Vec::new();
@@ -392,7 +397,8 @@ impl MainScreen
             }
             let sel = cinfos[state.sel_row as usize];
             state.sel_client = Some(DrmClientSelected::new(
-                dinfo.pci_dev.clone(), sel.pid, sel.drm_minor, sel.client_id));
+                dinfo.pci_dev.clone(), is_dgfx,
+                sel.pid, sel.drm_minor, sel.client_id));
 
             if state.sel_row < y_offset {
                 state.stats_state.scroll_up();
@@ -408,7 +414,7 @@ impl MainScreen
                 .style(Style::new().on_dark_gray()),
                 hdr_sv_area);
         let line_widths = vec![
-            Constraint::Max(22),
+            Constraint::Max(if is_dgfx { 22 } else { 17 }),
             Constraint::Length(1),
             Constraint::Max(42),
             Constraint::Max(7),
@@ -418,18 +424,20 @@ impl MainScreen
         let [pidmem_hdr, _, engines_hdr, cpu_hdr, _, cmd_hdr] =
             Layout::horizontal(&line_widths).areas(hdr_sv_area);
 
-        let texts = vec![
+        let mut texts = vec![
             Line::from("PID").alignment(Alignment::Center),
             Line::from("SMEM").alignment(Alignment::Center),
-            Line::from("VRAM").alignment(Alignment::Center),
-            Line::from("MIN").alignment(Alignment::Center),
         ];
-        let pidmem_widths = vec![
-            Constraint::Max(6),
-            Constraint::Max(5),
-            Constraint::Max(5),
-            Constraint::Max(3),
+        let mut pidmem_widths = vec![
+            Constraint::Length(6),
+            Constraint::Length(5),
         ];
+        if is_dgfx {
+            texts.push(Line::from("VRAM").alignment(Alignment::Center));
+            pidmem_widths.push(Constraint::Length(5));
+        }
+        texts.push(Line::from("MIN").alignment(Alignment::Center));
+        pidmem_widths.push(Constraint::Length(3));
         hdr_sv.render_widget(Table::new([Row::new(texts)], &pidmem_widths)
             .column_spacing(1)
             .block(Block::new()
@@ -483,7 +491,8 @@ impl MainScreen
                     Layout::horizontal(&line_widths).areas(*area);
 
                 clis_sv.render_widget(
-                    self.client_pidmem(cli, &pidmem_widths), pidmem_area);
+                    self.client_pidmem(cli, is_dgfx, &pidmem_widths),
+                    pidmem_area);
                 self.render_client_engines(
                     cli, &eng_widths, &mut clis_sv, engines_area);
                 clis_sv.render_widget(self.client_cpu_usage(cli), cpu_area);
@@ -503,30 +512,40 @@ impl MainScreen
     fn render_meminfo_chart(&self, x_vals: &Vec<f64>, x_axis: Axis,
         dinfo: &AppDataDeviceState, frame: &mut Frame, area: Rect)
     {
+        let is_dgfx = dinfo.dev_type.is_discrete();
+
         let mut smem_vals = Vec::new();
         let mut vram_vals = Vec::new();
 
         for (mi, xval) in dinfo.dev_stats.mem_info.iter().zip(x_vals.iter()) {
             smem_vals.push((*xval, mi.smem_used as f64));
-            vram_vals.push((*xval, mi.vram_used as f64));
+            if is_dgfx {
+                vram_vals.push((*xval, mi.vram_used as f64));
+            }
         }
-        let datasets = vec![
+        let mut datasets = vec![
             Dataset::default()
                 .name("SMEM")
                 .marker(symbols::Marker::Braille)
                 .style(tailwind::BLUE.c700)
                 .graph_type(GraphType::Line)
                 .data(&smem_vals),
-            Dataset::default()
+        ];
+        if is_dgfx {
+            datasets.push(Dataset::default()
                 .name("VRAM")
                 .marker(symbols::Marker::Braille)
                 .style(tailwind::GREEN.c700)
                 .graph_type(GraphType::Line)
-                .data(&vram_vals),
-        ];
+                .data(&vram_vals));
+        }
 
         let lmi = dinfo.dev_stats.mem_info.back().unwrap();  // always present
-        let maxy = max(lmi.smem_total, lmi.vram_total);
+        let maxy = if is_dgfx {
+            max(lmi.smem_total, lmi.vram_total)
+        } else {
+            lmi.smem_total
+        };
         let miny = 0;
 
         let y_bounds = [miny as f64, maxy as f64];
@@ -741,6 +760,8 @@ impl MainScreen
     fn render_dev_stats(&self, dinfo: &AppDataDeviceState,
         tstamps: &VecDeque<u128>, frame: &mut Frame, area: Rect)
     {
+        let is_dgfx = dinfo.dev_type.is_discrete();
+
         let [inf_area, dstats_area, sep, chart_area] = Layout::vertical([
             Constraint::Length(1),
             Constraint::Length(2),
@@ -761,7 +782,7 @@ impl MainScreen
             .alignment(Alignment::Center),
             Line::from(vec![
                 "TYPE: ".white().bold(),
-                dinfo.dev_type.clone().into()])
+                dinfo.dev_type.to_string().into()])
             .alignment(Alignment::Center),
             Line::from(vec![
                 "DEVICE NODES: ".white().bold(),
@@ -785,7 +806,9 @@ impl MainScreen
 
         let mut dstats_widths = Vec::new();
         dstats_widths.push(Constraint::Length(12));   // SMEM
-        dstats_widths.push(Constraint::Length(12));   // VRAM
+        if is_dgfx {
+            dstats_widths.push(Constraint::Length(12));   // VRAM
+        }
         for _ in dinfo.eng_names.iter() {
             dstats_widths.push(Constraint::Fill(1));  // ENGINES
         }
@@ -795,7 +818,7 @@ impl MainScreen
         // split area for gauges early to calculate max engine name length
         let gs_areas = Layout::horizontal(&dstats_widths).split(gauges_area);
         let en_width = if !dinfo.eng_names.is_empty() {
-            gs_areas[2].width as usize } else { 0 };
+            gs_areas[if is_dgfx { 2 } else { 1 }].width as usize } else { 0 };
 
         let mut hdrs_lst = Vec::new();
         let wh_bold = Style::new().white().bold();
@@ -805,10 +828,12 @@ impl MainScreen
             .alignment(Alignment::Center)
             .style(if ds_st.sel == DEVICE_STATS_MEMINFO {
                 ly_bold } else { wh_bold }));
-        hdrs_lst.push(Line::from("VRAM")
-            .alignment(Alignment::Center)
-            .style(if ds_st.sel == DEVICE_STATS_MEMINFO {
-                ly_bold } else { wh_bold }));
+        if is_dgfx {
+            hdrs_lst.push(Line::from("VRAM")
+                .alignment(Alignment::Center)
+                .style(if ds_st.sel == DEVICE_STATS_MEMINFO {
+                    ly_bold } else { wh_bold }));
+        }
         for en in dinfo.eng_names.iter() {
             hdrs_lst.push(Line::from(en.to_uppercase())
                 .alignment(if en.len() > en_width {
@@ -840,14 +865,16 @@ impl MainScreen
             Style::new().white());
         let smem_ratio = if mi.smem_total > 0 {
             mi.smem_used as f64 / mi.smem_total as f64 } else { 0.0 };
-        let vram_label = Span::styled(format!("{}/{}",
-            App::short_mem_string(mi.vram_used),
-            App::short_mem_string(mi.vram_total)),
-            Style::new().white());
-        let vram_ratio = if mi.vram_total > 0 {
-            mi.vram_used as f64 / mi.vram_total as f64 } else { 0.0 };
         dstats_gs.push(App::gauge_colored_from(smem_label, smem_ratio));
-        dstats_gs.push(App::gauge_colored_from(vram_label, vram_ratio));
+        if is_dgfx {
+            let vram_label = Span::styled(format!("{}/{}",
+                App::short_mem_string(mi.vram_used),
+                App::short_mem_string(mi.vram_total)),
+                Style::new().white());
+            let vram_ratio = if mi.vram_total > 0 {
+                mi.vram_used as f64 / mi.vram_total as f64 } else { 0.0 };
+            dstats_gs.push(App::gauge_colored_from(vram_label, vram_ratio));
+        }
 
         for en in dinfo.eng_names.iter() {
             let eng = dinfo.dev_stats.eng_stats.get(en).unwrap();

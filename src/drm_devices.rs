@@ -12,7 +12,7 @@ use crate::drm_clients::{DrmClients, DrmClientInfo};
 use crate::drm_drivers::{self, DrmDriver};
 
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum DrmDeviceType
 {
     Unknown,
