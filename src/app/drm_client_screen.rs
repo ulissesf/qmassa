@@ -320,7 +320,7 @@ impl DrmClientScreen
         // render stats gauges
         let mut stats_gs = Vec::new();
 
-        let mi = cli.mem_info.back().unwrap();  // always present
+        let mi = cli.mem_info.back().unwrap();
         let smem_label = Span::styled(format!("{}/{}",
             App::short_mem_string(mi.smem_rss),
             App::short_mem_string(mi.smem_used)),
@@ -340,14 +340,14 @@ impl DrmClientScreen
 
         for en in cli.eng_stats.keys().sorted() {
             let eng = cli.eng_stats.get(en).unwrap();
-            let eut = eng.usage.back().unwrap();  // always present
+            let eut = eng.usage.back().unwrap();
             let label = Span::styled(
                 format!("{:.1}%", eut), Style::new().white());
 
             stats_gs.push(App::gauge_colored_from(label, eut/100.0));
         }
 
-        let cpu = cli.cpu_usage.back().unwrap();  // always present
+        let cpu = cli.cpu_usage.back().unwrap();
         let cpu_label = Span::styled(
             format!("{:.1}%", cpu), Style::new().white());
         stats_gs.push(App::gauge_colored_from(cpu_label, cpu/100.0));

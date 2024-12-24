@@ -328,7 +328,7 @@ impl MainScreen
     fn client_pidmem(&self, cli: &AppDataClientStats,
         is_dgfx: bool, widths: &Vec<Constraint>) -> Table
     {
-        let mem_info = cli.mem_info.back().unwrap();  // always present
+        let mem_info = cli.mem_info.back().unwrap();
 
         let mut lines = vec![
             Line::from(cli.pid.to_string())
@@ -355,7 +355,7 @@ impl MainScreen
         let mut gauges: Vec<Gauge> = Vec::new();
         for en in cli.eng_stats.keys().sorted() {
             let eng = cli.eng_stats.get(en).unwrap();
-            let eut = eng.usage.back().unwrap();  // always present
+            let eut = eng.usage.back().unwrap();
             let label = Span::styled(
                 format!("{:.1}%", eut), Style::new().white());
 
@@ -370,7 +370,7 @@ impl MainScreen
 
     fn client_cpu_usage(&self, cli: &AppDataClientStats) -> Gauge
     {
-        let cpu = cli.cpu_usage.back().unwrap();  // always present
+        let cpu = cli.cpu_usage.back().unwrap();
         let label = Span::styled(
             format!("{:.1}%", cpu), Style::new().white());
 
@@ -574,7 +574,7 @@ impl MainScreen
                 .data(&vram_vals));
         }
 
-        let lmi = dinfo.dev_stats.mem_info.back().unwrap();  // always present
+        let lmi = dinfo.dev_stats.mem_info.back().unwrap();
         let maxy = if is_dgfx {
             max(lmi.smem_total, lmi.vram_total)
         } else {
@@ -716,33 +716,34 @@ impl MainScreen
     }
 
     fn render_freqs_chart(&self, x_vals: &Vec<f64>, x_axis: Axis,
-        dinfo: &AppDataDeviceState, frame: &mut Frame, area: Rect)
+        dinfo: &AppDataDeviceState, fq_sel: u8, frame: &mut Frame, area: Rect)
     {
+        let fq_nr = fq_sel as usize;
         let mut cur_freq_ds = Vec::new();
         let mut act_freq_ds = Vec::new();
         let mut tr_pl1 = Vec::new();
         let mut tr_status = Vec::new();
 
-        let miny = dinfo.freq_limits[0].minimum as f64;
-        let maxy = dinfo.freq_limits[0].maximum as f64;
+        let miny = dinfo.freq_limits[fq_nr].minimum as f64;
+        let maxy = dinfo.freq_limits[fq_nr].maximum as f64;
 
         for (fqs, xval) in dinfo.dev_stats.freqs.iter().zip(x_vals.iter()) {
-            cur_freq_ds.push((*xval, fqs[0].cur_freq as f64));
-            act_freq_ds.push((*xval, fqs[0].act_freq as f64));
+            cur_freq_ds.push((*xval, fqs[fq_nr].cur_freq as f64));
+            act_freq_ds.push((*xval, fqs[fq_nr].act_freq as f64));
 
-            if fqs[0].throttle_reasons.pl1 {
+            if fqs[fq_nr].throttle_reasons.pl1 {
                 tr_pl1.push((*xval, (miny + maxy) / 2.0));
             } else {
                 tr_pl1.push((*xval, -1.0));  // hide it
             }
-            if fqs[0].throttle_reasons.status {
+            if fqs[fq_nr].throttle_reasons.status {
                 tr_status.push((*xval, (miny + maxy) / 2.0));
             } else {
                 tr_status.push((*xval, -1.0));  // hide it
             }
         }
-        let fq = &dinfo.dev_stats.freqs.back().unwrap()[0];  // always present
 
+        let fq = &dinfo.dev_stats.freqs.back().unwrap()[fq_nr];
         let datasets = vec![
             Dataset::default()
                 .name(format!("Requested [{}]", fq.cur_freq))
@@ -795,8 +796,11 @@ impl MainScreen
         tstamps: &VecDeque<u128>, frame: &mut Frame, area: Rect)
     {
         let is_dgfx = dinfo.dev_type.is_discrete();
+        let nr_engines = dinfo.eng_names.len();
+        let nr_freqs = dinfo.dev_stats.freqs.back().unwrap().len();
+
         // nr_stats = smem + vram (if dgfx) + # engines + # freqs + power
-        let nr_stats = 1 + is_dgfx as usize + dinfo.eng_names.len() + 1 + 1;
+        let nr_stats = 1 + is_dgfx as usize + nr_engines + nr_freqs + 1;
         // Can stats fit in just a single table row or not?
         // If not, separate meminfo + engines and freqs + power
         let one_row = nr_stats * 10 <= area.width as usize;
@@ -835,10 +839,10 @@ impl MainScreen
 
         // change selected chart, if needed
         let nr_charts: Vec<u8> = vec![
-            1, // dinfo.dev_stats.freqs.back().unwrap().len() as u8,  // FREQS
-            1,                                                  // POWER
-            1,                                                  // MEMINFO
-            !dinfo.eng_names.is_empty() as u8,                  // ENGINES
+            nr_freqs as u8,          // FREQS
+            1,                       // POWER
+            1,                       // MEMINFO
+            (nr_engines > 0) as u8,  // ENGINES
         ];
         let mut ds_st = self.dstats_state.borrow_mut();
         ds_st.exec_req(&nr_charts);
@@ -868,17 +872,19 @@ impl MainScreen
         if is_dgfx {
             dstats_widths.push(Constraint::Length(12));   // VRAM
         }
-        for _ in dinfo.eng_names.iter() {
+        for _ in 0..nr_engines {
             dstats_widths.push(Constraint::Fill(1));  // ENGINES
         }
         let ds_widths_ref: &mut Vec<Constraint> = if one_row {
             &mut dstats_widths } else { &mut dstats2_widths };
-        ds_widths_ref.push(Constraint::Min(10));      // FREQS
+        for _ in 0..nr_freqs {
+            ds_widths_ref.push(Constraint::Min(10));      // FREQS
+        }
         ds_widths_ref.push(Constraint::Min(12));      // POWER
 
         // split area for gauges early to calculate max engine name length
         let gs_areas = Layout::horizontal(&dstats_widths).split(gauges_area);
-        let en_width = if !dinfo.eng_names.is_empty() {
+        let en_width = if nr_engines > 0 {
             gs_areas[if is_dgfx { 2 } else { 1 }].width as usize } else { 0 };
         let gs2_areas = if one_row {
             Rc::new([])
@@ -910,10 +916,18 @@ impl MainScreen
         }
         let hdrs_lst_ref: &mut Vec<Line> = if one_row {
             &mut hdrs_lst } else { &mut hdrs2_lst };
-        hdrs_lst_ref.push(Line::from("FREQS")
-            .alignment(Alignment::Center)
-            .style(if ds_st.sel == DEVICE_STATS_FREQS {
-                ly_bold } else { wh_bold }));
+        for fq_nr in 0..nr_freqs {
+            let fql = &dinfo.freq_limits[fq_nr];
+            let label = if fql.name.is_empty() {
+                format!("FREQS")
+            } else {
+                format!("FRQ:{}", &fql.name.to_uppercase())
+            };
+            hdrs_lst_ref.push(Line::from(label)
+                .alignment(Alignment::Center)
+                .style(if ds_st.sel == DEVICE_STATS_FREQS &&
+                    ds_st.sub_sel == fq_nr as u8 { ly_bold } else { wh_bold }));
+        }
         hdrs_lst_ref.push(Line::from("POWER")
             .alignment(Alignment::Center)
             .style(if ds_st.sel == DEVICE_STATS_POWER {
@@ -935,7 +949,7 @@ impl MainScreen
         let mut dstats_gs: Vec<Gauge> = Vec::new();
         let mut dstats2_gs: Vec<Gauge> = Vec::new();
 
-        let mi = dinfo.dev_stats.mem_info.back().unwrap();  // always present
+        let mi = dinfo.dev_stats.mem_info.back().unwrap();
         let smem_label = Span::styled(format!("{}/{}",
             App::short_mem_string(mi.smem_used),
             App::short_mem_string(mi.smem_total)),
@@ -955,7 +969,7 @@ impl MainScreen
 
         for en in dinfo.eng_names.iter() {
             let eng = dinfo.dev_stats.eng_stats.get(en).unwrap();
-            let eut = eng.usage.back().unwrap();  // always present
+            let eut = eng.usage.back().unwrap();
             let label = Span::styled(
                 format!("{:.1}%", eut), Style::new().white());
 
@@ -965,15 +979,16 @@ impl MainScreen
         let ds_gs_ref: &mut Vec<Gauge> = if one_row {
             &mut dstats_gs } else { &mut dstats2_gs };
 
-        let freqs = &dinfo.dev_stats.freqs.back().unwrap()[0]; // always present
-        let freqs_label = Span::styled(
-            format!("{}/{}", freqs.act_freq, freqs.cur_freq),
-            Style::new().white());
-        let freqs_ratio = if freqs.cur_freq > 0 {
-            freqs.act_freq as f64 / freqs.cur_freq as f64 } else { 0.0 };
-        ds_gs_ref.push(App::gauge_colored_from(freqs_label, freqs_ratio));
+        for fq in dinfo.dev_stats.freqs.back().unwrap().iter() {
+            let fq_label = Span::styled(
+                format!("{}/{}", fq.act_freq, fq.cur_freq),
+                Style::new().white());
+            let fq_ratio = if fq.cur_freq > 0 {
+                fq.act_freq as f64 / fq.cur_freq as f64 } else { 0.0 };
+            ds_gs_ref.push(App::gauge_colored_from(fq_label, fq_ratio));
+        }
 
-        let pwr = dinfo.dev_stats.power.back().unwrap();  // always present
+        let pwr = dinfo.dev_stats.power.back().unwrap();
         let pwr_label = Span::styled(
             format!("{:.1}/{:.1}", pwr.gpu_cur_power, pwr.pkg_cur_power),
             Style::new().white());
@@ -1031,7 +1046,7 @@ impl MainScreen
         match ds_st.sel {
             DEVICE_STATS_FREQS => {
                 self.render_freqs_chart(
-                    &x_vals, x_axis, dinfo, frame, chart_area);
+                    &x_vals, x_axis, dinfo, ds_st.sub_sel, frame, chart_area);
             },
             DEVICE_STATS_POWER => {
                 self.render_power_chart(
