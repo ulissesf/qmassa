@@ -1,5 +1,5 @@
 use std::cell::RefCell;
-use std::cmp::max;
+use std::cmp::{max, min};
 use std::rc::Rc;
 
 use itertools::Itertools;
@@ -136,11 +136,12 @@ impl Screen for DrmClientScreen
             .column_spacing(1),
             tab_area);
 
+        let max_chart_height = min(main_area.width / 4, main_area.height - 4);
         let [cmd_area, table_area, sep, chart_area] = Layout::vertical(vec![
             Constraint::Length(1),
             Constraint::Length(2),
             Constraint::Length(1),
-            Constraint::Max(20),
+            Constraint::Max(max_chart_height),
         ]).areas(main_area);
 
         let model = self.model.borrow();
