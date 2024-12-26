@@ -423,9 +423,10 @@ impl AppData for AppDataLive
     fn start_json_file(&mut self) -> Result<()>
     {
         if let Some(fname) = &self.args.to_json {
-            // create JSON structure, drop saving to JSON option
+            // create JSON structure, drop saving to JSON & no TUI options
             let mut args = self.args.clone();
             args.to_json = None;
+            args.no_tui = false;
             let jd = AppDataJson::new(args);
 
             // create file and write initial JSON

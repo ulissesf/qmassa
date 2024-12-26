@@ -5,6 +5,8 @@ use std::io::{self, IsTerminal};
 use std::path::Path;
 use std::process;
 use std::rc::Rc;
+use std::thread;
+use std::time;
 
 use anyhow::{bail, Context, Result};
 use env_logger;
@@ -24,7 +26,7 @@ mod app;
 mod plotter;
 
 use drm_devices::DrmDevices;
-use app_data::{AppDataLive, AppDataJson};
+use app_data::{AppData, AppDataLive, AppDataJson};
 use app::App;
 use plotter::Plotter;
 
@@ -33,7 +35,7 @@ use plotter::Plotter;
 #[derive(Parser, Clone, Debug, Deserialize, Serialize)]
 #[command(version, about, long_about = None)]
 pub struct CliArgs {
-    /// show only specific PCI device (default: all devices)
+    /// show only specific PCI device [default: all devices]
     #[arg(short, long)]
     dev_slot: Option<String>,
 
@@ -60,6 +62,10 @@ pub struct CliArgs {
     /// file to log to when RUST_LOG is used [default: stderr (if not tty) or qmassa-<pid>.log]
     #[arg(short, long)]
     log_file: Option<String>,
+
+    /// run with no TUI rendering [default: render TUI]
+    #[arg(short = 'x', long, action = ArgAction::SetTrue)]
+    no_tui: bool,
 
     #[command(subcommand)]
     command: Option<Command>,
@@ -136,7 +142,43 @@ fn run_plot_cmd(args: PlotArgs) -> Result<()>
     Ok(())
 }
 
-fn run_tui_cmd(args: CliArgs) -> Result<()>
+fn run_notui(mut appdata: AppDataLive) -> Result<()>
+{
+    if appdata.args().to_json.is_none() && appdata.args().log_file.is_none() {
+        println!("qmassa: WARNING: no TUI being rendered but neither \
+            logging nor saving JSON stats are enabled!");
+    }
+
+    let ival = time::Duration::from_millis(appdata.args().ms_interval);
+    let max_iterations = appdata.args().nr_iterations;
+
+    // start saving to JSON file (if requested)
+    appdata.start_json_file()?;
+
+    println!("qmassa: entering no TUI loop, press Ctrl-C to stop.");
+    let mut nr = 0;
+    loop {
+        if max_iterations >= 0 && nr == max_iterations {
+            break;
+        }
+
+        // refresh stats
+        if !appdata.refresh()? {
+            break;
+        }
+        nr += 1;
+
+        // write new state to JSON file (if needed)
+        appdata.update_json_file()?;
+
+        // sleep till next iteration
+        thread::sleep(ival);
+    }
+
+    Ok(())
+}
+
+fn run_default_cmd(args: CliArgs) -> Result<()>
 {
     let base_pid: String;
     if args.pid.is_some() {
@@ -148,6 +190,7 @@ fn run_tui_cmd(args: CliArgs) -> Result<()>
         let euid: u32 = unsafe { libc::geteuid() };
         base_pid = if euid == 0 { String::from("1") } else { String::from("") };
     }
+    let no_tui = args.no_tui;
 
     // find all DRM subsystem devices
     let mut qmds = DrmDevices::find_devices()
@@ -162,9 +205,13 @@ fn run_tui_cmd(args: CliArgs) -> Result<()>
     // get app data from live system info
     let appdata = AppDataLive::from(args, qmds);
 
-    // create tui app and run its mainloop
-    let mut app = App::from(Rc::new(RefCell::new(appdata)));
-    app.run()?;
+    if no_tui {
+        run_notui(appdata)?;
+    } else {
+        // create tui app and run its mainloop
+        let mut app = App::from(Rc::new(RefCell::new(appdata)));
+        app.run()?;
+    }
 
     Ok(())
 }
@@ -215,6 +262,6 @@ fn main() -> Result<()>
             },
         }
     } else {
-        run_tui_cmd(args)
+        run_default_cmd(args)
     }
 }
