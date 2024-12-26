@@ -1072,7 +1072,7 @@ impl MainScreen
         tstamps: &VecDeque<u128>, frame: &mut Frame, area: Rect)
     {
         let [dev_blk_area, clis_blk_area] = Layout::vertical([
-            Constraint::Max(24),
+            Constraint::Max(26),
             Constraint::Min(5),
         ]).areas(area);
 
