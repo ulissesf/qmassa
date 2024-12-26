@@ -1,5 +1,5 @@
 use std::cell::RefCell;
-use std::cmp::max;
+use std::cmp::{max, min};
 use std::collections::VecDeque;
 use std::rc::Rc;
 
@@ -447,10 +447,12 @@ impl MainScreen
                 .borders(Borders::NONE)
                 .style(Style::new().on_dark_gray()),
                 hdr_sv_area);
+        let max_engs_width = min(dinfo.eng_names.len() as u16 * 12,
+            (visible_area.width as f64 * 0.53) as u16);
         let line_widths = vec![
             Constraint::Max(if is_dgfx { 22 } else { 17 }),
             Constraint::Length(1),
-            Constraint::Max(42),
+            Constraint::Max(max_engs_width),
             Constraint::Max(7),
             Constraint::Length(1),
             Constraint::Min(5),
@@ -463,15 +465,15 @@ impl MainScreen
             Line::from("SMEM").alignment(Alignment::Center),
         ];
         let mut pidmem_widths = vec![
-            Constraint::Length(6),
-            Constraint::Length(5),
+            Constraint::Min(6),
+            Constraint::Min(5),
         ];
         if is_dgfx {
             texts.push(Line::from("VRAM").alignment(Alignment::Center));
-            pidmem_widths.push(Constraint::Length(5));
+            pidmem_widths.push(Constraint::Min(5));
         }
         texts.push(Line::from("MIN").alignment(Alignment::Center));
-        pidmem_widths.push(Constraint::Length(3));
+        pidmem_widths.push(Constraint::Min(3));
         hdr_sv.render_widget(Table::new([Row::new(texts)], &pidmem_widths)
             .column_spacing(1)
             .block(Block::new()
