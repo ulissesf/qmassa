@@ -921,9 +921,9 @@ impl MainScreen
         for fq_nr in 0..nr_freqs {
             let fql = &dinfo.freq_limits[fq_nr];
             let label = if fql.name.is_empty() {
-                format!("FREQS")
+                format!("FREQ")
             } else {
-                format!("FRQ:{}", &fql.name.to_uppercase())
+                format!("FRQ-{}", &fql.name.to_uppercase())
             };
             hdrs_lst_ref.push(Line::from(label)
                 .alignment(Alignment::Center)
