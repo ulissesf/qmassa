@@ -31,39 +31,39 @@ use app::App;
 use plotter::Plotter;
 
 
-/// qmassa! - display DRM clients usage stats
+/// qmassa! - Display GPUs usage stats
 #[derive(Parser, Clone, Debug, Deserialize, Serialize)]
 #[command(version, about, long_about = None)]
 pub struct CliArgs {
-    /// show only specific PCI device [default: all devices]
+    /// Show only specific PCI device [default: all devices]
     #[arg(short, long)]
     dev_slot: Option<String>,
 
-    /// base for process tree [default: all accessible pids' info]
+    /// Base for process tree [default: all accessible pids' info]
     #[arg(short, long)]
     pid: Option<String>,
 
-    /// ms interval between updates
+    /// Interval between updates in ms
     #[arg(short, long, default_value = "1500")]
     ms_interval: u64,
 
-    /// show all DRM clients [default: only active]
+    /// Show all DRM clients [default: only active]
     #[arg(short, long, action = ArgAction::SetTrue)]
     all_clients: bool,
 
-    /// number of stats updates/iterations
+    /// Number of stats updates/iterations
     #[arg(short, long, default_value = "-1")]
     nr_iterations: i32,
 
-    /// save stats to a JSON file
+    /// Save stats to a JSON file
     #[arg(short, long)]
     to_json: Option<String>,
 
-    /// file to log to when RUST_LOG is used [default: stderr (if not tty) or qmassa-<pid>.log]
+    /// File to log to when RUST_LOG is used [default: stderr (if not tty) or qmassa-<pid>.log]
     #[arg(short, long)]
     log_file: Option<String>,
 
-    /// run with no TUI rendering [default: render TUI]
+    /// Run with no TUI rendering [default: render TUI]
     #[arg(short = 'x', long, action = ArgAction::SetTrue)]
     no_tui: bool,
 
@@ -77,7 +77,7 @@ enum Command
     /// Replay from a JSON file
     Replay(ReplayArgs),
 
-    /// Plots charts from JSON data
+    /// Plot charts from JSON data
     Plot(PlotArgs)
 }
 
@@ -110,6 +110,9 @@ fn run_replay_cmd(args: ReplayArgs) -> Result<()>
     // get app data from JSON file
     let jsondata = AppDataJson::from(&args.json_file)
         .context("Failed to load data from JSON file")?;
+    if jsondata.is_empty() {
+        bail!("JSON file is empty!");
+    }
 
     // create tui app and run the mainloop
     let mut app = App::from(Rc::new(RefCell::new(jsondata)));
@@ -145,7 +148,7 @@ fn run_plot_cmd(args: PlotArgs) -> Result<()>
 fn run_notui(mut appdata: AppDataLive) -> Result<()>
 {
     if appdata.args().to_json.is_none() && appdata.args().log_file.is_none() {
-        println!("qmassa: WARNING: no TUI being rendered but neither \
+        println!("qmassa: WARNING: No TUI being rendered but neither \
             logging nor saving JSON stats are enabled!");
     }
 
@@ -155,7 +158,7 @@ fn run_notui(mut appdata: AppDataLive) -> Result<()>
     // start saving to JSON file (if requested)
     appdata.start_json_file()?;
 
-    println!("qmassa: entering no TUI loop, press Ctrl-C to stop.");
+    println!("qmassa: Entering no TUI loop, press Ctrl-C to stop.");
     let mut nr = 0;
     loop {
         if max_iterations >= 0 && nr == max_iterations {

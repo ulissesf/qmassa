@@ -385,6 +385,16 @@ impl AppData for AppDataJson
 
 impl AppDataJson
 {
+    pub fn states(&self) -> &VecDeque<AppDataState>
+    {
+        &self.states
+    }
+
+    pub fn is_empty(&self) -> bool
+    {
+        self.states.is_empty()
+    }
+
     fn new(args: CliArgs) -> AppDataJson
     {
         AppDataJson {
@@ -399,11 +409,6 @@ impl AppDataJson
         let res: AppDataJson = serde_json::from_str(&json_str)?;
 
         Ok(res)
-    }
-
-    pub fn states(&self) -> &VecDeque<AppDataState>
-    {
-        &self.states
     }
 }
 
