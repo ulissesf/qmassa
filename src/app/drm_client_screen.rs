@@ -177,7 +177,7 @@ impl Screen for DrmClientScreen
         // skip engines selection if no engines are known
         let mut stats_st = self.stats_state.borrow_mut();
         if stats_st.sel == CLIENT_STATS_ENGINES &&
-            sel_cli.eng_stats.is_empty() {
+            sel_cli.eng_usage.is_empty() {
             stats_st.repeat_op();
         }
         drop(stats_st);
@@ -273,13 +273,13 @@ impl DrmClientScreen
         if self.sel.is_dgfx {
             widths.push(Constraint::Length(12));   // VRAM
         }
-        for _ in cli.eng_stats.keys() {
+        for _ in cli.eng_usage.keys() {
             widths.push(Constraint::Fill(1));  // ENGINES
         }
         widths.push(Constraint::Length(7));    // CPU
 
         let gs_areas = Layout::horizontal(&widths).split(gauges_area);
-        let en_width = if !cli.eng_stats.is_empty() {
+        let en_width = if !cli.eng_usage.is_empty() {
             gs_areas[if self.sel.is_dgfx { 2 } else { 1 }].width as usize
         } else {
             0
@@ -300,7 +300,7 @@ impl DrmClientScreen
                 .style(if stats_st.sel == CLIENT_STATS_MEMINFO {
                     ly_bold } else { wh_bold }));
         }
-        for en in cli.eng_stats.keys().sorted() {
+        for en in cli.eng_usage.keys().sorted() {
             hdrs_lst.push(Line::from(en.to_uppercase())
                 .alignment(if en.len() > en_width {
                     Alignment::Left } else { Alignment::Center })
@@ -339,9 +339,8 @@ impl DrmClientScreen
             stats_gs.push(App::gauge_colored_from(vram_label, vram_ratio));
         }
 
-        for en in cli.eng_stats.keys().sorted() {
-            let eng = cli.eng_stats.get(en).unwrap();
-            let eut = eng.usage.back().unwrap();
+        for en in cli.eng_usage.keys().sorted() {
+            let eut = cli.eng_usage[en].back().unwrap();
             let label = Span::styled(
                 format!("{:.1}%", eut), Style::new().white());
 
@@ -451,19 +450,19 @@ impl DrmClientScreen
         let mut eng_vals = Vec::new();
         let nr_vals = x_vals.len();
 
-        for en in cli.eng_stats.keys().sorted() {
+        for en in cli.eng_usage.keys().sorted() {
             let mut nlst = Vec::new();
-            let est = cli.eng_stats.get(en).unwrap();
+            let est = &cli.eng_usage[en];
 
             let mut idx = 0;
-            if est.usage.len() < nr_vals {
-                idx = nr_vals - est.usage.len();
+            if est.len() < nr_vals {
+                idx = nr_vals - est.len();
                 for i in 0..idx {
                     nlst.push((x_vals[i], 0.0));
                 }
             }
             for i in idx..nr_vals {
-                nlst.push((x_vals[i], est.usage[i-idx]));
+                nlst.push((x_vals[i], est[i-idx]));
             }
 
             eng_vals.push(nlst);
@@ -472,7 +471,7 @@ impl DrmClientScreen
         let mut datasets = Vec::new();
         let mut color_idx = 1;
 
-        for (en, ed) in cli.eng_stats.keys().sorted().zip(eng_vals.iter()) {
+        for (en, ed) in cli.eng_usage.keys().sorted().zip(eng_vals.iter()) {
             datasets.push(Dataset::default()
                 .name(en.to_uppercase())
                 .marker(symbols::Marker::Braille)

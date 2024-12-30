@@ -353,9 +353,8 @@ impl MainScreen
         constrs: &Vec<Constraint>, clis_sv: &mut ScrollView, area: Rect)
     {
         let mut gauges: Vec<Gauge> = Vec::new();
-        for en in cli.eng_stats.keys().sorted() {
-            let eng = cli.eng_stats.get(en).unwrap();
-            let eut = eng.usage.back().unwrap();
+        for en in cli.eng_usage.keys().sorted() {
+            let eut = cli.eng_usage[en].back().unwrap();
             let label = Span::styled(
                 format!("{:.1}%", eut), Style::new().white());
 
@@ -613,17 +612,17 @@ impl MainScreen
 
         for en in dinfo.eng_names.iter() {
             let mut nlst = Vec::new();
-            let est = dinfo.dev_stats.eng_stats.get(en).unwrap();
+            let est = &dinfo.dev_stats.eng_usage[en];
 
             let mut idx = 0;
-            if est.usage.len() < nr_vals {
-                idx = nr_vals - est.usage.len();
+            if est.len() < nr_vals {
+                idx = nr_vals - est.len();
                 for i in 0..idx {
                     nlst.push((x_vals[i], 0.0));
                 }
             }
             for i in idx..nr_vals {
-                nlst.push((x_vals[i], est.usage[i-idx]));
+                nlst.push((x_vals[i], est[i-idx]));
             }
 
             eng_vals.push(nlst);
@@ -970,8 +969,7 @@ impl MainScreen
         }
 
         for en in dinfo.eng_names.iter() {
-            let eng = dinfo.dev_stats.eng_stats.get(en).unwrap();
-            let eut = eng.usage.back().unwrap();
+            let eut = dinfo.dev_stats.eng_usage[en].back().unwrap();
             let label = Span::styled(
                 format!("{:.1}%", eut), Style::new().white());
 

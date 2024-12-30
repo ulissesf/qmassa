@@ -82,12 +82,12 @@ impl Plotter
                         "vram_used" => values.extend(
                             stats.mem_info.iter().map(|m| m.vram_used as f64),
                         ),
-                        engine_name if stats.eng_stats.contains_key(engine_name) => {
+                        engine_name if stats.eng_usage.contains_key(engine_name) => {
                             if let Some(engine_stats) =
-                                stats.eng_stats.get(engine_name)
+                                stats.eng_usage.get(engine_name)
                             {
                                 values.extend(
-                                    engine_stats.usage.iter().map(|&u| u as f64),
+                                    engine_stats.iter().map(|&u| u as f64),
                                 );
                             }
                         }

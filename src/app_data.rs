@@ -28,28 +28,12 @@ fn limited_vec_push<T>(vlst: &mut VecDeque<T>, vitem: T)
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-pub struct AppDataEngineStats
-{
-    pub usage: VecDeque<f64>,
-}
-
-impl AppDataEngineStats
-{
-    fn new() -> AppDataEngineStats
-    {
-        AppDataEngineStats {
-            usage: VecDeque::new(),
-        }
-    }
-}
-
-#[derive(Debug, Serialize, Deserialize)]
 pub struct AppDataDeviceStats
 {
     pub freqs: VecDeque<Vec<DrmDeviceFreqs>>,
     pub power: VecDeque<DrmDevicePower>,
     pub mem_info: VecDeque<DrmDeviceMemInfo>,
-    pub eng_stats: HashMap<String, AppDataEngineStats>,
+    pub eng_usage: HashMap<String, VecDeque<f64>>,
 }
 
 impl AppDataDeviceStats
@@ -62,11 +46,11 @@ impl AppDataDeviceStats
         limited_vec_push(&mut self.mem_info, dinfo.mem_info.clone());
 
         for en in eng_names.iter() {
-            if !self.eng_stats.contains_key(en) {
-                self.eng_stats.insert(en.clone(), AppDataEngineStats::new());
+            if !self.eng_usage.contains_key(en) {
+                self.eng_usage.insert(en.clone(), VecDeque::new());
             }
-            let est = self.eng_stats.get_mut(en).unwrap();
-            limited_vec_push(&mut est.usage, dinfo.eng_utilization(en));
+            let mut est = self.eng_usage.get_mut(en).unwrap();
+            limited_vec_push(&mut est, dinfo.eng_utilization(en));
         }
     }
 
@@ -74,7 +58,7 @@ impl AppDataDeviceStats
     {
         let mut estats = HashMap::new();
         for en in eng_names.iter() {
-            let n_est = AppDataEngineStats::new();
+            let n_est = VecDeque::new();
             estats.insert(en.clone(), n_est);
         }
 
@@ -82,7 +66,7 @@ impl AppDataDeviceStats
             freqs: VecDeque::new(),
             power: VecDeque::new(),
             mem_info: VecDeque::new(),
-            eng_stats: estats,
+            eng_usage: estats,
         }
     }
 }
@@ -96,7 +80,7 @@ pub struct AppDataClientStats
     pub comm: String,
     pub cmdline: String,
     pub cpu_usage: VecDeque<f64>,
-    pub eng_stats: HashMap<String, AppDataEngineStats>,
+    pub eng_usage: HashMap<String, VecDeque<f64>>,
     pub mem_info: VecDeque<DrmClientMemInfo>,
     pub is_active: bool,
 }
@@ -109,11 +93,11 @@ impl AppDataClientStats
         limited_vec_push(&mut self.cpu_usage, cinfo.proc.cpu_utilization());
 
         for en in eng_names.iter() {
-            if !self.eng_stats.contains_key(en) {
-                self.eng_stats.insert(en.clone(), AppDataEngineStats::new());
+            if !self.eng_usage.contains_key(en) {
+                self.eng_usage.insert(en.clone(), VecDeque::new());
             }
-            let est = self.eng_stats.get_mut(en).unwrap();
-            limited_vec_push(&mut est.usage, cinfo.eng_utilization(en));
+            let mut est = self.eng_usage.get_mut(en).unwrap();
+            limited_vec_push(&mut est, cinfo.eng_utilization(en));
         }
         limited_vec_push(&mut self.mem_info, cinfo.mem_info());
 
@@ -125,7 +109,7 @@ impl AppDataClientStats
     {
         let mut estats = HashMap::new();
         for en in eng_names.iter() {
-            let n_est = AppDataEngineStats::new();
+            let n_est = VecDeque::new();
             estats.insert(en.clone(), n_est);
         }
 
@@ -136,7 +120,7 @@ impl AppDataClientStats
             comm: cinfo.proc.comm.clone(),
             cmdline: cinfo.proc.cmdline.clone(),
             cpu_usage: VecDeque::new(),
-            eng_stats: estats,
+            eng_usage: estats,
             mem_info: VecDeque::new(),
             is_active: false,
         }
