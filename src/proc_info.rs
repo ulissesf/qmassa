@@ -12,8 +12,6 @@ use crate::drm_fdinfo::DrmFdinfo;
 
 thread_local! {
     static HERTZ: i64 = unsafe { libc::sysconf(libc::_SC_CLK_TCK) };
-    static NR_CPUS_ONLINE: i64 = unsafe {
-        libc::sysconf(libc::_SC_NPROCESSORS_ONLN)};
 }
 
 #[derive(Debug)]
@@ -70,6 +68,7 @@ pub struct ProcInfo
     pub proc_dir: PathBuf,
     cputime_last: u64,
     cputime_delta: u64,
+    nr_threads: u64,
     nr_updates: u64,
     ms_elapsed: u64,
     last_update: time::Instant,
@@ -86,6 +85,7 @@ impl Default for ProcInfo
             proc_dir: PathBuf::new(),
             cputime_last: 0,
             cputime_delta: 0,
+            nr_threads: 0,
             nr_updates: 0,
             ms_elapsed: 0,
             last_update: time::Instant::now(),
@@ -188,19 +188,29 @@ impl ProcInfo
             return 0.0;
         }
 
-        let mut total_cpu_time: f64 = self.ms_elapsed as f64;
-        NR_CPUS_ONLINE.with(|nr_cpus| {
-            if *nr_cpus > 1 {
-                total_cpu_time *= *nr_cpus as f64;
+        let nr_cpus = unsafe { libc::sysconf(libc::_SC_NPROCESSORS_ONLN) };
+        let hz = HERTZ.with(|hertz|
+            if *hertz > 0 {
+                *hertz as f64
+            } else {
+                100.0
             }
-        });
+        );
 
-        let mut res = (self.cputime_delta as f64 / total_cpu_time ) * 100.0;
+        let delta_ms = (self.cputime_delta as f64 / hz) * 1000.0;
+        let mut res = (delta_ms / self.ms_elapsed as f64) * 100.0;
 
-        if res > 100.0 {
-            warn!("Process {:?} (pid {:?}) CPU utilization at {:?}, \
-                clamped to 100%.", self.comm, self.pid, res);
-            res = 100.0;
+        if res > (self.nr_threads as f64 * 100.0) {
+            warn!("Process {:?} (pid {}) CPU utilization at {:.1}%, \
+                clamped to {} threads at 100%.",
+                self.comm, self.pid, res, self.nr_threads);
+            res = self.nr_threads as f64 * 100.0;
+        }
+        if nr_cpus > 0 && res > (nr_cpus as f64 * 100.0) {
+            warn!("Process {:?} (pid {}) CPU utilization at {:.1}%, \
+                clamped to {} CPUs at 100% (max possible).",
+                self.comm, self.pid, res, nr_cpus);
+            res = nr_cpus as f64 * 100.0;
         }
         res
     }
@@ -213,22 +223,17 @@ impl ProcInfo
         let idx = ststr.rfind(')').unwrap();
         let stv: Vec<&str> = ststr[idx + 1..].split_whitespace().collect();
 
-        // cputime == utime + stime
-        let mut utime: u64 = stv[11].parse()?;
-        let mut stime: u64 = stv[12].parse()?;
-        HERTZ.with(|hertz| {
-            let hz: u64 = if *hertz > 0 { *hertz as u64 } else { 100 };
-            utime = (utime / hz) * 1000;
-            stime = (stime / hz) * 1000;
-        });
+        let utime: u64 = stv[11].parse()?;
+        let stime: u64 = stv[12].parse()?;
+        self.nr_threads = stv[17].parse()?;
 
         let cputime = utime + stime;
         self.cputime_delta = cputime - self.cputime_last;
         self.cputime_last = cputime;
 
-        self.nr_updates += 1;
         self.ms_elapsed = self.last_update.elapsed().as_millis() as u64;
         self.last_update = time::Instant::now();
+        self.nr_updates += 1;
 
         Ok(())
     }

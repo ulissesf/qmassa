@@ -369,9 +369,13 @@ impl MainScreen
 
     fn client_cpu_usage(&self, cli: &AppDataClientStats) -> Gauge
     {
-        let cpu = cli.cpu_usage.back().unwrap();
-        let label = Span::styled(
-            format!("{:.1}%", cpu), Style::new().white());
+        let cpu = *cli.cpu_usage.back().unwrap();
+        let label_str = if cpu > 999.9 {
+            format!("{:.0}%", cpu)
+        } else {
+            format!("{:.1}%", cpu)
+        };
+        let label = Span::styled(label_str, Style::new().white());
 
         App::gauge_colored_from(label, cpu/100.0)
     }

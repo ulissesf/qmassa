@@ -163,7 +163,7 @@ impl DrmClientInfo
         }
 
         if res > 100.0 {
-            warn!("Engine {:?} utilization at {:?}, clamped to 100%.",
+            warn!("Engine {:?} utilization at {:.1}%, clamped to 100%.",
                 eng, res);
             res = 100.0;
         }
@@ -260,9 +260,9 @@ impl DrmClientInfo
         self.mem_regions = fdi.mem_regions;
 
         // one more update for this DRM client
-        self.nr_updates += 1;
         self.ms_elapsed = self.last_update.elapsed().as_millis() as u64;
         self.last_update = time::Instant::now();
+        self.nr_updates += 1;
     }
 
     pub fn set_driver(&mut self, drv_wref: Weak<RefCell<dyn DrmDriver>>)
