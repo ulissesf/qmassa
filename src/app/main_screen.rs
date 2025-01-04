@@ -924,7 +924,7 @@ impl MainScreen
         for fq_nr in 0..nr_freqs {
             let fql = &dinfo.freq_limits[fq_nr];
             let label = if fql.name.is_empty() {
-                format!("FREQ")
+                format!("FRQ-{}", fq_nr)
             } else {
                 format!("FRQ-{}", &fql.name.to_uppercase())
             };
