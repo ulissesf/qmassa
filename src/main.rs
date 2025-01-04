@@ -96,11 +96,16 @@ struct PlotArgs
     #[arg(short, long)]
     json_file: String,
 
-    /// Output PNG file
+    /// Prefix for output SVG files
     #[arg(short, long)]
-    png_file: String,
+    out_prefix: String,
 
-    /// Optional comma-separated list of charts to be plotted
+    /// Plot only specific PCI device [default: all devices]
+    #[arg(short, long)]
+    dev_slot: Option<String>,
+
+    /// Charts to be plotted (comma-separated, possible values: meminfo,
+    ///  engines, freqs, power) [default: all charts]
     #[arg(short, long)]
     charts: Option<String>,
 }
@@ -123,23 +128,18 @@ fn run_replay_cmd(args: ReplayArgs) -> Result<()>
 
 fn run_plot_cmd(args: PlotArgs) -> Result<()>
 {
-    println!("Plotting charts from {} to {}", &args.json_file, &args.png_file);
+    println!("qmassa: Plotting charts from {:?}", args.json_file);
 
     // get app data from JSON file
     let jsondata = AppDataJson::from(&args.json_file)
         .context("Failed to load data from JSON file")?;
-
-    let charts_filter = args.charts.clone()
-        .map(|s| s.split(',')
-        .map(|s| s.to_string())
-        .collect());
+    if jsondata.is_empty() {
+        bail!("JSON file is empty!");
+    }
 
     // create plotter and plot the charts
-    let plotter = Plotter::new(
-        jsondata,
-        args.png_file.to_string(),
-        charts_filter,
-    );
+    let plotter = Plotter::from(jsondata,
+        args.out_prefix, args.dev_slot, args.charts)?;
     plotter.plot()?;
 
     Ok(())
