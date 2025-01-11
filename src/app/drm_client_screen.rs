@@ -507,6 +507,7 @@ impl DrmClientScreen
     {
         let mut cpu_vals = Vec::new();
         let nr_vals = x_vals.len();
+        let mut max_y = 0.0;
 
         let mut idx = 0;
         if cli.cpu_usage.len() < nr_vals {
@@ -516,8 +517,11 @@ impl DrmClientScreen
             }
         }
         for i in idx..nr_vals {
-            cpu_vals.push((x_vals[i], cli.cpu_usage[i-idx]));
+            let val = cli.cpu_usage[i-idx];
+            cpu_vals.push((x_vals[i], val));
+            max_y = f64::max(max_y, val);
         }
+        let max_y = f64::max(100.0, max_y);
         let datasets = vec![
             Dataset::default()
                 .name("CPU")
@@ -527,11 +531,11 @@ impl DrmClientScreen
                 .data(&cpu_vals),
         ];
 
-        let y_bounds = [0.0, 100.0];
+        let y_bounds = [0.0, max_y];
         let y_labels = vec![
             Span::raw("0"),
-            Span::raw("50"),
-            Span::raw("100"),
+            Span::raw(format!("{:.0}", (max_y/2.0).round())),
+            Span::raw(format!("{:.0}", max_y.ceil())),
         ];
         let y_axis = Axis::default()
             .title("Usage (%)")
