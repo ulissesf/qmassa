@@ -6,7 +6,7 @@
 
 </div>
 
-![qmassa](https://github.com/ulissesf/qmassa/blob/assets/assets/qmassa-v0.4.0.gif?raw=true)
+![qmassa](https://github.com/ulissesf/qmassa/blob/assets/assets/qmassa-v0.5.0.gif?raw=true)
 
 ## General description
 
@@ -24,7 +24,7 @@ ioctls), specific sysfs files/directories or through perf events.
 ## How to install it
 
 The recommendation is to install qmassa using cargo. If you want to install
-the latest release on crates.io and using qmassa's lock file:
+the latest release on crates.io using qmassa's lock file:
 
 ```shell
 cargo install --locked qmassa
@@ -93,10 +93,28 @@ engines being used).
 sudo qmassa -a
 ```
 
-Saving the stats to a JSON file.
+Run qmassa's TUI and save stats to a JSON file.
 
 ```shell
 sudo qmassa -t data.json
+```
+
+Run qmassa without the TUI and save stats to a JSON file.
+
+```shell
+sudo qmassa -x -t data.json
+```
+
+Run qmassa's TUI to replay data from a JSON file.
+
+```shell
+sudo qmassa replay -j data.json
+```
+
+Plot SVG charts (with "chart" prefix) for all GPUs data in a JSON file.
+
+```shell
+sudo qmassa plot -j data.json -o chart
 ```
 
 ## Fields description
@@ -111,12 +129,14 @@ sudo qmassa -t data.json
 | SMEM         | System memory used / Total system memory       |
 | VRAM         | Device memory used / Total device memory       |
 | [Engines]    | Overall engine usage in the last iteration     |
+| FRQ-*        | Actual frequency / Requested frequency         |
 | POWER        | GPU power usage / Package power usage          |
 
 The memory usage values are either in bytes (no letter), or in KiB
 (using "K" letter), or in MiB (using "M" letter), or in GiB (using "G"
 letter). The values are rounded to be easily displayed in a small space,
 but if you save the stats to a JSON file you can get them all in bytes.
+VRAM data is only displayed for discrete GPUs.
 
 The overall engines usage depends on the DRM clients that the user has
 access to. In order to have a system view, please run qmassa as root.
@@ -129,12 +149,12 @@ drivers expose and what they have visibility on so expect the information
 to vary a lot across GPUs and vendors. All the power usage values are in
 watts (W).
 
-The frequency graph ranges from min to max values and plots the instant
-driver-requested (if supported) and actual device frequency for each
-iteration. The graph legend shows the latest value for those frequencies.
-The graph also indicates the overall status and PL1 throttle reason (for
-now only valiid on i915 and Xe drivers). All the frequency values are in
-MHz.
+The frequency graphs range from min to max values and plot the instant
+driver-requested (if supported) and actual device/engines frequency for
+each iteration. The graph legend shows the latest value for those
+frequencies. The graph also indicates the overall status and PL1
+throttle reason (for now only valid on i915 and Xe drivers). All the
+frequency values are in MHz.
 
 #### Driver support
 
@@ -158,28 +178,28 @@ qmassa can't display it.
 
 ### Per DRM client (on main screen)
 
-| Field        | Description                                       |
-| ------------ | ------------------------------------------------- |
-| PID          | Process ID                                        |
-| SMEM         | Resident amount of system memory                  |
-| VRAM         | Resident amount of device memory                  |
-| MIN          | Minor number of /dev/dri device node being used   |
-| [Engines]    | Engine usage in the last iteration                |
-| CPU          | Process' overall CPUs usage in the last iteration |
-| COMMAND      | [/proc/PID/comm] /proc/PID/cmdline                |
+| Field        | Description                                     |
+| ------------ | ----------------------------------------------- |
+| PID          | Process ID                                      |
+| SMEM         | Resident amount of system memory                |
+| VRAM         | Resident amount of device memory                |
+| MIN          | Minor number of /dev/dri device node being used |
+| [Engines]    | Engine usage in the last iteration              |
+| CPU          | CPU usage in the last iteration                 |
+| COMMAND      | [/proc/PID/comm] /proc/PID/cmdline              |
 
 The memory usage for DRM clients follow the same format and units as
 described in the previous per device section. All the values can also
-be found in bytes when stats are saved to a JSON file.
+be found in bytes when stats are saved to a JSON file. VRAM data is only
+displayed for DRM clients on discrete GPUs.
 
 The engines reported are driver and vendor specific, and are read directly
 from DRM fdinfo files in /proc.
 
 The CPU usage is measured by how much CPU time that process used versus the
-total available CPU time across all online CPUs in the system for that
-iteration. The total available CPU time is the time between two samples
-multiplied by the number of online CPUs. This allows this value to stay
-between 0% and 100%.
+available time for that iteration. The percentage value is relative to
+a single CPU, so in the case of processes with multiple threads the
+calculated value can be higher than 100%.
 
 #### DRM client screen
 
@@ -193,6 +213,8 @@ below), while the other data is the same as on the main screen.
 | ------ | ------------------------------------------- |
 | SMEM   | System memory resident / System memory used |
 | VRAM   | Device memory resident / Device memory used |
+
+The VRAM data is only displayed for DRM clients on discrete GPUs.
 
 ## Acknowledgements
 

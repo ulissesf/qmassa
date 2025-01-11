@@ -1,5 +1,24 @@
 # Changelog
 
+## [v0.5.0](https://github.com/ulissesf/qmassa/releases/tag/v0.5.0) - 2025-01-11
+
+### Features
+
+- Make it visible in the TUI when a PID tree is being monitored. (@ulissesf)
+- Add replay sub-command to display TUI from JSON file. (@ulissesf)
+- Add plot sub-command to generate SVG charts for device stats. (@rodrigovivi and @ulissesf)
+- Only show VRAM data for discrete GPUs. (@ulissesf)
+- Display all frequencies supported by drivers like gfx, media, etc. (only i915 and Xe for now). (@ulissesf)
+- Add no TUI mode to just record stats. (@ulissesf)
+
+### Fixes
+
+- Better handling of invalid PIDs. (@ulissesf)
+- Fix off-by-one error leading to invalid JSON files. (@ulissesf)
+- Fix typos in README docs. (@ccallawa-intel)
+- Set MSRV to 1.74.0 and keep lock file in version 3. (@ulissesf)
+- Report usage relative to single CPU not whole system. (@ulissesf)
+
 ## [v0.4.0](https://github.com/ulissesf/qmassa/releases/tag/v0.4.0) - 2024-12-10
 
 ### Features
