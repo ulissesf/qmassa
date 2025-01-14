@@ -95,21 +95,21 @@ impl App
 {
     fn short_mem_string(val: u64) -> String
     {
-        let mut nval: u64 = val;
+        let mut nval = val as f64;
         let mut unit = "";
 
-        if nval >= 1024 * 1024 * 1024 {
-            nval /= 1024 * 1024 * 1024;
+        if nval >= 1024.0 * 1024.0 * 1024.0 {
+            nval /= 1024.0 * 1024.0 * 1024.0;
             unit = "G";
-        } else if nval >= 1024 * 1024 {
-            nval /= 1024 * 1024;
+        } else if nval >= 1024.0 * 1024.0 {
+            nval /= 1024.0 * 1024.0;
             unit = "M";
-        } else if nval >= 1024 {
-            nval /= 1024;
+        } else if nval >= 1024.0 {
+            nval /= 1024.0;
             unit = "K";
         }
 
-        let mut vstr = nval.to_string();
+        let mut vstr = format!("{:.0}", nval.round());
         vstr.push_str(unit);
 
         vstr
