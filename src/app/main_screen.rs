@@ -342,6 +342,8 @@ impl MainScreen
         }
         lines.push(Line::from(cli.drm_minor.to_string())
             .alignment(Alignment::Center));
+        lines.push(Line::from(cli.client_id.to_string())
+            .alignment(Alignment::Center));
 
         let rows = [Row::new(lines),];
         Table::new(rows, widths)
@@ -395,7 +397,7 @@ impl MainScreen
         // get all client info and create scrollviews with right size
         let mut cinfos: Vec<&AppDataClientStats> = Vec::new();
         let mut constrs = Vec::new();
-        let mut clis_sv_w = max(90, visible_area.width);
+        let mut clis_sv_w = max(100, visible_area.width);
         let mut clis_sv_h: u16 = 0;
 
         let model = self.model.borrow();
@@ -404,7 +406,7 @@ impl MainScreen
                 cinfos.push(cli);
                 constrs.push(Constraint::Length(1));
                 clis_sv_w = max(clis_sv_w,
-                    (80 + cli.comm.len() + cli.cmdline.len() + 3) as u16);
+                    (90 + cli.comm.len() + cli.cmdline.len() + 3) as u16);
                 clis_sv_h += 1;
            }
         }
@@ -453,7 +455,7 @@ impl MainScreen
         let max_engs_width = min(dinfo.eng_names.len() as u16 * 12,
             (visible_area.width as f64 * 0.53) as u16);
         let line_widths = vec![
-            Constraint::Max(if is_dgfx { 22 } else { 17 }),
+            Constraint::Max(if is_dgfx { 27 } else { 21 }),
             Constraint::Length(1),
             Constraint::Max(max_engs_width),
             Constraint::Max(7),
@@ -476,6 +478,8 @@ impl MainScreen
             pidmem_widths.push(Constraint::Min(5));
         }
         texts.push(Line::from("MIN").alignment(Alignment::Center));
+        pidmem_widths.push(Constraint::Min(3));
+        texts.push(Line::from("ID").alignment(Alignment::Center));
         pidmem_widths.push(Constraint::Min(3));
         hdr_sv.render_widget(Table::new([Row::new(texts)], &pidmem_widths)
             .column_spacing(1)

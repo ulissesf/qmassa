@@ -178,12 +178,24 @@ qmassa can't display it.
 
 ### Per DRM client (on main screen)
 
+DRM clients have unique IDs per device which are assigned for every open
+file descriptor of one of the device nodes in the /dev/dri folder. The
+same process ID (PID) can have multiple DRM clients and those file
+descriptors can also be shared across different processes. qmassa shows
+only one PID for every DRM client ID, but it can display multiple entries
+in the list with the same PID.
+
+The engines and memory usage stats per DRM client are gathered following
+the specs defined on
+<a href="https://dri.freedesktop.org/docs/drm/gpu/drm-usage-stats.html">DRM client usage stats</a>.
+
 | Field        | Description                                     |
 | ------------ | ----------------------------------------------- |
 | PID          | Process ID                                      |
 | SMEM         | Resident amount of system memory                |
 | VRAM         | Resident amount of device memory                |
 | MIN          | Minor number of /dev/dri device node being used |
+| ID           | DRM client ID                                   |
 | [Engines]    | Engine usage in the last iteration              |
 | CPU          | CPU usage in the last iteration                 |
 | COMMAND      | [/proc/PID/comm] /proc/PID/cmdline              |
@@ -194,7 +206,7 @@ be found in bytes when stats are saved to a JSON file. VRAM data is only
 displayed for DRM clients on discrete GPUs.
 
 The engines reported are driver and vendor specific, and are read directly
-from DRM fdinfo files in /proc.
+from the DRM fdinfo files in /proc.
 
 The CPU usage is measured by how much CPU time that process used versus the
 available time for that iteration. The percentage value is relative to
