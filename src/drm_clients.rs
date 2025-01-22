@@ -154,7 +154,7 @@ impl DrmClientInfo
         let cap = self.engs_last.get(eng).unwrap().capacity as f64;
 
         let mut res: f64 = 0.0;
-        if acum.acum_cycles > 0 {
+        if acum.acum_cycles > 0 && ed.delta_total_cycles > 0 {
             res = (ed.delta_cycles as f64 * 100.0) /
                 (ed.delta_total_cycles as f64 * cap);
         } else if acum.acum_time > 0 {
@@ -191,7 +191,8 @@ impl DrmClientInfo
     pub fn is_active(&self) -> bool
     {
         let acum = &self.engs_acum;
-        if acum.acum_time > 0 || acum.acum_cycles > 0 {
+        if acum.acum_time > 0 ||
+            (acum.acum_cycles > 0 && acum.acum_total_cycles > 0) {
             return true;
         }
 
