@@ -132,10 +132,10 @@ impl DrmClientInfo
                 }
             }
         } else if let Some(mrg) = self.mem_regions.get("memory") {
-            let mut cli = DrmClientMemInfo::new();
-            cli.smem_rss = mrg.resident;
-            cli.smem_used = mrg.total;
-            return cli;
+            let mut cmi = DrmClientMemInfo::new();
+            cmi.smem_rss = mrg.resident;
+            cmi.smem_used = mrg.total;
+            return cmi;
         }
 
         DrmClientMemInfo::new()

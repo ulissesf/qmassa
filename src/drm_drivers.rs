@@ -55,8 +55,15 @@ pub trait DrmDriver
     }
 
     fn client_mem_info(&mut self,
-        _mem_regs: &HashMap<String, DrmMemRegion>) -> Result<DrmClientMemInfo>
+        mem_regs: &HashMap<String, DrmMemRegion>) -> Result<DrmClientMemInfo>
     {
+        if let Some(mrg) = mem_regs.get("memory") {
+            let mut cmi = DrmClientMemInfo::new();
+            cmi.smem_rss = mrg.resident;
+            cmi.smem_used = mrg.total;
+            return Ok(cmi);
+        }
+
         Ok(DrmClientMemInfo::new())
     }
 }
