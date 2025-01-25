@@ -673,6 +673,8 @@ impl MainScreen
     fn render_power_chart(&self, x_vals: &Vec<f64>, x_axis: Axis,
         dinfo: &AppDataDeviceState, frame: &mut Frame, area: Rect)
     {
+        let is_dgfx = dinfo.dev_type.is_discrete();
+
         let mut gpu_vals = Vec::new();
         let mut pkg_vals = Vec::new();
         let mut maxy = 0.0;
@@ -690,7 +692,7 @@ impl MainScreen
 
         let datasets = vec![
             Dataset::default()
-                .name("PKG")
+                .name(if is_dgfx { "CARD" } else { "PKG" })
                 .marker(symbols::Marker::Braille)
                 .style(tailwind::BLUE.c700)
                 .graph_type(GraphType::Line)
