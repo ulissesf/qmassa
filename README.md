@@ -173,8 +173,9 @@ please file an issue so we can debug it.
 
 #### Limitations
 
-* i915: the kernel driver doesn't track/report system memory used and thus
-qmassa can't display it.
+* i915: the kernel driver doesn't track/report system memory used.
+* amdgpu: processes using kfd don't report engines and memory usage through
+any open file descriptor of a DRM device node.
 
 ### Per DRM client (on main screen)
 
