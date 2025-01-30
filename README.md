@@ -166,6 +166,7 @@ to get device information.
 | xe     | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: |
 | i915   | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: |
 | amdgpu | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: (only dGPUs) | :white_check_mark: (Linux kernel 6.13+) |
+| *      |  |  | :white_check_mark: (via DRM fdinfo) |  |  | :white_check_mark: (only "memory" region in DRM fdinfo) |
 
 qmassa is tested on some Intel and AMD GPUs but it relies heavily on kernel
 drivers exposing consistent support across GPUs. If you have a problem,
