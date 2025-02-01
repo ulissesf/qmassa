@@ -1,5 +1,17 @@
 # Changelog
 
+## [v0.6.0](https://github.com/ulissesf/qmassa/releases/tag/v0.6.0) - 2025-02-01
+
+### Features
+
+- Display the client's ID in the DRM clients list. (@ulissesf)
+- Handle system memory region "memory" as a no driver fallback. (@ulissesf)
+- UI polish: use CARD instead of PKG on discrete GPUs power charts. (@ulissesf)
+
+### Fixes
+
+- Require both cycles and total-cycles for engine utilization. (@ulissesf)
+
 ## [v0.5.0](https://github.com/ulissesf/qmassa/releases/tag/v0.5.0) - 2025-01-11
 
 ### Features

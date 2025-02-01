@@ -6,7 +6,7 @@
 
 </div>
 
-![qmassa](https://github.com/ulissesf/qmassa/blob/assets/assets/qmassa-v0.5.0.gif?raw=true)
+![qmassa](https://github.com/ulissesf/qmassa/blob/assets/assets/qmassa-v0.6.0.gif?raw=true)
 
 ## General description
 
@@ -111,11 +111,17 @@ Run qmassa's TUI to replay data from a JSON file.
 sudo qmassa replay -j data.json
 ```
 
-Plot SVG charts (with "chart" prefix) for all GPUs data in a JSON file.
+Plot SVG charts (with "chart" prefix) for all GPUs data in a JSON file. Some
+examples of generated charts can be seen below.
 
 ```shell
 sudo qmassa plot -j data.json -o chart
 ```
+
+<img src="https://github.com/ulissesf/qmassa/blob/assets/assets/chart-0000:03:00.0-engines.svg" class="galleryItem" width=200px></img>
+<img src="https://github.com/ulissesf/qmassa/blob/assets/assets/chart-0000:03:00.0-freqs-gt0.svg" class="galleryItem" width=200px></img>
+<img src="https://github.com/ulissesf/qmassa/blob/assets/assets/chart-0000:03:00.0-power.svg" class="galleryItem" width=200px></img>
+<img src="https://github.com/ulissesf/qmassa/blob/assets/assets/chart-0000:03:00.0-meminfo.svg" class="galleryItem" width=200px></img>
 
 ## Fields description
 
