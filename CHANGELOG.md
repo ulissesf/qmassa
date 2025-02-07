@@ -1,5 +1,11 @@
 # Changelog
 
+## [v0.6.1](https://github.com/ulissesf/qmassa/releases/tag/v0.6.1) - 2025-02-06
+
+### Fixes
+
+- Fix crash when running with no qmmasa driver implementation. (@ulissesf)
+
 ## [v0.6.0](https://github.com/ulissesf/qmassa/releases/tag/v0.6.0) - 2025-02-01
 
 ### Features
