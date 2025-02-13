@@ -50,6 +50,15 @@ impl DrmEngine
             ..Default::default()
         }
     }
+
+    pub fn from(eng: &DrmEngine) -> DrmEngine
+    {
+        DrmEngine {
+            name: eng.name.clone(),
+            capacity: eng.capacity,
+            ..Default::default()
+        }
+    }
 }
 
 #[derive(Debug, Clone)]
