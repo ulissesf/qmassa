@@ -1,5 +1,11 @@
 # Changelog
 
+## [v0.6.2](https://github.com/ulissesf/qmassa/releases/tag/v0.6.2) - 2025-02-12
+
+### Fixes
+
+- Don't reset engine capacity that led to wrong engine utilization. (@ulissesf)
+
 ## [v0.6.1](https://github.com/ulissesf/qmassa/releases/tag/v0.6.1) - 2025-02-06
 
 ### Fixes
