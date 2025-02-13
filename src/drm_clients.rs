@@ -225,7 +225,7 @@ impl DrmClientInfo
         for nm in fdi.engines.keys() {
             if !self.engs_last.contains_key(nm) {
                 self.engs_last.insert(nm.clone(),
-                    DrmEngine::new(nm.as_str()));
+                    DrmEngine::from(&fdi.engines[nm]));
                 self.engs_delta.insert(nm.clone(), DrmEngineDelta::new());
                 self.engs_updates.insert(nm.clone(), 0);
             }
@@ -286,7 +286,8 @@ impl DrmClientInfo
         };
 
         for nm in fdi.engines.keys() {
-            cli.engs_last.insert(nm.clone(), DrmEngine::new(nm.as_str()));
+            cli.engs_last.insert(nm.clone(),
+                DrmEngine::from(&fdi.engines[nm]));
             cli.engs_delta.insert(nm.clone(), DrmEngineDelta::new());
             cli.engs_updates.insert(nm.clone(), 0);
         }
