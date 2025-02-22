@@ -21,6 +21,13 @@ of the stats, though, a driver-specific way is needed, and qmassa then
 leverages what the kernel drivers expose in their uAPI (e.g. specific query
 ioctls), specific sysfs files/directories or through perf events.
 
+## Requirements
+
+The minimum requirements to compile & run qmassa are:
+
+* Compile-time: Rust v1.74 or later, pkg-config and libudev development packages
+* Runtime: Linux kernel v6.8 or later to report most usage stats
+
 ## How to install it
 
 The recommendation is to install qmassa using cargo. If you want to install
