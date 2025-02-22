@@ -1,5 +1,11 @@
 # Changelog
 
+## [v0.6.3](https://github.com/ulissesf/qmassa/releases/tag/v0.6.3) - 2025-02-21
+
+### Fixes
+
+- Reduce and tune dependencies to keep MSRV on v1.74. (@ulissesf)
+
 ## [v0.6.2](https://github.com/ulissesf/qmassa/releases/tag/v0.6.2) - 2025-02-12
 
 ### Fixes
