@@ -162,6 +162,24 @@ impl DrmDeviceMemInfo
     }
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DrmDeviceTemperature
+{
+    pub name: String,
+    pub temp: f64,
+}
+
+impl DrmDeviceTemperature
+{
+    pub fn new() -> DrmDeviceTemperature
+    {
+        DrmDeviceTemperature {
+            name: String::from("none"),
+            temp: 0.0,
+        }
+    }
+}
+
 #[derive(Debug)]
 #[allow(dead_code)]
 pub struct DrmMinorInfo
@@ -211,6 +229,7 @@ pub struct DrmDeviceInfo
     pub freqs: Vec<DrmDeviceFreqs>,
     pub power: DrmDevicePower,
     pub mem_info: DrmDeviceMemInfo,
+    pub temps: Vec<DrmDeviceTemperature>,
     driver: Option<Rc<RefCell<dyn DrmDriver>>>,
     drm_clis: Option<Rc<RefCell<Vec<DrmClientInfo>>>>,
 }
@@ -233,6 +252,7 @@ impl Default for DrmDeviceInfo
             freqs: vec![DrmDeviceFreqs::new(),],
             power: DrmDevicePower::new(),
             mem_info: DrmDeviceMemInfo::new(),
+            temps: vec![DrmDeviceTemperature::new(),],
             driver: None,
             drm_clis: None,
         }
@@ -307,6 +327,10 @@ impl DrmDeviceInfo
             self.freqs = drv_b.freqs()?;
             self.power = drv_b.power()?;
             self.mem_info = drv_b.mem_info()?;
+
+            if self.dev_type.is_discrete() {
+                self.temps = drv_b.temps()?;
+            }
         }
 
         Ok(())

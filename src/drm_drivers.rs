@@ -7,7 +7,7 @@ use anyhow::Result;
 
 use crate::drm_devices::{
     DrmDeviceType, DrmDeviceFreqLimits, DrmDeviceFreqs,
-    DrmDevicePower, DrmDeviceMemInfo, DrmDeviceInfo
+    DrmDevicePower, DrmDeviceMemInfo, DrmDeviceTemperature, DrmDeviceInfo
 };
 use crate::drm_fdinfo::DrmMemRegion;
 use crate::drm_clients::DrmClientMemInfo;
@@ -65,6 +65,11 @@ pub trait DrmDriver
         }
 
         Ok(DrmClientMemInfo::new())
+    }
+
+    fn temps(&mut self) -> Result<Vec<DrmDeviceTemperature>>
+    {
+        Ok(Vec::new())
     }
 }
 
