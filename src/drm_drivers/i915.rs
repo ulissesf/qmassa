@@ -14,10 +14,9 @@ use std::io;
 
 use anyhow::Result;
 use log::warn;
-use libc;
 
 use crate::drm_drivers::{
-    DrmDriver, helpers::{drm_iowr, __IncompleteArrayField},
+    DrmDriver, helpers::{drm_iowr, drm_ioctl, __IncompleteArrayField},
     intel_power::{GpuPowerIntel, IGpuPowerIntel, DGpuPowerIntel},
 };
 use crate::drm_devices::{
@@ -145,8 +144,7 @@ impl DrmDriver for DrmDriveri915
             items_ptr: dqi_ptr as u64,
         };
 
-        let res = unsafe {
-            libc::ioctl(self.dn_fd, DRM_IOCTL_I915_QUERY, &mut dq) };
+        let res = drm_ioctl!(self.dn_fd, DRM_IOCTL_I915_QUERY, &mut dq);
         if res < 0 {
             return Err(io::Error::last_os_error().into());
         }
@@ -169,8 +167,7 @@ impl DrmDriver for DrmDriveri915
         };
         dqi.data_ptr = qmrg as u64;
 
-        let res = unsafe {
-            libc::ioctl(self.dn_fd, DRM_IOCTL_I915_QUERY, &mut dq) };
+        let res = drm_ioctl!(self.dn_fd, DRM_IOCTL_I915_QUERY, &mut dq);
         if res < 0 {
             unsafe { alloc::dealloc(qmrg as *mut u8, layout); }
             return Err(io::Error::last_os_error().into());
