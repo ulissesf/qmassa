@@ -13,10 +13,9 @@ use std::io;
 
 use anyhow::Result;
 use log::{debug, warn};
-use libc;
 
 use crate::drm_drivers::DrmDriver;
-use crate::drm_drivers::helpers::drm_iow;
+use crate::drm_drivers::helpers::{drm_iow, drm_ioctl};
 use crate::hwmon::Hwmon;
 use crate::drm_devices::{
     DrmDeviceType, DrmDeviceFreqLimits, DrmDeviceFreqs,
@@ -486,8 +485,7 @@ impl DrmDriverAmdgpu
         qi.return_pointer = data;
         qi.return_size = size;
 
-        let res = unsafe {
-            libc::ioctl(self.dn_fd, DRM_IOCTL_AMDGPU_INFO, &mut qi) };
+        let res = drm_ioctl!(self.dn_fd, DRM_IOCTL_AMDGPU_INFO, &mut qi);
         if res < 0 {
             return Err(io::Error::last_os_error().into());
         }

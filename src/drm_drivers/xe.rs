@@ -14,10 +14,9 @@ use std::io;
 
 use anyhow::Result;
 use log::warn;
-use libc;
 
 use crate::drm_drivers::{
-    DrmDriver, helpers::{drm_iowr, __IncompleteArrayField},
+    DrmDriver, helpers::{drm_iowr, drm_ioctl, __IncompleteArrayField},
     intel_power::{GpuPowerIntel, IGpuPowerIntel, DGpuPowerIntel},
 };
 use crate::drm_devices::{
@@ -118,8 +117,7 @@ impl DrmDriver for DrmDriverXe
             reserved: [0, 0],
         };
 
-        let res = unsafe {
-            libc::ioctl(self.dn_fd, DRM_IOCTL_XE_DEVICE_QUERY, &mut dq) };
+        let res = drm_ioctl!(self.dn_fd, DRM_IOCTL_XE_DEVICE_QUERY, &mut dq);
         if res < 0 {
             return Err(io::Error::last_os_error().into());
         }
@@ -141,8 +139,7 @@ impl DrmDriver for DrmDriverXe
         };
         dq.data = qcfg as u64;
 
-        let res = unsafe {
-            libc::ioctl(self.dn_fd, DRM_IOCTL_XE_DEVICE_QUERY, &mut dq) };
+        let res = drm_ioctl!(self.dn_fd, DRM_IOCTL_XE_DEVICE_QUERY, &mut dq);
         if res < 0 {
             unsafe { alloc::dealloc(qcfg as *mut u8, layout); }
             return Err(io::Error::last_os_error().into());
@@ -172,8 +169,7 @@ impl DrmDriver for DrmDriverXe
             reserved: [0, 0],
         };
 
-        let res = unsafe {
-            libc::ioctl(self.dn_fd, DRM_IOCTL_XE_DEVICE_QUERY, &mut dq) };
+        let res = drm_ioctl!(self.dn_fd, DRM_IOCTL_XE_DEVICE_QUERY, &mut dq);
         if res < 0 {
             return Err(io::Error::last_os_error().into());
         }
@@ -195,8 +191,7 @@ impl DrmDriver for DrmDriverXe
         };
         dq.data = qmrg as u64;
 
-        let res = unsafe {
-            libc::ioctl(self.dn_fd, DRM_IOCTL_XE_DEVICE_QUERY, &mut dq) };
+        let res = drm_ioctl!(self.dn_fd, DRM_IOCTL_XE_DEVICE_QUERY, &mut dq);
         if res < 0 {
             unsafe { alloc::dealloc(qmrg as *mut u8, layout); }
             return Err(io::Error::last_os_error().into());
