@@ -267,31 +267,40 @@ impl DrmDriver for DrmDriveri915
             let max_val: u64 = fstr.trim_end().parse()?;
 
             let fpath = freqs_dir.join("throttle_reason_pl1");
-            let pl1 = fs::read_to_string(&fpath)?.trim() == "1";
+            let pl1 = fpath.is_file() &&
+                fs::read_to_string(&fpath)?.trim() == "1";
 
             let fpath = freqs_dir.join("throttle_reason_pl2");
-            let pl2 = fs::read_to_string(&fpath)?.trim() == "1";
+            let pl2 = fpath.is_file() &&
+                fs::read_to_string(&fpath)?.trim() == "1";
 
             let fpath = freqs_dir.join("throttle_reason_pl4");
-            let pl4 = fs::read_to_string(&fpath)?.trim() == "1";
+            let pl4 = fpath.is_file() &&
+                fs::read_to_string(&fpath)?.trim() == "1";
 
             let fpath = freqs_dir.join("throttle_reason_prochot");
-            let prochot = fs::read_to_string(&fpath)?.trim() == "1";
+            let prochot = fpath.is_file() &&
+                fs::read_to_string(&fpath)?.trim() == "1";
 
             let fpath = freqs_dir.join("throttle_reason_ratl");
-            let ratl = fs::read_to_string(&fpath)?.trim() == "1";
+            let ratl = fpath.is_file() &&
+                fs::read_to_string(&fpath)?.trim() == "1";
 
             let fpath = freqs_dir.join("throttle_reason_thermal");
-            let thermal = fs::read_to_string(&fpath)?.trim() == "1";
+            let thermal = fpath.is_file() &&
+                fs::read_to_string(&fpath)?.trim() == "1";
 
             let fpath = freqs_dir.join("throttle_reason_vr_tdc");
-            let vr_tdc = fs::read_to_string(&fpath)?.trim() == "1";
+            let vr_tdc = fpath.is_file() &&
+                fs::read_to_string(&fpath)?.trim() == "1";
 
             let fpath = freqs_dir.join("throttle_reason_vr_thermalert");
-            let vr_thermalert = fs::read_to_string(&fpath)?.trim() == "1";
+            let vr_thermalert = fpath.is_file() &&
+                fs::read_to_string(&fpath)?.trim() == "1";
 
             let fpath = freqs_dir.join("throttle_reason_status");
-            let status = fs::read_to_string(&fpath)?.trim() == "1";
+            let status = fpath.is_file() &&
+                fs::read_to_string(&fpath)?.trim() == "1";
 
             let throttle = DrmDeviceThrottleReasons {
                 pl1,
