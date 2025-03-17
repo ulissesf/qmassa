@@ -1,5 +1,12 @@
 # Changelog
 
+## [v0.6.4](https://github.com/ulissesf/qmassa/releases/tag/v0.6.4) - 2025-03-16
+
+### Fixes
+
+- i915: check if throttle reason files exist. (@ulissesf)
+- Add macro to retry interrupted ioctl()s. (@ulissesf)
+
 ## [v0.6.3](https://github.com/ulissesf/qmassa/releases/tag/v0.6.3) - 2025-02-21
 
 ### Fixes
