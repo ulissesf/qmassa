@@ -107,18 +107,37 @@ impl Hwmon
         Ok(())
     }
 
-    pub fn from(base_dir: PathBuf) -> Result<Option<Hwmon>>
+    fn find_path(root_dir: &PathBuf) -> Result<Option<PathBuf>>
     {
-        let npath = base_dir.join("name");
+        let hwmon_path = fs::read_dir(root_dir)?
+            .into_iter()
+            .filter(|r| r.is_ok())
+            .map(|r| r.unwrap().path())
+            .find(|r| r.file_name().unwrap()
+                .to_str().unwrap().starts_with("hwmon"));
+
+        Ok(hwmon_path.map(|path| path.to_path_buf()))
+    }
+
+    pub fn from(root_dir: PathBuf) -> Result<Option<Hwmon>>
+    {
+        let hwmon_dir = Hwmon::find_path(&root_dir)?;
+        if hwmon_dir.is_none() {
+            debug!("INF: no hwmon* in {:?}, aborting.", root_dir);
+            return Ok(None);
+        }
+        let hwmon_dir = hwmon_dir.unwrap();
+
+        let npath = hwmon_dir.join("name");
         if !npath.exists() {
             debug!("ERR: no name file in hwmon path {:?}, aborting.",
-                base_dir);
+                hwmon_dir);
             return Ok(None);
         }
 
         // ignoring content of "name" file for now
         let mut hwmon = Hwmon {
-            base_dir,
+            base_dir: hwmon_dir,
             sensors: HashMap::new(),
         };
 

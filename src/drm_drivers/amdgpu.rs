@@ -520,32 +520,23 @@ impl DrmDriverAmdgpu
             sensor: String::new(),
         };
 
-        amdgpu.dev_type()?;
+        let dtype = amdgpu.dev_type()?;
         amdgpu.freq_limits()?;
 
-        if amdgpu.dev_type.is_some() &&
-            amdgpu.dev_type.as_ref().unwrap().is_discrete() {
-            let hwmon_path = fs::read_dir(
-                Path::new(&cpath).join("device/hwmon"))?
-                .into_iter()
-                .filter(|r| r.is_ok())
-                .map(|r| r.unwrap().path())
-                .find(|r| r.file_name().unwrap()
-                .to_str().unwrap().starts_with("hwmon"));
-
-            if let Some(hmp) = hwmon_path {
-                let hm_opt = Hwmon::from(hmp.to_path_buf())?;
-                if let Some(hwmon) = hm_opt {
-                    let plist = hwmon.sensors("power");
-                    for s in plist.iter() {
-                        if s.has_item("average") {
-                            amdgpu.sensor = s.sensor.clone();
-                        }
+        if dtype.is_discrete() {
+            let hwmon_res = Hwmon::from(
+                Path::new(&cpath).join("device/hwmon"));
+            if let Ok(hwmon) = hwmon_res {
+                let hwmon_ref = hwmon.as_ref().unwrap();
+                let plist = hwmon_ref.sensors("power");
+                for s in plist.iter() {
+                    if s.has_item("average") {
+                        amdgpu.sensor = s.sensor.clone();
                     }
-                    amdgpu.hwmon = Some(hwmon);
                 }
+                amdgpu.hwmon = hwmon;
             } else {
-                debug!("INF: no {:?}/device/hwmon/hwmon* directory.", cpath);
+                debug!("ERR: no Hwmon support on dGPU: {:?}", hwmon_res);
             }
         }
 

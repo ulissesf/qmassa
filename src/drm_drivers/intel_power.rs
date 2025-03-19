@@ -1,6 +1,6 @@
 use core::fmt::Debug;
 use std::collections::HashMap;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use std::fs::{self, File};
 use std::os::fd::{RawFd, AsRawFd};
 use std::time;
@@ -20,7 +20,7 @@ use crate::drm_devices::DrmDevicePower;
 
 pub trait GpuPowerIntel
 {
-    fn power_usage(&mut self) -> Result<DrmDevicePower>;
+    fn power_usage(&mut self, hwmon: &Option<Hwmon>) -> Result<DrmDevicePower>;
 }
 
 impl Debug for dyn GpuPowerIntel
@@ -55,8 +55,8 @@ impl SensorSet
 #[derive(Debug)]
 pub struct DGpuPowerIntel
 {
-    hwmon: Hwmon,
-    pwr_func: Option<fn(&mut DGpuPowerIntel) -> Result<DrmDevicePower>>,
+    pwr_func: Option<fn(&mut DGpuPowerIntel,
+            hwmon: &Hwmon) -> Result<DrmDevicePower>>,
     pwr_sensors: SensorSet,
     last_gpu_val: u64,
     last_pkg_val: u64,
@@ -68,32 +68,32 @@ pub struct DGpuPowerIntel
 
 impl GpuPowerIntel for DGpuPowerIntel
 {
-    fn power_usage(&mut self) -> Result<DrmDevicePower>
+    fn power_usage(&mut self, hwmon: &Option<Hwmon>) -> Result<DrmDevicePower>
     {
         if self.pwr_func.is_none() {
             return Ok(DrmDevicePower::new());
         }
         let func = self.pwr_func.as_ref().unwrap();
 
-        func(self)
+        func(self, hwmon.as_ref().unwrap())
     }
 }
 
 impl DGpuPowerIntel
 {
-    fn read_from_power(&mut self) -> Result<DrmDevicePower>
+    fn read_from_power(&mut self, hwmon: &Hwmon) -> Result<DrmDevicePower>
     {
         let sens = &self.pwr_sensors;
 
         let mut gpu_pwr: f64 = 0.0;
         if !sens.gpu_sensor.is_empty() {
-            gpu_pwr = self.hwmon.read_sensor(
+            gpu_pwr = hwmon.read_sensor(
                 &sens.gpu_sensor, &sens.gpu_item)? as f64 / 1000000.0;
         }
 
         let mut pkg_pwr: f64 = 0.0;
         if !sens.pkg_sensor.is_empty() {
-            pkg_pwr = self.hwmon.read_sensor(
+            pkg_pwr = hwmon.read_sensor(
                 &sens.pkg_sensor, &sens.pkg_item)? as f64 / 1000000.0;
         }
 
@@ -103,20 +103,18 @@ impl DGpuPowerIntel
         })
     }
 
-    fn read_from_energy(&mut self) -> Result<DrmDevicePower>
+    fn read_from_energy(&mut self, hwmon: &Hwmon) -> Result<DrmDevicePower>
     {
         let sens = &self.pwr_sensors;
 
         let mut gpu_val: u64 = 0;
         if !sens.gpu_sensor.is_empty() {
-            gpu_val = self.hwmon.read_sensor(
-                &sens.gpu_sensor, &sens.gpu_item)?;
+            gpu_val = hwmon.read_sensor(&sens.gpu_sensor, &sens.gpu_item)?;
         }
 
         let mut pkg_val: u64 = 0;
         if !sens.pkg_sensor.is_empty() {
-            pkg_val = self.hwmon.read_sensor(
-                &sens.pkg_sensor, &sens.pkg_item)?;
+            pkg_val = hwmon.read_sensor(&sens.pkg_sensor, &sens.pkg_item)?;
         }
 
         self.nr_updates += 1;
@@ -143,7 +141,7 @@ impl DGpuPowerIntel
         })
     }
 
-    fn set_power_method(&mut self) -> bool
+    fn set_power_method(&mut self, hwmon: &Hwmon) -> bool
     {
         let mut gpu_sensor = "";
         let mut pkg_sensor = "";
@@ -151,7 +149,7 @@ impl DGpuPowerIntel
         let mut pkg_item = "";
 
         // try power*_input or power*_average
-        let pwrlst = self.hwmon.sensors("power");
+        let pwrlst = hwmon.sensors("power");
         for s in pwrlst.iter() {
             if s.has_item("input") || s.has_item("average") {
                 if s.label == "pkg" || s.label.is_empty() {
@@ -177,7 +175,7 @@ impl DGpuPowerIntel
         }
 
         // try energy*_input
-        let elst = self.hwmon.sensors("energy");
+        let elst = hwmon.sensors("energy");
         for s in elst.iter() {
             if s.has_item("input") {
                 if s.label == "pkg" || s.label.is_empty() {
@@ -203,28 +201,9 @@ impl DGpuPowerIntel
         false
     }
 
-    pub fn from(dev_dir: &PathBuf) -> Result<Option<Box<dyn GpuPowerIntel>>>
+    pub fn from(hwmon: &Hwmon) -> Result<Option<Box<dyn GpuPowerIntel>>>
     {
-        let base_dir = dev_dir.join("hwmon");
-        let hwmon_path = fs::read_dir(base_dir)?
-            .into_iter()
-            .filter(|r| r.is_ok())
-            .map(|r| r.unwrap().path())
-            .find(|r| r.file_name().unwrap()
-                .to_str().unwrap().starts_with("hwmon"));
-        if hwmon_path.is_none() {
-            debug!("INF: no {:?}/hwmon* directory, aborting.", dev_dir);
-            return Ok(None);
-        }
-
-        let hwmon = Hwmon::from(hwmon_path.unwrap().to_path_buf())?;
-        if hwmon.is_none() {
-            debug!("INF: no Hwmon support, no dGPU power reporting.");
-            return Ok(None);
-        }
-
         let mut pwr = DGpuPowerIntel {
-            hwmon: hwmon.unwrap(),
             pwr_func: None,
             pwr_sensors: SensorSet::new(),
             last_gpu_val: 0,
@@ -235,7 +214,7 @@ impl DGpuPowerIntel
             last_update: time::Instant::now(),
         };
 
-        if !pwr.set_power_method() {
+        if !pwr.set_power_method(hwmon) {
             debug!("No method to get power via Hwmon, aborting.");
             return Ok(None);
         }
@@ -372,7 +351,7 @@ pub struct IGpuPowerIntel
 
 impl GpuPowerIntel for IGpuPowerIntel
 {
-    fn power_usage(&mut self) -> Result<DrmDevicePower>
+    fn power_usage(&mut self, _ign: &Option<Hwmon>) -> Result<DrmDevicePower>
     {
         let gpu_val: u64;
         let pkg_val: u64;

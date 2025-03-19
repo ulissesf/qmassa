@@ -13,8 +13,9 @@ use std::mem;
 use std::io;
 
 use anyhow::Result;
-use log::warn;
+use log::{debug, warn};
 
+use crate::hwmon::Hwmon;
 use crate::drm_drivers::{
     DrmDriver, helpers::{drm_iowr, drm_ioctl, __IncompleteArrayField},
     intel_power::{GpuPowerIntel, IGpuPowerIntel, DGpuPowerIntel},
@@ -102,6 +103,7 @@ pub struct DrmDriveri915
     dev_type: Option<DrmDeviceType>,
     freq_limits: Option<Vec<DrmDeviceFreqLimits>>,
     power: Option<Box<dyn GpuPowerIntel>>,
+    hwmon: Option<Hwmon>,
 }
 
 impl DrmDriver for DrmDriveri915
@@ -332,7 +334,7 @@ impl DrmDriver for DrmDriveri915
             return Ok(DrmDevicePower::new());
         }
 
-        self.power.as_mut().unwrap().power_usage()
+        self.power.as_mut().unwrap().power_usage(&self.hwmon)
     }
 
     fn client_mem_info(&mut self,
@@ -379,17 +381,24 @@ impl DrmDriveri915
             dev_type: None,
             freq_limits: None,
             power: None,
+            hwmon: None,
         };
 
         let dtype = i915.dev_type()?;
         i915.freq_limits()?;
-        i915.power = if dtype.is_integrated() {
-            IGpuPowerIntel::new()?
+
+        if dtype.is_integrated() {
+            i915.power = IGpuPowerIntel::new()?
         } else if dtype.is_discrete() {
-            DGpuPowerIntel::from(&Path::new(&cpath).join("device"))?
-        } else {
-            None
-        };
+            let hwmon_res = Hwmon::from(
+                Path::new(&cpath).join("device/hwmon"));
+            if let Ok(hwmon) = hwmon_res {
+                i915.power = DGpuPowerIntel::from(hwmon.as_ref().unwrap())?;
+                i915.hwmon = hwmon;
+            } else {
+                debug!("ERR: no Hwmon support on dGPU: {:?}", hwmon_res);
+            }
+        }
 
         Ok(Rc::new(RefCell::new(i915)))
     }

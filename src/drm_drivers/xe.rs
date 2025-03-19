@@ -13,8 +13,9 @@ use std::mem;
 use std::io;
 
 use anyhow::Result;
-use log::warn;
+use log::{debug, warn};
 
+use crate::hwmon::Hwmon;
 use crate::drm_drivers::{
     DrmDriver, helpers::{drm_iowr, drm_ioctl, __IncompleteArrayField},
     intel_power::{GpuPowerIntel, IGpuPowerIntel, DGpuPowerIntel},
@@ -94,6 +95,7 @@ pub struct DrmDriverXe
     dev_type: Option<DrmDeviceType>,
     freq_limits: Option<Vec<DrmDeviceFreqLimits>>,
     power: Option<Box<dyn GpuPowerIntel>>,
+    hwmon: Option<Hwmon>,
 }
 
 impl DrmDriver for DrmDriverXe
@@ -343,7 +345,7 @@ impl DrmDriver for DrmDriverXe
             return Ok(DrmDevicePower::new());
         }
 
-        self.power.as_mut().unwrap().power_usage()
+        self.power.as_mut().unwrap().power_usage(&self.hwmon)
     }
 
     fn client_mem_info(&mut self,
@@ -397,17 +399,23 @@ impl DrmDriverXe
             dev_type: None,
             freq_limits: None,
             power: None,
+            hwmon: None,
         };
 
         let dtype = xe.dev_type()?;
         xe.freq_limits()?;
-        xe.power = if dtype.is_integrated() {
-            IGpuPowerIntel::new()?
+
+        if dtype.is_integrated() {
+            xe.power = IGpuPowerIntel::new()?;
         } else if dtype.is_discrete() {
-            DGpuPowerIntel::from(&dev_path)?
-        } else {
-            None
-        };
+            let hwmon_res = Hwmon::from(dev_path.join("hwmon"));
+            if let Ok(hwmon) = hwmon_res {
+                xe.power = DGpuPowerIntel::from(hwmon.as_ref().unwrap())?;
+                xe.hwmon = hwmon;
+            } else {
+                debug!("ERR: no Hwmon support on dGPU: {:?}", hwmon_res);
+            }
+        }
 
         Ok(Rc::new(RefCell::new(xe)))
     }
