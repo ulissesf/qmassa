@@ -9,7 +9,7 @@ use log::debug;
 #[derive(Debug)]
 pub struct Sensor
 {
-    pub sensor: String,
+    pub stype: String,
     pub label: String,
     items: HashSet<String>,
 }
@@ -36,7 +36,7 @@ impl Sensor
     fn new(stype: &str) -> Sensor
     {
         Sensor {
-            sensor: String::from(stype),
+            stype: String::from(stype),
             label: String::new(),
             items: HashSet::new(),
         }
@@ -70,12 +70,17 @@ impl Hwmon
                 res.push(sensor);
             }
         }
+        res.sort_by(|sa, sb| {
+            sa.label.cmp(&sb.label)
+        });
 
         res
     }
 
     pub fn refresh(&mut self) -> Result<()>
     {
+        self.sensors.clear();
+
         for et in self.base_dir.read_dir()? {
             let et = et?;
             let epath = et.path();

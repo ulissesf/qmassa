@@ -153,11 +153,11 @@ impl DGpuPowerIntel
         for s in pwrlst.iter() {
             if s.has_item("input") || s.has_item("average") {
                 if s.label == "pkg" || s.label.is_empty() {
-                    gpu_sensor = &s.sensor;
+                    gpu_sensor = &s.stype;
                     gpu_item = if s.has_item("input") {
                         "input" } else { "average" };
                 } else if s.label == "card" {
-                    pkg_sensor = &s.sensor;
+                    pkg_sensor = &s.stype;
                     pkg_item = if s.has_item("input") {
                         "input" } else { "average" };
                 }
@@ -179,10 +179,10 @@ impl DGpuPowerIntel
         for s in elst.iter() {
             if s.has_item("input") {
                 if s.label == "pkg" || s.label.is_empty() {
-                    gpu_sensor = &s.sensor;
+                    gpu_sensor = &s.stype;
                     gpu_item = "input";
                 } else if s.label == "card" {
-                    pkg_sensor = &s.sensor;
+                    pkg_sensor = &s.stype;
                     pkg_item = "input";
                 }
             }

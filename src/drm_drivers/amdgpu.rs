@@ -531,7 +531,7 @@ impl DrmDriverAmdgpu
                 let plist = hwmon_ref.sensors("power");
                 for s in plist.iter() {
                     if s.has_item("average") {
-                        amdgpu.sensor = s.sensor.clone();
+                        amdgpu.sensor = s.stype.clone();
                     }
                 }
                 amdgpu.hwmon = hwmon;
