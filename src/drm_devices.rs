@@ -8,6 +8,7 @@ use log::{debug, warn};
 use serde::{Deserialize, Serialize};
 use udev;
 
+use crate::hwmon::Hwmon;
 use crate::drm_clients::{DrmClients, DrmClientInfo};
 use crate::drm_drivers::{self, DrmDriver};
 
@@ -171,6 +172,32 @@ pub struct DrmDeviceTemperature
 
 impl DrmDeviceTemperature
 {
+    pub fn from_hwmon(hwmon: &Hwmon) -> Result<Vec<DrmDeviceTemperature>>
+    {
+        let mut temps = Vec::new();
+
+        let slist = hwmon.sensors("temp");
+        for (nr, sensor) in slist.iter().enumerate() {
+            if !sensor.has_item("input") {
+                continue;
+            }
+
+            let name = if sensor.label.is_empty() {
+                format!("{}", nr)
+            } else {
+                sensor.label.clone()
+            };
+            let temp_u64 = hwmon.read_sensor(&sensor.stype, "input")?;
+
+            temps.push(DrmDeviceTemperature {
+                name,
+                temp: temp_u64 as f64 / 1000.0,
+            });
+        }
+
+        Ok(temps)
+    }
+
     pub fn new() -> DrmDeviceTemperature
     {
         DrmDeviceTemperature {
