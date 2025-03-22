@@ -197,14 +197,6 @@ impl DrmDeviceTemperature
 
         Ok(temps)
     }
-
-    pub fn new() -> DrmDeviceTemperature
-    {
-        DrmDeviceTemperature {
-            name: String::from("none"),
-            temp: 0.0,
-        }
-    }
 }
 
 #[derive(Debug)]
@@ -279,7 +271,7 @@ impl Default for DrmDeviceInfo
             freqs: vec![DrmDeviceFreqs::new(),],
             power: DrmDevicePower::new(),
             mem_info: DrmDeviceMemInfo::new(),
-            temps: vec![DrmDeviceTemperature::new(),],
+            temps: Vec::new(),
             driver: None,
             drm_clis: None,
         }
