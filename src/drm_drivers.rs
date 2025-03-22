@@ -6,8 +6,8 @@ use std::rc::Rc;
 use anyhow::Result;
 
 use crate::drm_devices::{
-    DrmDeviceType, DrmDeviceFreqLimits, DrmDeviceFreqs,
-    DrmDevicePower, DrmDeviceMemInfo, DrmDeviceTemperature, DrmDeviceInfo
+    DrmDeviceType, DrmDeviceFreqLimits, DrmDeviceFreqs, DrmDevicePower,
+    DrmDeviceMemInfo, DrmDeviceTemperature, DrmDeviceFan, DrmDeviceInfo
 };
 use crate::drm_fdinfo::DrmMemRegion;
 use crate::drm_clients::DrmClientMemInfo;
@@ -68,6 +68,11 @@ pub trait DrmDriver
     }
 
     fn temps(&mut self) -> Result<Vec<DrmDeviceTemperature>>
+    {
+        Ok(Vec::new())
+    }
+
+    fn fans(&mut self) -> Result<Vec<DrmDeviceFan>>
     {
         Ok(Vec::new())
     }

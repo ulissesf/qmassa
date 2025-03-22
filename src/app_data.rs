@@ -13,7 +13,7 @@ use serde_json;
 use crate::CliArgs;
 use crate::drm_devices::{
     DrmDeviceFreqLimits, DrmDeviceFreqs, DrmDevicePower,
-    DrmDeviceMemInfo, DrmDeviceType, DrmDeviceTemperature,
+    DrmDeviceMemInfo, DrmDeviceType, DrmDeviceTemperature, DrmDeviceFan,
     DrmDeviceInfo, DrmDevices};
 use crate::drm_clients::{DrmClientMemInfo, DrmClientInfo};
 
@@ -36,6 +36,7 @@ pub struct AppDataDeviceStats
     pub mem_info: VecDeque<DrmDeviceMemInfo>,
     pub eng_usage: HashMap<String, VecDeque<f64>>,
     pub temps: VecDeque<Vec<DrmDeviceTemperature>>,
+    pub fans: VecDeque<Vec<DrmDeviceFan>>,
 }
 
 impl AppDataDeviceStats
@@ -55,8 +56,11 @@ impl AppDataDeviceStats
             limited_vec_push(&mut est, dinfo.eng_utilization(en));
         }
 
-        if dinfo.dev_type.is_discrete() && !dinfo.temps.is_empty() {
+        if !dinfo.temps.is_empty() {
             limited_vec_push(&mut self.temps, dinfo.temps.clone());
+        }
+        if !dinfo.fans.is_empty() {
+            limited_vec_push(&mut self.fans, dinfo.fans.clone());
         }
     }
 
@@ -74,6 +78,7 @@ impl AppDataDeviceStats
             mem_info: VecDeque::new(),
             eng_usage: estats,
             temps: VecDeque::new(),
+            fans: VecDeque::new(),
         }
     }
 }

@@ -199,6 +199,13 @@ impl DrmDeviceTemperature
     }
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DrmDeviceFan
+{
+    pub name: String,
+    pub speed: u64,
+}
+
 #[derive(Debug)]
 #[allow(dead_code)]
 pub struct DrmMinorInfo
@@ -249,6 +256,7 @@ pub struct DrmDeviceInfo
     pub power: DrmDevicePower,
     pub mem_info: DrmDeviceMemInfo,
     pub temps: Vec<DrmDeviceTemperature>,
+    pub fans: Vec<DrmDeviceFan>,
     driver: Option<Rc<RefCell<dyn DrmDriver>>>,
     drm_clis: Option<Rc<RefCell<Vec<DrmClientInfo>>>>,
 }
@@ -272,6 +280,7 @@ impl Default for DrmDeviceInfo
             power: DrmDevicePower::new(),
             mem_info: DrmDeviceMemInfo::new(),
             temps: Vec::new(),
+            fans: Vec::new(),
             driver: None,
             drm_clis: None,
         }
@@ -349,6 +358,7 @@ impl DrmDeviceInfo
 
             if self.dev_type.is_discrete() {
                 self.temps = drv_b.temps()?;
+                self.fans = drv_b.fans()?;
             }
         }
 
