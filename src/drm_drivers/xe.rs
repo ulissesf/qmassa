@@ -23,7 +23,7 @@ use crate::drm_drivers::{
 use crate::drm_devices::{
     DrmDeviceType, DrmDeviceFreqLimits, DrmDeviceFreqs,
     DrmDeviceThrottleReasons, DrmDevicePower, DrmDeviceMemInfo,
-    DrmDeviceTemperature, DrmDeviceInfo
+    DrmDeviceTemperature, DrmDeviceFan, DrmDeviceInfo
 };
 use crate::drm_fdinfo::DrmMemRegion;
 use crate::drm_clients::DrmClientMemInfo;
@@ -382,6 +382,15 @@ impl DrmDriver for DrmDriverXe
     {
         if self.hwmon.is_some() {
             DrmDeviceTemperature::from_hwmon(self.hwmon.as_ref().unwrap())
+        } else {
+            Ok(Vec::new())
+        }
+    }
+
+    fn fans(&mut self) -> Result<Vec<DrmDeviceFan>>
+    {
+        if self.hwmon.is_some() {
+            DrmDeviceFan::from_hwmon(self.hwmon.as_ref().unwrap())
         } else {
             Ok(Vec::new())
         }

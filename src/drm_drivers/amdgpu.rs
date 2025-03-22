@@ -18,8 +18,8 @@ use crate::drm_drivers::DrmDriver;
 use crate::drm_drivers::helpers::{drm_iow, drm_ioctl};
 use crate::hwmon::Hwmon;
 use crate::drm_devices::{
-    DrmDeviceType, DrmDeviceFreqLimits, DrmDeviceFreqs,
-    DrmDevicePower, DrmDeviceMemInfo, DrmDeviceTemperature, DrmDeviceInfo
+    DrmDeviceType, DrmDeviceFreqLimits, DrmDeviceFreqs, DrmDevicePower,
+    DrmDeviceMemInfo, DrmDeviceTemperature, DrmDeviceFan, DrmDeviceInfo
 };
 use crate::drm_fdinfo::DrmMemRegion;
 use crate::drm_clients::DrmClientMemInfo;
@@ -477,6 +477,15 @@ impl DrmDriver for DrmDriverAmdgpu
     {
         if self.hwmon.is_some() {
             DrmDeviceTemperature::from_hwmon(self.hwmon.as_ref().unwrap())
+        } else {
+            Ok(Vec::new())
+        }
+    }
+
+    fn fans(&mut self) -> Result<Vec<DrmDeviceFan>>
+    {
+        if self.hwmon.is_some() {
+            DrmDeviceFan::from_hwmon(self.hwmon.as_ref().unwrap())
         } else {
             Ok(Vec::new())
         }

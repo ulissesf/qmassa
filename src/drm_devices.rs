@@ -206,6 +206,32 @@ pub struct DrmDeviceFan
     pub speed: u64,
 }
 
+impl DrmDeviceFan
+{
+    pub fn from_hwmon(hwmon: &Hwmon) -> Result<Vec<DrmDeviceFan>>
+    {
+        let mut fans = Vec::new();
+
+        let slist = hwmon.sensors("fan");
+        for (nr, sensor) in slist.iter().enumerate() {
+            if !sensor.has_item("input") {
+                continue;
+            }
+
+            let name = if sensor.label.is_empty() {
+                format!("{}", nr)
+            } else {
+                sensor.label.clone()
+            };
+            let speed = hwmon.read_sensor(&sensor.stype, "input")?;
+
+            fans.push(DrmDeviceFan { name, speed, });
+        }
+
+        Ok(fans)
+    }
+}
+
 #[derive(Debug)]
 #[allow(dead_code)]
 pub struct DrmMinorInfo
