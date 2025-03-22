@@ -130,7 +130,9 @@ impl Plotter
             }
             if plot_power {
                 power.push(StatData::new("GPU"));
-                power.push(StatData::new("PKG"));
+                let pkg_str = if di.dev_type.is_discrete() {
+                    "CARD" } else { "PKG" };
+                power.push(StatData::new(pkg_str));
             }
 
             for state in self.jsondata.states().iter() {
