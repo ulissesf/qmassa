@@ -33,7 +33,8 @@ const CHART_MEMINFO: usize = 0;
 const CHART_ENGINES: usize = 1;
 const CHART_FREQS: usize = 2;
 const CHART_POWER: usize = 3;
-const CHARTS_TOTAL: usize = 4;
+const CHART_TEMPS: usize = 4;
+const CHARTS_TOTAL: usize = 5;
 
 #[derive(Debug)]
 pub struct Plotter
@@ -92,6 +93,7 @@ impl Plotter
         let plot_engines = self.sel_charts[CHART_ENGINES];
         let plot_freqs = self.sel_charts[CHART_FREQS];
         let plot_power = self.sel_charts[CHART_POWER];
+        let plot_temps = self.sel_charts[CHART_TEMPS];
         let nr_devices = self.jsondata
             .states().front().unwrap().devs_state.len();
 
@@ -105,7 +107,12 @@ impl Plotter
             let mut engines: Vec<StatData> = Vec::new();
             let mut freqs: Vec<Vec<StatData>> = Vec::new();
             let mut power: Vec<StatData> = Vec::new();
+            let mut temps: Vec<StatData> = Vec::new();
+
             let mut max_power = 0.0;
+            let mut max_temp = 0.0;
+
+            let has_temps = di.dev_stats.temps.back().is_some();
 
             if plot_meminfo {
                 meminfo.push(StatData::new("SMEM"));
@@ -133,6 +140,12 @@ impl Plotter
                 let pkg_str = if di.dev_type.is_discrete() {
                     "CARD" } else { "PKG" };
                 power.push(StatData::new(pkg_str));
+            }
+            if plot_temps && has_temps {
+                let tmps_st = di.dev_stats.temps.back().unwrap();
+                for tmp in tmps_st.iter() {
+                    temps.push(StatData::new(&tmp.name.to_uppercase()));
+                }
             }
 
             for state in self.jsondata.states().iter() {
@@ -173,6 +186,14 @@ impl Plotter
                     max_power = f64::max(max_power, pwr.pkg_cur_power);
                     power[0].add_point((tstamp, pwr.gpu_cur_power));
                     power[1].add_point((tstamp, pwr.pkg_cur_power));
+                }
+                if plot_temps && has_temps {
+                    let tmps_st = dinfo.dev_stats.temps.back().unwrap();
+                    for (nr, tmp) in tmps_st.iter().enumerate() {
+                        let tv = tmp.temp;
+                        max_temp = f64::max(max_temp, tv);
+                        temps[nr].add_point((tstamp, tv));
+                    }
                 }
             }
 
@@ -218,6 +239,14 @@ impl Plotter
                     "Time (s)", "Power (W)",
                     x_max, max_power, &power)?;
             }
+            if plot_temps && has_temps {
+                let out_file = format!("{}-{}-temps.svg",
+                    &self.out_prefix, &di.pci_dev);
+                self.plot_chart(
+                    &out_file, &format!("{} - Temperatures", &di.vdr_dev_rev),
+                    "Time (s)", "Temperature (C)",
+                    x_max, max_temp, &temps)?;
+            }
         }
 
         Ok(())
@@ -250,6 +279,7 @@ impl Plotter
                     "engines" => sc[CHART_ENGINES] = true,
                     "freqs" => sc[CHART_FREQS] = true,
                     "power" => sc[CHART_POWER] = true,
+                    "temps" => sc[CHART_TEMPS] = true,
                     _ => bail!("Invalid chart {:?} requested", c),
                 }
             }
