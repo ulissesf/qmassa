@@ -64,11 +64,12 @@ impl DevicesTabState
     }
 }
 
-const DEVICE_STATS_FREQS: u8 = 0;
-const DEVICE_STATS_POWER: u8 = 1;
-const DEVICE_STATS_MEMINFO: u8 = 2;
-const DEVICE_STATS_ENGINES: u8 = 3;
-const DEVICE_STATS_TOTAL: u8 = 4;
+const DEVICE_STATS_MEMINFO: u8 = 0;
+const DEVICE_STATS_ENGINES: u8 = 1;
+const DEVICE_STATS_FREQS: u8 = 2;
+const DEVICE_STATS_POWER: u8 = 3;
+const DEVICE_STATS_TEMPS: u8 = 4;
+const DEVICE_STATS_TOTAL: u8 = 5;
 
 const DEVICE_STATS_OP_NEXT: i8 = 0;
 const DEVICE_STATS_OP_PREV: i8 = 1;
@@ -803,17 +804,71 @@ impl MainScreen
             area);
     }
 
+    fn render_temps_chart(&self, x_vals: &Vec<f64>, x_axis: Axis,
+        dinfo: &AppDataDeviceState, nr_temps: usize,
+        frame: &mut Frame, area: Rect)
+    {
+        let mut tmp_vals = vec![Vec::new(); nr_temps];
+        let mut miny = 1000.0;
+        let mut maxy = 0.0;
+
+        for (tmps, xval) in dinfo.dev_stats.temps.iter().zip(x_vals.iter()) {
+            for ti in 0..nr_temps {
+                let tv = tmps[ti].temp;
+                tmp_vals[ti].push((*xval, tv));
+                miny = f64::min(miny, tv);
+                maxy = f64::max(maxy, tv);
+            }
+        }
+
+        let mut datasets = Vec::new();
+        let mut color_idx = 1;
+        let last_tmps = dinfo.dev_stats.temps.back().unwrap();
+
+        for (tmp, td) in last_tmps.iter().zip(tmp_vals.iter()) {
+            datasets.push(Dataset::default()
+                .name(tmp.name.to_uppercase())
+                .marker(symbols::Marker::Braille)
+                .style(Color::Indexed(color_idx))
+                .graph_type(GraphType::Line)
+                .data(td));
+            color_idx += 1;
+        }
+
+        let y_bounds = [miny, maxy];
+        let y_labels = vec![
+            Span::raw(format!("{}", miny)),
+            Span::raw(format!("{}", (miny + maxy) / 2.0)),
+            Span::raw(format!("{}", maxy)),
+        ];
+        let y_axis = Axis::default()
+            .title("Temp (C)")
+            .style(Style::new().white())
+            .bounds(y_bounds)
+            .labels(y_labels);
+
+        frame.render_widget(Chart::new(datasets)
+            .x_axis(x_axis)
+            .y_axis(y_axis)
+            .legend_position(Some(LegendPosition::BottomLeft))
+            .hidden_legend_constraints((Constraint::Min(0), Constraint::Min(0)))
+            .style(Style::new().bold().on_black()),
+            area);
+    }
+
     fn render_dev_stats(&self, dinfo: &AppDataDeviceState,
         tstamps: &VecDeque<u128>, frame: &mut Frame, area: Rect)
     {
         let is_dgfx = dinfo.dev_type.is_discrete();
         let nr_engines = dinfo.eng_names.len();
         let nr_freqs = dinfo.dev_stats.freqs.back().unwrap().len();
+        let nr_temps = dinfo.dev_stats.temps.back().unwrap_or(&vec![]).len();
 
-        // nr_stats = smem + vram (if dgfx) + # engines + # freqs + power
-        let nr_stats = 1 + is_dgfx as usize + nr_engines + nr_freqs + 1;
+        // # stats = smem + vram(if dgfx) + #engines + #freqs + power + #temps
+        let nr_stats =
+            1 + is_dgfx as usize + nr_engines + nr_freqs + 1 + nr_temps;
         // Can stats fit in just a single table row or not?
-        // If not, separate meminfo + engines and freqs + power
+        // If not, separate meminfo + engines and freqs + power + temps
         let one_row = nr_stats * 10 <= area.width as usize;
 
         let [inf_area, dstats_area, sep, chart_area] = Layout::vertical([
@@ -850,10 +905,11 @@ impl MainScreen
 
         // change selected chart, if needed
         let nr_charts: Vec<u8> = vec![
-            nr_freqs as u8,          // FREQS
-            1,                       // POWER
             1,                       // MEMINFO
             (nr_engines > 0) as u8,  // ENGINES
+            nr_freqs as u8,          // FREQS
+            1,                       // POWER
+            (nr_temps > 0) as u8,    // TEMPS
         ];
         let mut ds_st = self.dstats_state.borrow_mut();
         ds_st.exec_req(&nr_charts);
@@ -886,12 +942,15 @@ impl MainScreen
         for _ in 0..nr_engines {
             dstats_widths.push(Constraint::Fill(1));  // ENGINES
         }
-        let ds_widths_ref: &mut Vec<Constraint> = if one_row {
-            &mut dstats_widths } else { &mut dstats2_widths };
+        let ds_widths_ref: &mut Vec<Constraint> =
+            if one_row { &mut dstats_widths } else { &mut dstats2_widths };
         for _ in 0..nr_freqs {
             ds_widths_ref.push(Constraint::Min(10));      // FREQS
         }
         ds_widths_ref.push(Constraint::Min(12));      // POWER
+        for _ in 0..nr_temps {
+            ds_widths_ref.push(Constraint::Min(9));       // TEMPS
+        }
 
         // split area for gauges early to calculate max engine name length
         let gs_areas = Layout::horizontal(&dstats_widths).split(gauges_area);
@@ -925,8 +984,8 @@ impl MainScreen
                 .style(if ds_st.sel == DEVICE_STATS_ENGINES {
                     ly_bold } else { wh_bold }));
         }
-        let hdrs_lst_ref: &mut Vec<Line> = if one_row {
-            &mut hdrs_lst } else { &mut hdrs2_lst };
+        let hdrs_lst_ref: &mut Vec<Line> =
+            if one_row { &mut hdrs_lst } else { &mut hdrs2_lst };
         for fq_nr in 0..nr_freqs {
             let fql = &dinfo.freq_limits[fq_nr];
             let label = if fql.name.is_empty() {
@@ -943,6 +1002,16 @@ impl MainScreen
             .alignment(Alignment::Center)
             .style(if ds_st.sel == DEVICE_STATS_POWER {
                 ly_bold } else { wh_bold }));
+        if nr_temps > 0 {
+            for tmp in dinfo.dev_stats.temps.back().unwrap().iter() {
+                let label = format!("TP-{}",
+                    &tmp.name.to_uppercase()[..min(4, tmp.name.len())]);
+                hdrs_lst_ref.push(Line::from(label)
+                    .alignment(Alignment::Center)
+                    .style(if ds_st.sel == DEVICE_STATS_TEMPS {
+                        ly_bold } else { wh_bold }));
+            }
+        }
 
         let dstats_hdr = [Row::new(hdrs_lst)];
         frame.render_widget(Table::new(dstats_hdr, &dstats_widths)
@@ -986,8 +1055,8 @@ impl MainScreen
             dstats_gs.push(App::gauge_colored_from(label, eut/100.0));
         }
 
-        let ds_gs_ref: &mut Vec<Gauge> = if one_row {
-            &mut dstats_gs } else { &mut dstats2_gs };
+        let ds_gs_ref: &mut Vec<Gauge> =
+            if one_row { &mut dstats_gs } else { &mut dstats2_gs };
 
         for fq in dinfo.dev_stats.freqs.back().unwrap().iter() {
             let fq_label = Span::styled(
@@ -1005,6 +1074,14 @@ impl MainScreen
         let pwr_ratio = if pwr.pkg_cur_power > 0.0 {
             pwr.gpu_cur_power / pwr.pkg_cur_power } else { 0.0 };
         ds_gs_ref.push(App::gauge_colored_from(pwr_label, pwr_ratio));
+
+        if nr_temps > 0 {
+            for tmp in dinfo.dev_stats.temps.back().unwrap().iter() {
+                let tmp_label = Span::styled(
+                    format!("{:.1}", tmp.temp), Style::new().white());
+                ds_gs_ref.push(App::gauge_colored_from(tmp_label, 0.0));
+            }
+        }
 
         for (ds_g, ds_a) in dstats_gs.iter().zip(gs_areas.iter()) {
             frame.render_widget(ds_g, *ds_a);
@@ -1054,6 +1131,14 @@ impl MainScreen
             .labels(x_labels);
 
         match ds_st.sel {
+            DEVICE_STATS_MEMINFO => {
+                self.render_meminfo_chart(
+                    &x_vals, x_axis, dinfo, frame, chart_area);
+            },
+            DEVICE_STATS_ENGINES => {
+                self.render_engines_chart(
+                    &x_vals, x_axis, dinfo, frame, chart_area);
+            },
             DEVICE_STATS_FREQS => {
                 self.render_freqs_chart(
                     &x_vals, x_axis, dinfo, ds_st.sub_sel, frame, chart_area);
@@ -1062,13 +1147,9 @@ impl MainScreen
                 self.render_power_chart(
                     &x_vals, x_axis, dinfo, frame, chart_area);
             },
-            DEVICE_STATS_MEMINFO => {
-                self.render_meminfo_chart(
-                    &x_vals, x_axis, dinfo, frame, chart_area);
-            },
-            DEVICE_STATS_ENGINES => {
-                self.render_engines_chart(
-                    &x_vals, x_axis, dinfo, frame, chart_area);
+            DEVICE_STATS_TEMPS => {
+                self.render_temps_chart(
+                    &x_vals, x_axis, dinfo, nr_temps, frame, chart_area);
             },
             _ => {
                 error!("Unknown device stats selection: {:?}", ds_st.sel);
