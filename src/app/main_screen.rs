@@ -72,6 +72,8 @@ const DEVICE_STATS_TEMPS: u8 = 4;
 const DEVICE_STATS_FANS: u8 = 5;
 const DEVICE_STATS_TOTAL: u8 = 6;
 
+const DEVICE_STATS_DEFAULT: u8 = DEVICE_STATS_FREQS;
+
 const DEVICE_STATS_OP_NEXT: i8 = 0;
 const DEVICE_STATS_OP_PREV: i8 = 1;
 
@@ -93,7 +95,7 @@ impl DeviceStatsState
         } else {
             self.sub_sel = 0;
             self.sel = (self.sel + 1) % DEVICE_STATS_TOTAL;
-            if nr_charts[self.sel as usize] == 0 {  // engines can be empty
+            while nr_charts[self.sel as usize] == 0 {  // stats can be empty
                 self.sel = (self.sel + 1) % DEVICE_STATS_TOTAL;
             }
         }
@@ -107,7 +109,7 @@ impl DeviceStatsState
         } else {
             self.sel = if self.sel == 0 {
                 DEVICE_STATS_TOTAL - 1 } else { self.sel - 1 };
-            if nr_charts[self.sel as usize] == 0 {  // engines can be empty
+            while nr_charts[self.sel as usize] == 0 {  // stats can be empty
                 self.sel = if self.sel == 0 {
                     DEVICE_STATS_TOTAL - 1 } else { self.sel - 1 };
             }
@@ -139,10 +141,17 @@ impl DeviceStatsState
         self.req_op = DEVICE_STATS_OP_PREV;
     }
 
+    fn reset(&mut self)
+    {
+        self.sel = DEVICE_STATS_DEFAULT;
+        self.sub_sel = 0;
+        self.req_op = -1;
+    }
+
     fn new() -> DeviceStatsState
     {
         DeviceStatsState {
-            sel: DEVICE_STATS_FREQS,
+            sel: DEVICE_STATS_DEFAULT,
             sub_sel: 0,
             req_op: -1,
         }
@@ -263,17 +272,21 @@ impl Screen for MainScreen
     {
         match key_event.code {
             KeyCode::Tab => {
-                if let Some(devs_ts) = &mut self.tab_state {
-                    let mut st = self.clis_state.borrow_mut();
-                    devs_ts.next();
-                    st.scroll_to_top();
+                if let Some(devs_tab) = &mut self.tab_state {
+                    let mut devst_st = self.dstats_state.borrow_mut();
+                    let mut clis_st = self.clis_state.borrow_mut();
+                    devs_tab.next();
+                    devst_st.reset();
+                    clis_st.scroll_to_top();
                 }
             },
             KeyCode::BackTab => {
-                if let Some(devs_ts) = &mut self.tab_state {
-                    let mut st = self.clis_state.borrow_mut();
-                    devs_ts.previous();
-                    st.scroll_to_top();
+                if let Some(devs_tab) = &mut self.tab_state {
+                    let mut devst_st = self.dstats_state.borrow_mut();
+                    let mut clis_st = self.clis_state.borrow_mut();
+                    devs_tab.previous();
+                    devst_st.reset();
+                    clis_st.scroll_to_top();
                 }
             },
             KeyCode::Char('>') | KeyCode::Char('.') => {
