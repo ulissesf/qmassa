@@ -145,6 +145,7 @@ sudo qmassa plot -j data.json -o chart
 | FRQ-*        | Actual frequency / Requested frequency         |
 | POWER        | GPU power usage / Package power usage          |
 | TP-*         | Temperature                                    |
+| FAN-*        | Fan speed                                      |
 
 The memory usage values are either in bytes (no letter), or in KiB
 (using "K" letter), or in MiB (using "M" letter), or in GiB (using "G"
@@ -170,21 +171,22 @@ drivers expose and what they have visibility on so expect the information
 to vary a lot across GPUs and vendors. All the power usage values are in
 watts (W).
 
-Temperatures are displayed only for discrete GPUs exposing them through
-the hwmon kernel infrastructure (Intel and AMD, for now). The temperature
-values are all in Celsius (C).
+Temperatures and fan speeds are displayed only for discrete GPUs exposing
+them through the hwmon kernel infrastructure (Intel and AMD, for now). The
+temperature values are all in Celsius (C), and the fan speeds are all in
+revolutions per minute (RPM).
 
 #### Driver support
 
 The table below shows the current drivers and features supported in qmassa
 to get device information.
 
-| Driver | Dev Type | Mem Info | Engines | Freqs   | Power   | Client Mem Info | Temperatures |
-| ------ | :------: | :------: | :-----: | :-----: | :-----: | :-------------: | :----------: |
-| xe     | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: (only dGPUs, Linux kernel 6.14+) |
-| i915   | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: (only dGPUs) |
-| amdgpu | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: (only dGPUs) | :white_check_mark: (Linux kernel 6.13+) | :white_check_mark: (only dGPUs) |
-| *      |  |  | :white_check_mark: (via DRM fdinfo) |  |  | :white_check_mark: (only "memory" region in DRM fdinfo) |  |
+| Driver | Dev Type | Mem Info | Engines | Freqs   | Power   | Client Mem Info | Temperatures | Fans |
+| ------ | :------: | :------: | :-----: | :-----: | :-----: | :-------------: | :----------: | :--: |
+| xe     | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: (only dGPUs, Linux kernel 6.14+) |  |
+| i915   | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: (only dGPUs) | :white_check_mark: (only dGPUs) |
+| amdgpu | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: (only dGPUs) | :white_check_mark: (Linux kernel 6.13+) | :white_check_mark: (only dGPUs) | :white_check_mark: (only dGPUs) |
+| *      |  |  | :white_check_mark: (via DRM fdinfo) |  |  | :white_check_mark: (only "memory" region in DRM fdinfo) |  |  |
 
 qmassa is tested on some Intel and AMD GPUs but it relies heavily on kernel
 drivers exposing consistent support across GPUs. If you have a problem,
