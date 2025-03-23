@@ -69,7 +69,8 @@ const DEVICE_STATS_ENGINES: u8 = 1;
 const DEVICE_STATS_FREQS: u8 = 2;
 const DEVICE_STATS_POWER: u8 = 3;
 const DEVICE_STATS_TEMPS: u8 = 4;
-const DEVICE_STATS_TOTAL: u8 = 5;
+const DEVICE_STATS_FANS: u8 = 5;
+const DEVICE_STATS_TOTAL: u8 = 6;
 
 const DEVICE_STATS_OP_NEXT: i8 = 0;
 const DEVICE_STATS_OP_PREV: i8 = 1;
@@ -856,6 +857,58 @@ impl MainScreen
             area);
     }
 
+    fn render_fans_chart(&self, x_vals: &Vec<f64>, x_axis: Axis,
+        dinfo: &AppDataDeviceState, nr_fans: usize,
+        frame: &mut Frame, area: Rect)
+    {
+        let mut fan_vals = vec![Vec::new(); nr_fans];
+        let mut miny = 50000.0;
+        let mut maxy = 0.0;
+
+        for (fans, xval) in dinfo.dev_stats.fans.iter().zip(x_vals.iter()) {
+            for fi in 0..nr_fans {
+                let sv = fans[fi].speed as f64;
+                fan_vals[fi].push((*xval, sv));
+                miny = f64::min(miny, sv);
+                maxy = f64::max(maxy, sv);
+            }
+        }
+
+        let mut datasets = Vec::new();
+        let mut color_idx = 1;
+        let last_fans = dinfo.dev_stats.fans.back().unwrap();
+
+        for (fan, fd) in last_fans.iter().zip(fan_vals.iter()) {
+            datasets.push(Dataset::default()
+                .name(fan.name.to_uppercase())
+                .marker(symbols::Marker::Braille)
+                .style(Color::Indexed(color_idx))
+                .graph_type(GraphType::Line)
+                .data(fd));
+            color_idx += 1;
+        }
+
+        let y_bounds = [miny, maxy];
+        let y_labels = vec![
+            Span::raw(format!("{}", miny)),
+            Span::raw(format!("{}", (miny + maxy) / 2.0)),
+            Span::raw(format!("{}", maxy)),
+        ];
+        let y_axis = Axis::default()
+            .title("Speed (RPM)")
+            .style(Style::new().white())
+            .bounds(y_bounds)
+            .labels(y_labels);
+
+        frame.render_widget(Chart::new(datasets)
+            .x_axis(x_axis)
+            .y_axis(y_axis)
+            .legend_position(Some(LegendPosition::BottomLeft))
+            .hidden_legend_constraints((Constraint::Min(0), Constraint::Min(0)))
+            .style(Style::new().bold().on_black()),
+            area);
+    }
+
     fn render_dev_stats(&self, dinfo: &AppDataDeviceState,
         tstamps: &VecDeque<u128>, frame: &mut Frame, area: Rect)
     {
@@ -863,12 +916,15 @@ impl MainScreen
         let nr_engines = dinfo.eng_names.len();
         let nr_freqs = dinfo.dev_stats.freqs.back().unwrap().len();
         let nr_temps = dinfo.dev_stats.temps.back().unwrap_or(&vec![]).len();
+        let nr_fans = dinfo.dev_stats.fans.back().unwrap_or(&vec![]).len();
 
-        // # stats = smem + vram(if dgfx) + #engines + #freqs + power + #temps
+        // # stats = smem + vram(if dgfx) + # engines +
+        //               # freqs + power + # temps + # fans
         let nr_stats =
-            1 + is_dgfx as usize + nr_engines + nr_freqs + 1 + nr_temps;
+            1 + is_dgfx as usize + nr_engines +
+            nr_freqs + 1 + nr_temps + nr_fans;
         // Can stats fit in just a single table row or not?
-        // If not, separate meminfo + engines and freqs + power + temps
+        // If not, split meminfo + engines and freqs + power + temps + fans
         let one_row = nr_stats * 10 <= area.width as usize;
 
         let [inf_area, dstats_area, sep, chart_area] = Layout::vertical([
@@ -910,6 +966,7 @@ impl MainScreen
             nr_freqs as u8,          // FREQS
             1,                       // POWER
             (nr_temps > 0) as u8,    // TEMPS
+            (nr_fans > 0) as u8,     // FANS
         ];
         let mut ds_st = self.dstats_state.borrow_mut();
         ds_st.exec_req(&nr_charts);
@@ -950,6 +1007,9 @@ impl MainScreen
         ds_widths_ref.push(Constraint::Min(12));      // POWER
         for _ in 0..nr_temps {
             ds_widths_ref.push(Constraint::Min(9));       // TEMPS
+        }
+        for _ in 0..nr_fans {
+            ds_widths_ref.push(Constraint::Min(9));       // FANS
         }
 
         // split area for gauges early to calculate max engine name length
@@ -1009,6 +1069,16 @@ impl MainScreen
                 hdrs_lst_ref.push(Line::from(label)
                     .alignment(Alignment::Center)
                     .style(if ds_st.sel == DEVICE_STATS_TEMPS {
+                        ly_bold } else { wh_bold }));
+            }
+        }
+        if nr_fans > 0 {
+            for fan in dinfo.dev_stats.fans.back().unwrap().iter() {
+                let label = format!("FAN-{}",
+                    &fan.name.to_uppercase()[..min(4, fan.name.len())]);
+                hdrs_lst_ref.push(Line::from(label)
+                    .alignment(Alignment::Center)
+                    .style(if ds_st.sel == DEVICE_STATS_FANS {
                         ly_bold } else { wh_bold }));
             }
         }
@@ -1083,6 +1153,14 @@ impl MainScreen
             }
         }
 
+        if nr_fans > 0 {
+            for fan in dinfo.dev_stats.fans.back().unwrap().iter() {
+                let fan_label = Span::styled(
+                    format!("{}", fan.speed), Style::new().white());
+                ds_gs_ref.push(App::gauge_colored_from(fan_label, 0.0));
+            }
+        }
+
         for (ds_g, ds_a) in dstats_gs.iter().zip(gs_areas.iter()) {
             frame.render_widget(ds_g, *ds_a);
         }
@@ -1150,6 +1228,10 @@ impl MainScreen
             DEVICE_STATS_TEMPS => {
                 self.render_temps_chart(
                     &x_vals, x_axis, dinfo, nr_temps, frame, chart_area);
+            },
+            DEVICE_STATS_FANS => {
+                self.render_fans_chart(
+                    &x_vals, x_axis, dinfo, nr_fans, frame, chart_area);
             },
             _ => {
                 error!("Unknown device stats selection: {:?}", ds_st.sel);
