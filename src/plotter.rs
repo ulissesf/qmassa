@@ -34,7 +34,8 @@ const CHART_ENGINES: usize = 1;
 const CHART_FREQS: usize = 2;
 const CHART_POWER: usize = 3;
 const CHART_TEMPS: usize = 4;
-const CHARTS_TOTAL: usize = 5;
+const CHART_FANS: usize = 5;
+const CHARTS_TOTAL: usize = 6;
 
 #[derive(Debug)]
 pub struct Plotter
@@ -94,6 +95,7 @@ impl Plotter
         let plot_freqs = self.sel_charts[CHART_FREQS];
         let plot_power = self.sel_charts[CHART_POWER];
         let plot_temps = self.sel_charts[CHART_TEMPS];
+        let plot_fans = self.sel_charts[CHART_FANS];
         let nr_devices = self.jsondata
             .states().front().unwrap().devs_state.len();
 
@@ -108,11 +110,14 @@ impl Plotter
             let mut freqs: Vec<Vec<StatData>> = Vec::new();
             let mut power: Vec<StatData> = Vec::new();
             let mut temps: Vec<StatData> = Vec::new();
+            let mut fans: Vec<StatData> = Vec::new();
 
             let mut max_power = 0.0;
             let mut max_temp = 0.0;
+            let mut max_fan = 0.0;
 
             let has_temps = di.dev_stats.temps.back().is_some();
+            let has_fans = di.dev_stats.fans.back().is_some();
 
             if plot_meminfo {
                 meminfo.push(StatData::new("SMEM"));
@@ -145,6 +150,12 @@ impl Plotter
                 let tmps_st = di.dev_stats.temps.back().unwrap();
                 for tmp in tmps_st.iter() {
                     temps.push(StatData::new(&tmp.name.to_uppercase()));
+                }
+            }
+            if plot_fans && has_fans {
+                let fans_st = di.dev_stats.fans.back().unwrap();
+                for fan in fans_st.iter() {
+                    fans.push(StatData::new(&fan.name.to_uppercase()));
                 }
             }
 
@@ -193,6 +204,14 @@ impl Plotter
                         let tv = tmp.temp;
                         max_temp = f64::max(max_temp, tv);
                         temps[nr].add_point((tstamp, tv));
+                    }
+                }
+                if plot_fans && has_fans {
+                    let fans_st = dinfo.dev_stats.fans.back().unwrap();
+                    for (nr, fan) in fans_st.iter().enumerate() {
+                        let sv = fan.speed as f64;
+                        max_fan = f64::max(max_fan, sv);
+                        fans[nr].add_point((tstamp, sv));
                     }
                 }
             }
@@ -247,6 +266,14 @@ impl Plotter
                     "Time (s)", "Temperature (C)",
                     x_max, max_temp, &temps)?;
             }
+            if plot_fans && has_fans {
+                let out_file = format!("{}-{}-fans.svg",
+                    &self.out_prefix, &di.pci_dev);
+                self.plot_chart(
+                    &out_file, &format!("{} - Fans", &di.vdr_dev_rev),
+                    "Time (s)", "Speed (RPM)",
+                    x_max, max_fan, &fans)?;
+            }
         }
 
         Ok(())
@@ -280,6 +307,7 @@ impl Plotter
                     "freqs" => sc[CHART_FREQS] = true,
                     "power" => sc[CHART_POWER] = true,
                     "temps" => sc[CHART_TEMPS] = true,
+                    "fans" => sc[CHART_FANS] = true,
                     _ => bail!("Invalid chart {:?} requested", c),
                 }
             }

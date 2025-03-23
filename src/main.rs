@@ -105,7 +105,7 @@ struct PlotArgs
     dev_slot: Option<String>,
 
     /// Charts to be plotted (comma-separated, possible values: meminfo,
-    ///  engines, freqs, power, temps) [default: all charts]
+    ///  engines, freqs, power, temps, fans) [default: all charts]
     #[arg(short, long)]
     charts: Option<String>,
 }
