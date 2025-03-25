@@ -77,7 +77,7 @@ enum Command
     /// Replay from a JSON file
     Replay(ReplayArgs),
 
-    /// Plot charts from JSON data
+    /// Plot charts from a JSON file
     Plot(PlotArgs)
 }
 

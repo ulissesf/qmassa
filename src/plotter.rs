@@ -297,7 +297,7 @@ impl Plotter
         let sel_charts = if let Some(charts_str) = charts_opt {
             let mut sc = [false; CHARTS_TOTAL];
             let charts: Vec<_> = charts_str
-                .split(",")
+                .split(',')
                 .collect();
 
             for c in charts.into_iter() {
