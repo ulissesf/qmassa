@@ -35,9 +35,9 @@ use plotter::Plotter;
 #[derive(Parser, Clone, Debug, Deserialize, Serialize)]
 #[command(version, about, long_about = None)]
 pub struct CliArgs {
-    /// Show only specific PCI device [default: all devices]
+    /// Show only specific PCI devices (comma-separated list) [default: all devices]
     #[arg(short, long)]
-    dev_slot: Option<String>,
+    dev_slots: Option<String>,
 
     /// Base for process tree [default: all accessible pids' info]
     #[arg(short, long)]
@@ -195,8 +195,15 @@ fn run_default_cmd(args: CliArgs) -> Result<()>
     }
     let no_tui = args.no_tui;
 
+    let slots_str: String;
+    let mut slots_lst: Vec<&str> = Vec::new();
+    if args.dev_slots.is_some() {
+        slots_str = args.dev_slots.clone().unwrap();
+        slots_lst = slots_str.split(',').collect();
+    }
+
     // find all DRM subsystem devices
-    let mut qmds = DrmDevices::find_devices()
+    let mut qmds = DrmDevices::find_devices(&slots_lst)
         .context("Failed finding DRM devices")?;
     if qmds.is_empty() {
         bail!("No DRM devices found");

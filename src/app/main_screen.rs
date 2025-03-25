@@ -233,14 +233,10 @@ impl Screen for MainScreen
         // if not done yet, initialize tab state with devices
         if self.tab_state.is_none() {
             let model = self.model.borrow();
-            let mut dv: Vec<String> = Vec::new();
 
-            if let Some(pdev) = &model.args().dev_slot {
-                dv.push(pdev.clone());
-            } else {
-                for di in model.devices() {
-                    dv.push(di.pci_dev.clone());
-                }
+            let mut dv: Vec<String> = Vec::new();
+            for di in model.devices() {
+                dv.push(di.pci_dev.clone());
             }
 
             self.tab_state = Some(DevicesTabState::new(dv));

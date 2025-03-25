@@ -435,7 +435,7 @@ impl DrmDevices
         }
 
         // assumes devices don't vanish, so just update their driver-specific
-        // dynamic information (e.g. mem info, engines, freqs, power)
+        // dynamic information (e.g. mem info, engines, freqs, power, ...)
         for di in self.infos.values_mut() {
             di.refresh()?;
         }
@@ -491,7 +491,7 @@ impl DrmDevices
         device_id.clone()
     }
 
-    pub fn find_devices() -> Result<DrmDevices>
+    pub fn find_devices(dev_slots: &Vec<&str>) -> Result<DrmDevices>
     {
         let mut qmds = DrmDevices::new();
 
@@ -502,6 +502,11 @@ impl DrmDevices
         for d in enumerator.scan_devices()? {
             let pdev = d.parent().unwrap();
             let sysname = String::from(pdev.sysname().to_str().unwrap());
+
+            if !dev_slots.is_empty() &&
+                !dev_slots.iter().any(|&ds| ds == sysname) {
+                continue;
+            }
 
             if !qmds.infos.contains_key(&sysname) {
                 let pciid = if let Some(pciid) = pdev.property_value("PCI_ID") {
