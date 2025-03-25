@@ -183,7 +183,7 @@ to get device information.
 
 | Driver | Dev Type | Mem Info | Engines | Freqs   | Power   | Client Mem Info | Temperatures | Fans |
 | ------ | :------: | :------: | :-----: | :-----: | :-----: | :-------------: | :----------: | :--: |
-| xe     | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: (only dGPUs, Linux kernel 6.14+) |  |
+| xe     | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: (only dGPUs, Linux kernel 6.15+) | :white_check_mark: (only dGPUs, Linux kernel 6.15+) |
 | i915   | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: (only dGPUs) | :white_check_mark: (only dGPUs) |
 | amdgpu | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: (only dGPUs) | :white_check_mark: (Linux kernel 6.13+) | :white_check_mark: (only dGPUs) | :white_check_mark: (only dGPUs) |
 | *      |  |  | :white_check_mark: (via DRM fdinfo) |  |  | :white_check_mark: (only "memory" region in DRM fdinfo) |  |  |
