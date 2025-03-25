@@ -100,9 +100,9 @@ struct PlotArgs
     #[arg(short, long)]
     out_prefix: String,
 
-    /// Plot only specific PCI device [default: all devices]
+    /// Plot only specific PCI devices (comma-separated list) [default: all devices]
     #[arg(short, long)]
-    dev_slot: Option<String>,
+    dev_slots: Option<String>,
 
     /// Charts to be plotted (comma-separated, possible values: meminfo,
     ///  engines, freqs, power, temps, fans) [default: all charts]
@@ -139,7 +139,7 @@ fn run_plot_cmd(args: PlotArgs) -> Result<()>
 
     // create plotter and plot the charts
     let plotter = Plotter::from(jsondata,
-        args.out_prefix, args.dev_slot, args.charts)?;
+        args.out_prefix, args.dev_slots, args.charts)?;
     plotter.plot()?;
 
     Ok(())

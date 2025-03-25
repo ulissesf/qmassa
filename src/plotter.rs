@@ -42,7 +42,7 @@ pub struct Plotter
 {
     jsondata: AppDataJson,
     out_prefix: String,
-    dev_slot: Option<String>,
+    dev_slots: Vec<String>,
     sel_charts: [bool; CHARTS_TOTAL],
 }
 
@@ -89,7 +89,6 @@ impl Plotter
     // TODO: figure out plotting DRM client stats charts
     pub fn plot(&self) -> Result<()>
     {
-        let all_devs = self.dev_slot.is_none();
         let plot_meminfo = self.sel_charts[CHART_MEMINFO];
         let plot_engines = self.sel_charts[CHART_ENGINES];
         let plot_freqs = self.sel_charts[CHART_FREQS];
@@ -101,7 +100,8 @@ impl Plotter
 
         for idx in 0..nr_devices {
             let di = &self.jsondata.states().front().unwrap().devs_state[idx];
-            if !all_devs && &di.pci_dev != self.dev_slot.as_ref().unwrap() {
+            if !self.dev_slots.is_empty() &&
+                !self.dev_slots.iter().any(|ds| di.pci_dev == *ds) {
                 continue;
             }
 
@@ -279,18 +279,23 @@ impl Plotter
         Ok(())
     }
 
-    pub fn from(jsondata: AppDataJson, out_prefix: String,
-        dev_slot: Option<String>, charts_opt: Option<String>) -> Result<Plotter>
+    pub fn from(jsondata: AppDataJson,
+        out_prefix: String,
+        dev_slots_opt: Option<String>,
+        charts_opt: Option<String>) -> Result<Plotter>
     {
-        if let Some(dev) = &dev_slot {
-            let mut valid = false;
-            for d in jsondata.states().front().unwrap().devs_state.iter() {
-                if d.pci_dev == *dev {
-                    valid = true;
+        let mut dev_slots = Vec::new();
+        if let Some(slots_str) = dev_slots_opt {
+            dev_slots = slots_str
+                .split(',')
+                .map(|d| d.to_string())
+                .collect();
+
+            for dev in dev_slots.iter() {
+                if !jsondata.states().front().unwrap().devs_state
+                    .iter().any(|d| d.pci_dev == *dev) {
+                    bail!("No DRM GPU device {:?} in the JSON file", dev);
                 }
-            }
-            if !valid {
-                bail!("No DRM GPU device {:?} in the JSON file", dev);
             }
         }
 
@@ -320,7 +325,7 @@ impl Plotter
         Ok(Plotter {
             jsondata,
             out_prefix,
-            dev_slot,
+            dev_slots,
             sel_charts,
         })
     }
