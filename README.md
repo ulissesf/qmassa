@@ -142,7 +142,7 @@ sudo qmassa plot -j data.json -o chart
 | SMEM         | System memory used / Total system memory       |
 | VRAM         | Device memory used / Total device memory       |
 | [Engines]    | Overall engine usage in the last iteration     |
-| FRQ-*        | Actual frequency / Requested frequency         |
+| FRQ-*        | Actual frequency / Maximum frequency limit     |
 | POWER        | GPU power usage / Package power usage          |
 | TP-*         | Temperature                                    |
 | FAN-*        | Fan speed                                      |

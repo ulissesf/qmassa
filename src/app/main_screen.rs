@@ -1137,12 +1137,13 @@ impl MainScreen
         let ds_gs_ref: &mut Vec<Gauge> =
             if one_row { &mut dstats_gs } else { &mut dstats2_gs };
 
-        for fq in dinfo.dev_stats.freqs.back().unwrap().iter() {
+        for (nr, fq) in dinfo.dev_stats.freqs.back().unwrap().iter().enumerate() {
+            let maximum = dinfo.freq_limits[nr].maximum;
             let fq_label = Span::styled(
-                format!("{}/{}", fq.act_freq, fq.cur_freq),
+                format!("{}/{}", fq.act_freq, maximum),
                 Style::new().white());
-            let fq_ratio = if fq.cur_freq > 0 {
-                fq.act_freq as f64 / fq.cur_freq as f64 } else { 0.0 };
+            let fq_ratio = if maximum > 0 {
+                fq.act_freq as f64 / maximum as f64 } else { 0.0 };
             ds_gs_ref.push(App::gauge_colored_from(fq_label, fq_ratio));
         }
 
