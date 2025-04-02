@@ -471,7 +471,7 @@ impl MainScreen
             Constraint::Max(max_engs_width),
             Constraint::Max(7),
             Constraint::Length(1),
-            Constraint::Min(5),
+            Constraint::Min(1),
         ];
         let [pidmem_hdr, _, engines_hdr, cpu_hdr, _, cmd_hdr] =
             Layout::horizontal(&line_widths).areas(hdr_sv_area);
@@ -481,7 +481,7 @@ impl MainScreen
             Line::from("SMEM").alignment(Alignment::Center),
         ];
         let mut pidmem_widths = vec![
-            Constraint::Min(6),
+            Constraint::Min(7),  // pid_max is usually 4194304
             Constraint::Min(5),
         ];
         if is_dgfx {
