@@ -16,6 +16,7 @@ use crate::drm_devices::{
     DrmDeviceMemInfo, DrmDeviceType, DrmDeviceTemperature, DrmDeviceFan,
     DrmDeviceInfo, DrmDevices};
 use crate::drm_clients::{DrmClientMemInfo, DrmClientInfo};
+use crate::proc_info::ProcInfo;
 
 
 const APP_DATA_MAX_NR_STATS: usize = 40;
@@ -521,7 +522,12 @@ impl AppData for AppDataLive
 
         self.state = nstate;
 
-        Ok(true)
+        // if tracking a PID tree, stop when it's not longer running
+        if let Some(pid) = &self.args.pid {
+            Ok(ProcInfo::is_valid_pid(pid))
+        } else {
+            Ok(true)
+        }
     }
 }
 
