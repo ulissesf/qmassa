@@ -330,6 +330,7 @@ impl Debug for dyn AppData
 #[derive(Debug, Deserialize, Serialize)]
 pub struct AppDataJson
 {
+    version: String,
     args: CliArgs,
     states: VecDeque<AppDataState>,
 }
@@ -395,6 +396,7 @@ impl AppDataJson
     fn new(args: CliArgs) -> AppDataJson
     {
         AppDataJson {
+            version: env!("CARGO_PKG_VERSION").to_string(),
             args,
             states: VecDeque::new(),
         }
