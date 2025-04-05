@@ -1,6 +1,7 @@
 use std::cmp::max;
 
 use anyhow::{bail, Result};
+use itertools::Itertools;
 use plotters::prelude::*;
 
 use crate::app_data::AppDataJson;
@@ -99,13 +100,14 @@ impl Plotter
             .states().front().unwrap().devs_state.len();
 
         for idx in 0..nr_devices {
-            let di = &self.jsondata.states().front().unwrap().devs_state[idx];
+            let di = &self.jsondata.states().back().unwrap().devs_state[idx];
             if !self.dev_slots.is_empty() &&
                 !self.dev_slots.iter().any(|ds| di.pci_dev == *ds) {
                 continue;
             }
 
             let mut meminfo: Vec<StatData> = Vec::new();
+            let mut engs_names: Vec<&str> = Vec::new();
             let mut engines: Vec<StatData> = Vec::new();
             let mut freqs: Vec<Vec<StatData>> = Vec::new();
             let mut power: Vec<StatData> = Vec::new();
@@ -126,7 +128,8 @@ impl Plotter
                 }
             }
             if plot_engines {
-                for en in di.eng_names.iter() {
+                for en in di.eng_names.iter().sorted() {
+                    engs_names.push(en);
                     engines.push(StatData::new(&en.to_uppercase()));
                 }
             }
@@ -173,8 +176,13 @@ impl Plotter
                     }
                 }
                 if plot_engines {
-                    for (nr, en) in dinfo.eng_names.iter().enumerate() {
-                        let eu = *dinfo.dev_stats.eng_usage[en].back().unwrap();
+                    for (nr, en) in engs_names.iter().enumerate() {
+                        let eu = if dinfo.dev_stats
+                            .eng_usage.contains_key(*en) {
+                            *dinfo.dev_stats.eng_usage[*en].back().unwrap()
+                        } else {
+                            0.0
+                        };
                         engines[nr].add_point((tstamp, eu));
                     }
                 }
