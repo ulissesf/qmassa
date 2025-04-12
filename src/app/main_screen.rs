@@ -466,7 +466,7 @@ impl MainScreen
         let max_engs_width = min(dinfo.eng_names.len() as u16 * 12,
             (visible_area.width as f64 * 0.53) as u16);
         let line_widths = vec![
-            Constraint::Max(if is_dgfx { 27 } else { 21 }),
+            Constraint::Max(if is_dgfx { 32 } else { 26 }),
             Constraint::Length(1),
             Constraint::Max(max_engs_width),
             Constraint::Max(7),
