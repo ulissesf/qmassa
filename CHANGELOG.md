@@ -1,5 +1,23 @@
 # Changelog
 
+## [v0.7.0](https://github.com/ulissesf/qmassa/releases/tag/v0.7.0) - 2025-04-20
+
+### Features
+
+- Stop qmassa when monitored PID exits. (@ulissesf)
+- TUI app and plot sub-command accept a list of PCI devices. (@ulissesf)
+- Display and plot fan speeds for Intel and AMD discrete GPUs. (@ulissesf)
+- Display and plot temperatures for Intel and AMD discrete GPUs. (@ulissesf)
+
+### Fixes
+
+- Handle states with no engine stats when plotting to SVG. (@ulissesf)
+- i915: check if throttle reason files exist. (@ulissesf)
+- Add macro to retry interrupted ioctl()s. (@ulissesf)
+- Reduce and tune dependencies to keep MSRV on v1.74. (@ulissesf)
+- Don't reset engine capacity that led to wrong engine utilization. (@ulissesf)
+- Fix crash when running with no qmassa driver implementation. (@ulissesf)
+
 ## [v0.6.0](https://github.com/ulissesf/qmassa/releases/tag/v0.6.0) - 2025-02-01
 
 ### Features
