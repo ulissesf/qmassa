@@ -142,12 +142,8 @@ impl DrmFdinfo
         let st_rdev = met.st_rdev();
 
         // check it's char device and major 226 for DRM device
-        let mj: u32;
-        let mn: u32;
-        unsafe {
-            mj = libc::major(st_rdev);
-            mn = libc::minor(st_rdev);
-        }
+        let mj = libc::major(st_rdev);
+        let mn = libc::minor(st_rdev);
 
         if st_mode & libc::S_IFMT == libc::S_IFCHR && mj == 226 {
             *minor = mn;

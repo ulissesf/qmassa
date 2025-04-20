@@ -244,13 +244,8 @@ impl DrmMinorInfo
 {
     pub fn from(devnode: &String, devnum: u64) -> Result<DrmMinorInfo>
     {
-        let mj: u32;
-        let mn: u32;
-
-        unsafe {
-            mj = libc::major(devnum);
-            mn = libc::minor(devnum);
-        }
+        let mj = libc::major(devnum);
+        let mn = libc::minor(devnum);
 
         if mj != 226 {
             bail!("Expected DRM major 226 but found {:?} for {:?}",
