@@ -837,7 +837,7 @@ impl MainScreen
 
         for (tmp, td) in last_tmps.iter().zip(tmp_vals.iter()) {
             datasets.push(Dataset::default()
-                .name(tmp.name.to_uppercase())
+                .name(format!("TP-{}", &tmp.name.to_uppercase()))
                 .marker(symbols::Marker::Braille)
                 .style(Color::Indexed(color_idx))
                 .graph_type(GraphType::Line)
@@ -889,7 +889,7 @@ impl MainScreen
 
         for (fan, fd) in last_fans.iter().zip(fan_vals.iter()) {
             datasets.push(Dataset::default()
-                .name(fan.name.to_uppercase())
+                .name(format!("FAN-{}", &fan.name.to_uppercase()))
                 .marker(symbols::Marker::Braille)
                 .style(Color::Indexed(color_idx))
                 .graph_type(GraphType::Line)
