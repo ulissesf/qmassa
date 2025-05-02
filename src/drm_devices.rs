@@ -276,6 +276,7 @@ pub struct DrmDeviceInfo
     pub freqs: Vec<DrmDeviceFreqs>,
     pub power: DrmDevicePower,
     pub mem_info: DrmDeviceMemInfo,
+    engs_utilization: HashMap<String, f64>,
     pub temps: Vec<DrmDeviceTemperature>,
     pub fans: Vec<DrmDeviceFan>,
     driver: Option<Rc<RefCell<dyn DrmDriver>>>,
@@ -300,6 +301,7 @@ impl Default for DrmDeviceInfo
             freqs: vec![DrmDeviceFreqs::new(),],
             power: DrmDevicePower::new(),
             mem_info: DrmDeviceMemInfo::new(),
+            engs_utilization: HashMap::new(),
             temps: Vec::new(),
             fans: Vec::new(),
             driver: None,
@@ -310,11 +312,15 @@ impl Default for DrmDeviceInfo
 
 impl DrmDeviceInfo
 {
-    // relies on DRM clients list for now
-    // (could store after each refresh and read from driver later, if needed)
+    // tries to get DrmDriver's info, falls back to DRM clients list
     pub fn eng_utilization(&self, eng: &String) -> f64
     {
-        if let Some(vref) = &self.drm_clis {
+        if !self.engs_utilization.is_empty() {
+            if self.engs_utilization.contains_key(eng) {
+                return self.engs_utilization[eng];
+            }
+            return 0.0;
+        } else if let Some(vref) = &self.drm_clis {
             let clis_b = vref.borrow();
 
             let mut res: f64 = 0.0;
@@ -333,13 +339,16 @@ impl DrmDeviceInfo
         0.0
     }
 
-    // relies on DRM clients list for now
-    // (could store after each refresh and read from driver later, if needed)
+    // tries to get DrmDriver's info, falls back to DRM clients list
     pub fn engines(&self) -> Vec<String>
     {
         let mut engs = Vec::new();
 
-        if let Some(vref) = &self.drm_clis {
+        if !self.engs_utilization.is_empty() {
+            engs = self.engs_utilization.keys()
+                .map(|nm| nm.clone())
+                .collect();
+        } else if let Some(vref) = &self.drm_clis {
             let clis_b = vref.borrow();
 
             let mut tst: HashSet<&str> = HashSet::new();
@@ -352,9 +361,11 @@ impl DrmDeviceInfo
             for en in tst.iter() {
                 engs.push(en.to_string());
             }
-            engs.sort();
         }
 
+        if !engs.is_empty() {
+            engs.sort();
+        }
         engs
     }
 
@@ -373,9 +384,11 @@ impl DrmDeviceInfo
             let mut drv_b = drv_ref.borrow_mut();
 
             // note: dev_type and freq_limits don't change
+
             self.freqs = drv_b.freqs()?;
             self.power = drv_b.power()?;
             self.mem_info = drv_b.mem_info()?;
+            self.engs_utilization = drv_b.engs_utilization()?;
 
             if self.dev_type.is_discrete() {
                 self.temps = drv_b.temps()?;

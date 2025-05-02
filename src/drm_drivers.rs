@@ -67,6 +67,11 @@ pub trait DrmDriver
         Ok(DrmClientMemInfo::new())
     }
 
+    fn engs_utilization(&mut self) -> Result<HashMap<String, f64>>
+    {
+        Ok(HashMap::new())
+    }
+
     fn temps(&mut self) -> Result<Vec<DrmDeviceTemperature>>
     {
         Ok(Vec::new())
