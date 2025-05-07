@@ -399,7 +399,8 @@ impl DrmDriver for DrmDriverXe
 
 impl DrmDriverXe
 {
-    pub fn new(qmd: &DrmDeviceInfo) -> Result<Rc<RefCell<dyn DrmDriver>>>
+    pub fn new(qmd: &DrmDeviceInfo,
+        _opts: Option<&str>) -> Result<Rc<RefCell<dyn DrmDriver>>>
     {
         let file = File::open(qmd.drm_minors[0].devnode.clone())?;
         let fd = file.as_raw_fd();

@@ -511,7 +511,8 @@ impl DrmDriverAmdgpu
         Ok(())
     }
 
-    pub fn new(qmd: &DrmDeviceInfo) -> Result<Rc<RefCell<dyn DrmDriver>>>
+    pub fn new(qmd: &DrmDeviceInfo,
+        _opts: Option<&str>) -> Result<Rc<RefCell<dyn DrmDriver>>>
     {
         let mut dn: &str = "";
         for c in qmd.drm_minors.iter() {

@@ -499,7 +499,8 @@ impl DrmDevices
         device_id.clone()
     }
 
-    pub fn find_devices(dev_slots: &Vec<&str>) -> Result<DrmDevices>
+    pub fn find_devices(dev_slots: &Vec<&str>,
+        drv_opts: &HashMap<&str, &str>) -> Result<DrmDevices>
     {
         let mut qmds = DrmDevices::new();
 
@@ -561,7 +562,8 @@ impl DrmDevices
         }
 
         for dinf in qmds.infos.values_mut() {
-            if let Some(drv_ref) = drm_drivers::driver_from(dinf)? {
+            let dopts = drv_opts.get(dinf.drv_name.as_str()).copied();
+            if let Some(drv_ref) = drm_drivers::driver_from(dinf, dopts)? {
                 let dref = drv_ref.clone();
                 let mut drv_b = dref.borrow_mut();
 

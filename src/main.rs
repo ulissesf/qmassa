@@ -1,4 +1,5 @@
 use std::cell::RefCell;
+use std::collections::HashMap;
 use std::env;
 use std::fs::File;
 use std::io::{self, IsTerminal};
@@ -66,6 +67,10 @@ pub struct CliArgs {
     /// Run with no TUI rendering [default: render TUI]
     #[arg(short = 'x', long, action = ArgAction::SetTrue)]
     no_tui: bool,
+
+    /// Options for DrmDriver in qmassa (can be passed multiple times) [default: no options]
+    #[arg(short = 'o', long)]
+    drv_options: Option<Vec<String>>,
 
     #[command(subcommand)]
     command: Option<Command>,
@@ -195,15 +200,24 @@ fn run_default_cmd(args: CliArgs) -> Result<()>
     }
     let no_tui = args.no_tui;
 
-    let slots_str: String;
+    let slots_str: &str;
     let mut slots_lst: Vec<&str> = Vec::new();
     if args.dev_slots.is_some() {
-        slots_str = args.dev_slots.clone().unwrap();
+        slots_str = args.dev_slots.as_ref().unwrap();
         slots_lst = slots_str.split(',').collect();
     }
 
+    let mut drv_opts: HashMap<&str, &str> = HashMap::new();
+    if args.drv_options.is_some() {
+        for dopt in args.drv_options.as_ref().unwrap().iter() {
+            if let Some((drv, opts)) = dopt.split_once('=') {
+                drv_opts.insert(drv, opts);
+            }
+        }
+    }
+
     // find all DRM subsystem devices
-    let mut qmds = DrmDevices::find_devices(&slots_lst)
+    let mut qmds = DrmDevices::find_devices(&slots_lst, &drv_opts)
         .context("Failed finding DRM devices")?;
     if qmds.is_empty() {
         bail!("No DRM devices found");
