@@ -12,9 +12,11 @@ use std::alloc;
 use std::mem;
 use std::io;
 
-use anyhow::Result;
+use anyhow::{bail, Result};
+use libc;
 use log::{debug, warn};
 
+use crate::perf_event::{perf_event_attr, PERF_FORMAT_GROUP, PerfEvent};
 use crate::hwmon::Hwmon;
 use crate::drm_drivers::{
     DrmDriver, helpers::{drm_iowr, drm_ioctl, __IncompleteArrayField},
@@ -29,7 +31,7 @@ use crate::drm_fdinfo::DrmMemRegion;
 use crate::drm_clients::DrmClientMemInfo;
 
 
-// rust-bindgen 0.69.4 on Linux kernel v6.12 uapi xe_drm.h + changes
+// based on rust-bindgen on Linux kernel v6.12+ uapi xe_drm.h
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
 struct drm_xe_mem_region {
@@ -54,8 +56,6 @@ struct drm_xe_query_mem_regions {
     mem_regions: __IncompleteArrayField<drm_xe_mem_region>,
 }
 
-const DRM_XE_DEVICE_QUERY_MEM_REGIONS: u32 = 1;
-
 #[repr(C)]
 #[derive(Debug)]
 struct drm_xe_query_config {
@@ -64,14 +64,47 @@ struct drm_xe_query_config {
     info: __IncompleteArrayField<u64>,
 }
 
-const DRM_XE_QUERY_CONFIG_REV_AND_DEVICE_ID: u32 = 0;
-const DRM_XE_QUERY_CONFIG_FLAGS: u32 = 1;
+const DRM_XE_QUERY_CONFIG_FLAGS: usize = 1;
 const DRM_XE_QUERY_CONFIG_FLAG_HAS_VRAM: u64 = 1;
-const DRM_XE_QUERY_CONFIG_MIN_ALIGNMENT: u64 = 2;
-const DRM_XE_QUERY_CONFIG_VA_BITS: u32 = 3;
-const DRM_XE_QUERY_CONFIG_MAX_EXEC_QUEUE_PRIORITY: u32 = 4;
 
-const DRM_XE_DEVICE_QUERY_CONFIG: u32 = 2;
+#[repr(C)]
+#[derive(Debug, Copy, Clone)]
+struct drm_xe_engine_class_instance {
+    engine_class: u16,
+    engine_instance: u16,
+    gt_id: u16,
+    pad: u16,
+}
+
+const DRM_XE_ENGINE_CLASS_RENDER: u16 = 0;
+const DRM_XE_ENGINE_CLASS_COPY: u16 = 1;
+const DRM_XE_ENGINE_CLASS_VIDEO_DECODE: u16 = 2;
+const DRM_XE_ENGINE_CLASS_VIDEO_ENHANCE: u16 = 3;
+const DRM_XE_ENGINE_CLASS_COMPUTE: u16 = 4;
+
+const QM_DRM_XE_ENGINE_CLASS_TOTAL: usize = 5;
+const xe_engine_class_name: [&str; QM_DRM_XE_ENGINE_CLASS_TOTAL] = [
+    "rcs",
+    "bcs",
+    "vcs",
+    "vecs",
+    "ccs",
+];
+
+#[repr(C)]
+#[derive(Debug, Copy, Clone)]
+struct drm_xe_engine {
+    instance: drm_xe_engine_class_instance,
+    reserved: [u64; 3usize],
+}
+
+#[repr(C)]
+#[derive(Debug)]
+struct drm_xe_query_engines {
+    num_engines: u32,
+    pad: u32,
+    engines: __IncompleteArrayField<drm_xe_engine>,
+}
 
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
@@ -83,9 +116,75 @@ struct drm_xe_device_query {
     reserved: [u64; 2usize],
 }
 
+const DRM_XE_DEVICE_QUERY_ENGINES: u32 = 0;
+const DRM_XE_DEVICE_QUERY_MEM_REGIONS: u32 = 1;
+const DRM_XE_DEVICE_QUERY_CONFIG: u32 = 2;
+
 const DRM_XE_DEVICE_QUERY: u64 = 0x00;
 const DRM_IOCTL_XE_DEVICE_QUERY: u64 = drm_iowr!(DRM_XE_DEVICE_QUERY,
     mem::size_of::<drm_xe_device_query>());
+
+#[derive(Debug)]
+struct XeEngine
+{
+    gt_id: u16,
+    class: u16,
+    instance: u16,
+}
+
+#[derive(Debug)]
+struct XeEnginePmuData
+{
+    base_idx: usize,
+    last_active: u64,
+    last_total: u64,
+}
+
+#[derive(Debug)]
+struct XeEnginesPmu
+{
+    pf_evt: PerfEvent,
+    nr_evts: usize,
+    engs_data: Vec<Vec<XeEnginePmuData>>,
+    nr_updates: u64,
+}
+
+impl XeEnginesPmu
+{
+    fn engs_utilization(&mut self) -> Result<HashMap<String, f64>>
+    {
+        let mut engs_ut = HashMap::new();
+
+        let data = self.pf_evt.read(self.nr_evts + 1)?;
+        self.nr_updates += 1;
+
+        for cn in 0..QM_DRM_XE_ENGINE_CLASS_TOTAL {
+            let mut acum_active = 0;
+            let mut acum_total = 0;
+
+            for epd in self.engs_data[cn].iter_mut() {
+                let curr_active = data[1 + epd.base_idx];
+                let curr_total = data[1 + epd.base_idx + 1];
+
+                if self.nr_updates >= 2  {
+                    acum_active += curr_active - epd.last_active;
+                    acum_total += curr_total - epd.last_total;
+                }
+                epd.last_active = curr_active;
+                epd.last_total = curr_total;
+            }
+
+            let eut = if acum_active == 0 || acum_total == 0 {
+                0.0
+            } else {
+                (acum_active as f64 / acum_total as f64) * 100.0
+            };
+            engs_ut.insert(xe_engine_class_name[cn].to_string(), eut);
+        }
+
+        Ok(engs_ut)
+    }
+}
 
 #[derive(Debug)]
 pub struct DrmDriverXe
@@ -97,6 +196,7 @@ pub struct DrmDriverXe
     freq_limits: Option<Vec<DrmDeviceFreqLimits>>,
     power: Option<Box<dyn GpuPowerIntel>>,
     hwmon: Option<Hwmon>,
+    engs_pmu: Option<XeEnginesPmu>,
 }
 
 impl DrmDriver for DrmDriverXe
@@ -148,7 +248,7 @@ impl DrmDriver for DrmDriverXe
             return Err(io::Error::last_os_error().into());
         }
         let cfg = unsafe { (*qcfg).info.as_slice((*qcfg).num_params as usize) };
-        let flags = cfg[DRM_XE_QUERY_CONFIG_FLAGS as usize];
+        let flags = cfg[DRM_XE_QUERY_CONFIG_FLAGS];
 
         let qmdt = if flags & DRM_XE_QUERY_CONFIG_FLAG_HAS_VRAM > 0 {
             DrmDeviceType::Discrete
@@ -378,6 +478,17 @@ impl DrmDriver for DrmDriverXe
         Ok(cmi)
     }
 
+    fn engs_utilization(&mut self) -> Result<HashMap<String, f64>>
+    {
+        if self.engs_pmu.is_none() {
+            return Ok(HashMap::new());
+        }
+
+        let epmu = self.engs_pmu.as_mut().unwrap();
+
+        epmu.engs_utilization()
+    }
+
     fn temps(&mut self) -> Result<Vec<DrmDeviceTemperature>>
     {
         if self.hwmon.is_some() {
@@ -399,8 +510,142 @@ impl DrmDriver for DrmDriverXe
 
 impl DrmDriverXe
 {
+    fn engines_info(&self) -> Result<Vec<XeEngine>>
+    {
+        let mut dq = drm_xe_device_query {
+            extensions: 0,
+            query: DRM_XE_DEVICE_QUERY_ENGINES,
+            size: 0,
+            data: 0,
+            reserved: [0, 0],
+        };
+
+        let res = drm_ioctl!(self.dn_fd, DRM_IOCTL_XE_DEVICE_QUERY, &mut dq);
+        if res < 0 {
+            return Err(io::Error::last_os_error().into());
+        }
+
+        if dq.size as usize == 0 {
+            warn!("Xe query engines ioctl returned 0 size, aborting.");
+            bail!("Xe query engines ioctl returned 0 size");
+        }
+
+        let layout = alloc::Layout::from_size_align(dq.size as usize,
+            mem::align_of::<u64>())?;
+        let qengs = unsafe {
+            let ptr = alloc::alloc(layout) as *mut drm_xe_query_engines;
+            if ptr.is_null() {
+                panic!("Can't allocate memory for Xe query engines ioctl()");
+            }
+
+            ptr
+        };
+        dq.data = qengs as u64;
+
+        let res = drm_ioctl!(self.dn_fd, DRM_IOCTL_XE_DEVICE_QUERY, &mut dq);
+        if res < 0 {
+            unsafe { alloc::dealloc(qengs as *mut u8, layout); }
+            return Err(io::Error::last_os_error().into());
+        }
+        let engs = unsafe {
+            (*qengs).engines.as_slice((*qengs).num_engines as usize) };
+
+        let mut ret = Vec::new();
+        for e in engs {
+            let ne = XeEngine {
+                gt_id: e.instance.gt_id,
+                class: e.instance.engine_class,
+                instance: e.instance.engine_instance,
+            };
+            ret.push(ne);
+        }
+
+        unsafe { alloc::dealloc(qengs as *mut u8, layout); }
+
+        Ok(ret)
+    }
+
+    fn init_engines_pmu(&mut self, qmd: &DrmDeviceInfo) -> Result<()>
+    {
+        if !PerfEvent::is_capable() {
+            bail!("No PMU support");
+        }
+
+        let mut src = String::from("xe_");
+        src.push_str(&qmd.pci_dev);
+        let src = src.replace(":", "_");
+
+        if !PerfEvent::has_source(&src) {
+            bail!("No PMU source {:?}", &src);
+        }
+
+        if !PerfEvent::has_event(&src, "engine-active-ticks") ||
+            !PerfEvent::has_event(&src, "engine-total-ticks") {
+            bail!("No engine active and total ticks events");
+        }
+
+        let mut pf_evt = PerfEvent::new();
+        let mut pf_attr = perf_event_attr::new();
+        pf_attr.type_ = PerfEvent::source_type(&src)?;
+        pf_attr.size = mem::size_of::<perf_event_attr>() as u32;
+        pf_attr.read_format = PERF_FORMAT_GROUP;
+
+        let cpu: i32 = unsafe { libc::sched_getcpu() };
+        let act_cfg = PerfEvent::event_config(&src, "engine-active-ticks")?;
+        let tot_cfg = PerfEvent::event_config(&src, "engine-total-ticks")?;
+
+        let engs_info = self.engines_info()?;
+        let mut engs_data = Vec::new();
+        for _ in 0..QM_DRM_XE_ENGINE_CLASS_TOTAL {
+            let nvec: Vec<XeEnginePmuData> = Vec::new();
+            engs_data.push(nvec);
+        }
+        let mut idx = 0;
+
+        for eng in engs_info.iter() {
+            let eng_act_cfg = PerfEvent::format_config(
+                &src,
+                vec![
+                    ("gt", eng.gt_id as u64),
+                    ("engine_class", eng.class as u64),
+                    ("engine_instance", eng.instance as u64)],
+                act_cfg)?;
+            let eng_tot_cfg = PerfEvent::format_config(
+                &src,
+                vec![
+                    ("gt", eng.gt_id as u64),
+                    ("engine_class", eng.class as u64),
+                    ("engine_instance", eng.instance as u64)],
+                tot_cfg)?;
+
+            pf_attr.config = eng_act_cfg;
+            pf_evt.group_open(&pf_attr, -1, cpu, 0)?;
+
+            pf_attr.config = eng_tot_cfg;
+            pf_evt.group_open(&pf_attr, -1, cpu, 0)?;
+
+            engs_data[eng.class as usize].push(
+                XeEnginePmuData {
+                    base_idx: idx,
+                    last_active: 0,
+                    last_total: 0,
+                }
+            );
+            idx += 2;
+        }
+
+        self.engs_pmu = Some(XeEnginesPmu {
+            pf_evt,
+            nr_evts: idx,
+            engs_data,
+            nr_updates: 0,
+        });
+
+        Ok(())
+    }
+
     pub fn new(qmd: &DrmDeviceInfo,
-        _opts: Option<&str>) -> Result<Rc<RefCell<dyn DrmDriver>>>
+        opts: Option<&str>) -> Result<Rc<RefCell<dyn DrmDriver>>>
     {
         let file = File::open(qmd.drm_minors[0].devnode.clone())?;
         let fd = file.as_raw_fd();
@@ -420,6 +665,7 @@ impl DrmDriverXe
             freq_limits: None,
             power: None,
             hwmon: None,
+            engs_pmu: None,
         };
 
         let dtype = xe.dev_type()?;
@@ -434,6 +680,16 @@ impl DrmDriverXe
                 xe.hwmon = hwmon;
             } else {
                 debug!("ERR: no Hwmon support on dGPU: {:?}", hwmon_res);
+            }
+        }
+
+        if let Some(opts_str) = opts {
+            let sep_opts: Vec<&str> = opts_str.split(',').collect();
+            if sep_opts.iter().any(|&o| o == "engines=pmu") {
+                let res = xe.init_engines_pmu(qmd);
+                if res.is_err() {
+                    debug!("ERR: failed to enable engines PMU: {:?}", res);
+                }
             }
         }
 
