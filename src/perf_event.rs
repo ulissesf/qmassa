@@ -3,16 +3,17 @@
 #![allow(non_camel_case_types)]
 #![allow(non_upper_case_globals)]
 
-use std::path::Path;
+use std::fs;
 use std::mem;
 use std::io;
+use std::path::Path;
 
-use anyhow::Result;
+use anyhow::{bail, Result};
 use log::debug;
 use libc;
 
 
-// rust-bindgen 0.69.5 on Linux kernel v6.12 uapi perf_event.h + changes
+// based on rust-bindgen on Linux kernel v6.12+ uapi perf_event.h
 #[repr(C)]
 #[derive(Copy, Clone, Debug, Default, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub struct __BindgenBitfieldUnit<Storage> {
@@ -932,6 +933,8 @@ pub const __NR_perf_event_open: i64 = 336;
         all(not(target_arch = "x86"), not(target_arch = "x86_64"))))]
 pub const __NR_perf_event_open: i64 = 241;
 
+pub const QM_PERF_SRC_DIR: &str = "/sys/devices";
+
 #[derive(Debug)]
 pub struct PerfEvent
 {
@@ -967,14 +970,22 @@ impl PerfEvent
             return Err(io::Error::last_os_error().into());
         }
 
-        self.grp_fds.push(g_fd);
+        if self.perf_fd == -1 {
+            self.perf_fd = g_fd;
+        } else {
+            self.grp_fds.push(g_fd);
+        }
 
         Ok(g_fd)
     }
 
-    pub fn open(evt_attr: &perf_event_attr,
-        pid: i32, cpu: i32, flags: u64) -> Result<PerfEvent>
+    pub fn open(&mut self, evt_attr: &perf_event_attr,
+        pid: i32, cpu: i32, flags: u64) -> Result<i64>
     {
+        if self.perf_fd != -1 {
+            bail!("PerfEvent already opened!");
+        }
+
         let fd = unsafe {
             libc::syscall(__NR_perf_event_open,
                 evt_attr, pid, cpu, -1, flags) };
@@ -982,15 +993,118 @@ impl PerfEvent
             return Err(io::Error::last_os_error().into());
         }
 
-        Ok(PerfEvent {
-            perf_fd: fd,
+        self.perf_fd = fd;
+
+        Ok(fd)
+    }
+
+    pub fn new() -> PerfEvent
+    {
+        PerfEvent {
+            perf_fd: -1,
             grp_fds: Vec::new(),
-        })
+        }
+    }
+
+    pub fn format_shift(src: &str, param: &str, val: u64) -> Result<u64>
+    {
+        let ffn = Path::new(QM_PERF_SRC_DIR)
+            .join(src)
+            .join("format")
+            .join(param);
+
+        let raw = fs::read_to_string(&ffn)?;
+        let param_str = raw.trim();
+
+        let values = param_str.strip_prefix("config:");
+        if values.is_none() {
+            bail!("Invalid param {:?} in file {:?}", param_str, &ffn);
+        }
+        let values = values.unwrap();
+
+        let vals_tup = values.split_once('-');
+        if vals_tup.is_none() {
+            bail!("Invalid param {:?} in file {:?}", param_str, &ffn);
+        }
+
+        let (shift_str, _) = vals_tup.unwrap();
+        let shift: u64 = shift_str.parse()?;
+
+        Ok(val << shift)
+    }
+
+    pub fn format_config(src: &str,
+        ops: Vec<(&str, u64)>, val: u64) -> Result<u64>
+    {
+        let mut nval = val;
+        for (param, pval) in ops.iter() {
+            nval |= PerfEvent::format_shift(src, param, *pval)?;
+        }
+
+        Ok(nval)
+    }
+
+    pub fn event_config(src: &str, evt: &str) -> Result<u64>
+    {
+        let efn = Path::new(QM_PERF_SRC_DIR)
+            .join(src)
+            .join("events")
+            .join(evt);
+
+        let raw = fs::read_to_string(&efn)?;
+        let cfg_str = raw.trim();
+
+        let cfg: Vec<_> = cfg_str.split(',').map(|it| it.trim()).collect();
+        let mut config: Option<u64> = None;
+        let mut umask: u64 = 0;
+
+        for c in cfg.iter() {
+            let kv: Vec<_> = c.split('=').map(|it| it.trim()).collect();
+            if kv[0].starts_with("event") {
+                config = Some(u64::from_str_radix(
+                        kv[1].trim_start_matches("0x"), 16)?);
+            } else if kv[0].starts_with("umask") {
+                umask = kv[1].parse()?;
+            } else {
+                bail!("Unknown key {:?} in {:?} event file, aborting.",
+                    kv[0], &efn);
+            }
+        }
+        if config.is_none() {
+            bail!("No valid data in {:?} event file, aborting.", &efn);
+        }
+
+        let config = (umask << 8) | config.unwrap();
+
+        Ok(config)
+    }
+
+    pub fn has_event(src: &str, evt: &str) -> bool
+    {
+        Path::new(QM_PERF_SRC_DIR)
+            .join(src)
+            .join("events")
+            .join(evt)
+            .is_file()
+    }
+
+    pub fn source_type(src: &str) -> Result<u32>
+    {
+        let tfn = Path::new(QM_PERF_SRC_DIR).join(src).join("type");
+        let typ: u32 = fs::read_to_string(tfn)?.trim().parse()?;
+
+        Ok(typ)
+    }
+
+    pub fn has_source(src: &str) -> bool
+    {
+        Path::new("/sys/bus/event_source/devices").join(src).is_symlink() &&
+            Path::new(QM_PERF_SRC_DIR).join(src).is_dir()
     }
 
     pub fn is_capable() -> bool
     {
-        if !Path::new("/proc/sys/kernel/perf_event_paranoid").exists() {
+        if !Path::new("/proc/sys/kernel/perf_event_paranoid").is_file() {
             debug!("INF: no perf_event_open support in the kernel!");
             return false;
         }

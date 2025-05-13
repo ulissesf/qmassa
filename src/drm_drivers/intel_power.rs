@@ -480,7 +480,8 @@ impl IGpuPowerIntel
         pf_attr.sample_type = PERF_SAMPLE_IDENTIFIER;
         pf_attr.read_format = PERF_FORMAT_GROUP;
 
-        let mut pf_evt = PerfEvent::open(&pf_attr, -1, cpu, 0)?;
+        let mut pf_evt = PerfEvent::new();
+        pf_evt.group_open(&pf_attr, -1, cpu, 0)?;
 
         pf_attr.config = pkg_cfg;
         pf_evt.group_open(&pf_attr, -1, cpu, 0)?;
