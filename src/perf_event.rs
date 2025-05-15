@@ -3,6 +3,7 @@
 #![allow(non_camel_case_types)]
 #![allow(non_upper_case_globals)]
 
+use std::collections::HashMap;
 use std::fs;
 use std::mem;
 use std::io;
@@ -938,6 +939,7 @@ pub const QM_PERF_SRC_DIR: &str = "/sys/devices";
 #[derive(Debug)]
 pub struct PerfEvent
 {
+    src: String,
     perf_fd: i64,
     grp_fds: Vec<i64>,
 }
@@ -998,18 +1000,10 @@ impl PerfEvent
         Ok(fd)
     }
 
-    pub fn new() -> PerfEvent
-    {
-        PerfEvent {
-            perf_fd: -1,
-            grp_fds: Vec::new(),
-        }
-    }
-
-    pub fn format_shift(src: &str, param: &str, val: u64) -> Result<u64>
+    pub fn format_shift(&self, param: &str, val: u64) -> Result<u64>
     {
         let ffn = Path::new(QM_PERF_SRC_DIR)
-            .join(src)
+            .join(&self.src)
             .join("format")
             .join(param);
 
@@ -1033,67 +1027,87 @@ impl PerfEvent
         Ok(val << shift)
     }
 
-    pub fn format_config(src: &str,
+    pub fn format_config(&self,
         ops: Vec<(&str, u64)>, val: u64) -> Result<u64>
     {
         let mut nval = val;
         for (param, pval) in ops.iter() {
-            nval |= PerfEvent::format_shift(src, param, *pval)?;
+            nval |= self.format_shift(param, *pval)?;
         }
 
         Ok(nval)
     }
 
-    pub fn event_config(src: &str, evt: &str) -> Result<u64>
+    pub fn event_unit(&self, evt: &str) -> Result<String>
+    {
+        let ufn = Path::new(QM_PERF_SRC_DIR)
+            .join(&self.src)
+            .join("events")
+            .join(&format!("{}.unit", evt));
+
+        let unit = fs::read_to_string(&ufn)?.trim().to_string();
+
+        Ok(unit)
+    }
+
+    pub fn event_keys_config(&self,
+        evt: &str, keys: &Vec<&str>) -> Result<HashMap<String, u64>>
     {
         let efn = Path::new(QM_PERF_SRC_DIR)
-            .join(src)
+            .join(&self.src)
             .join("events")
             .join(evt);
-
         let raw = fs::read_to_string(&efn)?;
         let cfg_str = raw.trim();
-
         let cfg: Vec<_> = cfg_str.split(',').map(|it| it.trim()).collect();
-        let mut config: Option<u64> = None;
-        let mut umask: u64 = 0;
 
+        let mut configs = HashMap::new();
         for c in cfg.iter() {
             let kv: Vec<_> = c.split('=').map(|it| it.trim()).collect();
-            if kv[0].starts_with("event") {
-                config = Some(u64::from_str_radix(
-                        kv[1].trim_start_matches("0x"), 16)?);
-            } else if kv[0].starts_with("umask") {
-                umask = kv[1].parse()?;
-            } else {
-                bail!("Unknown key {:?} in {:?} event file, aborting.",
-                    kv[0], &efn);
+            let key = kv[0];
+            let mut val: u64 = 1;
+            if kv.len() > 1 {
+                val = u64::from_str_radix(
+                    kv[1].trim_start_matches("0x"), 16)?;
+            }
+
+            if keys.iter().any(|&k| k == key) {
+                configs.insert(key.to_string(), val);
             }
         }
-        if config.is_none() {
-            bail!("No valid data in {:?} event file, aborting.", &efn);
+
+        Ok(configs)
+    }
+
+    pub fn event_config(&self, evt: &str) -> Result<u64>
+    {
+        let cfgs = self
+            .event_keys_config(evt, &vec!["event"])?;
+        if !cfgs.contains_key("event") {
+            bail!("No \"event\" key in event {:?}", evt);
         }
 
-        let config = (umask << 8) | config.unwrap();
-
-        Ok(config)
+        Ok(cfgs["event"])
     }
 
-    pub fn has_event(src: &str, evt: &str) -> bool
+    pub fn source_type(&self) -> Result<u32>
     {
-        Path::new(QM_PERF_SRC_DIR)
-            .join(src)
-            .join("events")
-            .join(evt)
-            .is_file()
-    }
+        let tfn = Path::new(QM_PERF_SRC_DIR)
+            .join(&self.src)
+            .join("type");
 
-    pub fn source_type(src: &str) -> Result<u32>
-    {
-        let tfn = Path::new(QM_PERF_SRC_DIR).join(src).join("type");
         let typ: u32 = fs::read_to_string(tfn)?.trim().parse()?;
 
         Ok(typ)
+    }
+
+    pub fn new(src: &str) -> PerfEvent
+    {
+        PerfEvent {
+            src: src.to_string(),
+            perf_fd: -1,
+            grp_fds: Vec::new(),
+        }
     }
 
     pub fn has_source(src: &str) -> bool

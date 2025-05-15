@@ -14,7 +14,7 @@ use std::io;
 
 use anyhow::{bail, Result};
 use libc;
-use log::{debug, warn};
+use log::{debug, info, warn};
 
 use crate::perf_event::{perf_event_attr, PERF_FORMAT_GROUP, PerfEvent};
 use crate::hwmon::Hwmon;
@@ -484,9 +484,7 @@ impl DrmDriver for DrmDriverXe
             return Ok(HashMap::new());
         }
 
-        let epmu = self.engs_pmu.as_mut().unwrap();
-
-        epmu.engs_utilization()
+        self.engs_pmu.as_mut().unwrap().engs_utilization()
     }
 
     fn temps(&mut self) -> Result<Vec<DrmDeviceTemperature>>
@@ -579,20 +577,15 @@ impl DrmDriverXe
             bail!("No PMU source {:?}", &src);
         }
 
-        if !PerfEvent::has_event(&src, "engine-active-ticks") ||
-            !PerfEvent::has_event(&src, "engine-total-ticks") {
-            bail!("No engine active and total ticks events");
-        }
-
-        let mut pf_evt = PerfEvent::new();
+        let mut pf_evt = PerfEvent::new(&src);
         let mut pf_attr = perf_event_attr::new();
-        pf_attr.type_ = PerfEvent::source_type(&src)?;
+        pf_attr.type_ = pf_evt.source_type()?;
         pf_attr.size = mem::size_of::<perf_event_attr>() as u32;
         pf_attr.read_format = PERF_FORMAT_GROUP;
 
         let cpu: i32 = unsafe { libc::sched_getcpu() };
-        let act_cfg = PerfEvent::event_config(&src, "engine-active-ticks")?;
-        let tot_cfg = PerfEvent::event_config(&src, "engine-total-ticks")?;
+        let act_cfg = pf_evt.event_config("engine-active-ticks")?;
+        let tot_cfg = pf_evt.event_config("engine-total-ticks")?;
 
         let engs_info = self.engines_info()?;
         let mut engs_data = Vec::new();
@@ -603,15 +596,13 @@ impl DrmDriverXe
         let mut idx = 0;
 
         for eng in engs_info.iter() {
-            let eng_act_cfg = PerfEvent::format_config(
-                &src,
+            let eng_act_cfg = pf_evt.format_config(
                 vec![
                     ("gt", eng.gt_id as u64),
                     ("engine_class", eng.class as u64),
                     ("engine_instance", eng.instance as u64)],
                 act_cfg)?;
-            let eng_tot_cfg = PerfEvent::format_config(
-                &src,
+            let eng_tot_cfg = pf_evt.format_config(
                 vec![
                     ("gt", eng.gt_id as u64),
                     ("engine_class", eng.class as u64),
@@ -634,12 +625,14 @@ impl DrmDriverXe
             idx += 2;
         }
 
-        self.engs_pmu = Some(XeEnginesPmu {
-            pf_evt,
-            nr_evts: idx,
-            engs_data,
-            nr_updates: 0,
-        });
+        self.engs_pmu = Some(
+            XeEnginesPmu {
+                pf_evt,
+                nr_evts: idx,
+                engs_data,
+                nr_updates: 0,
+            }
+        );
 
         Ok(())
     }
@@ -687,7 +680,9 @@ impl DrmDriverXe
             let sep_opts: Vec<&str> = opts_str.split(',').collect();
             if sep_opts.iter().any(|&o| o == "engines=pmu") {
                 let res = xe.init_engines_pmu(qmd);
-                if res.is_err() {
+                if res.is_ok() {
+                    info!("{}: engines PMU initialized", &qmd.pci_dev);
+                } else {
                     debug!("ERR: failed to enable engines PMU: {:?}", res);
                 }
             }
