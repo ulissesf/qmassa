@@ -161,11 +161,16 @@ impl I915EnginesPmu
                 epd.last_active = curr_active;
             }
 
-            let eut = if acum_active == 0 || acum_total == 0 {
+            let mut eut = if acum_active == 0 || acum_total == 0 {
                 0.0
             } else {
                 (acum_active as f64 / acum_total as f64) * 100.0
             };
+            if eut > 100.0 {
+                warn!("Engine {:?} utilization at {:.1}%, \
+                    clamped to 100%.", i915_engine_class_name[cn], eut);
+                eut = 100.0;
+            }
             engs_ut.insert(i915_engine_class_name[cn].to_string(), eut);
         }
 
