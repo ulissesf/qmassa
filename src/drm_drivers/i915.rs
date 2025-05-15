@@ -8,13 +8,15 @@ use std::fs::{self, File};
 use std::os::fd::{RawFd, AsRawFd};
 use std::cell::RefCell;
 use std::rc::Rc;
+use std::time;
 use std::alloc;
 use std::mem;
 use std::io;
 
-use anyhow::Result;
-use log::{debug, warn};
+use anyhow::{bail, Result};
+use log::{debug, info, warn};
 
+use crate::perf_event::{perf_event_attr, PERF_FORMAT_GROUP, PerfEvent};
 use crate::hwmon::Hwmon;
 use crate::drm_drivers::{
     DrmDriver, helpers::{drm_iowr, drm_ioctl, __IncompleteArrayField},
@@ -29,7 +31,7 @@ use crate::drm_fdinfo::DrmMemRegion;
 use crate::drm_clients::DrmClientMemInfo;
 
 
-// rust-bindgen 0.69.4 on Linux kernel v6.12 uapi i915_drm.h + changes
+// based on rust-bindgen on Linux kernel v6.12+ uapi i915_drm.h
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
 struct drm_i915_gem_memory_class_instance {
@@ -95,6 +97,82 @@ const DRM_I915_QUERY: u64 = 0x39;
 const DRM_IOCTL_I915_QUERY: u64 = drm_iowr!(DRM_I915_QUERY,
     mem::size_of::<drm_i915_query>());
 
+const I915_ENGINE_CLASS_RENDER: u16 = 0;
+const I915_ENGINE_CLASS_COPY: u16 = 1;
+const I915_ENGINE_CLASS_VIDEO: u16 = 2;
+const I915_ENGINE_CLASS_VIDEO_ENHANCE: u16 = 3;
+const I915_ENGINE_CLASS_COMPUTE: u16 = 4;
+
+const QM_I915_ENGINE_CLASS_TOTAL: usize = 5;
+const i915_engine_class_name: [&str; QM_I915_ENGINE_CLASS_TOTAL] = [
+    "render",
+    "copy",
+    "video",
+    "video-enhance",
+    "compute",
+];
+
+#[derive(Debug)]
+struct I915Engine
+{
+    name: String,
+    class: u16,
+}
+
+#[derive(Debug)]
+struct I915EnginePmuData
+{
+    idx: usize,
+    last_active: u64,
+}
+
+#[derive(Debug)]
+struct I915EnginesPmu
+{
+    pf_evt: PerfEvent,
+    nr_evts: usize,
+    engs_data: Vec<Vec<I915EnginePmuData>>,
+    nr_updates: u64,
+    last_update: time::Instant,
+}
+
+impl I915EnginesPmu
+{
+    fn engs_utilization(&mut self) -> Result<HashMap<String, f64>>
+    {
+        let mut engs_ut = HashMap::new();
+
+        let data = self.pf_evt.read(self.nr_evts + 1)?;
+        let elapsed = self.last_update.elapsed().as_nanos() as u64;
+        self.last_update = time::Instant::now();
+        self.nr_updates += 1;
+
+        for cn in 0..QM_I915_ENGINE_CLASS_TOTAL {
+            let mut acum_active = 0;
+            let mut acum_total = 0;
+
+            for epd in self.engs_data[cn].iter_mut() {
+                let curr_active = data[1 + epd.idx];
+
+                if self.nr_updates >= 2  {
+                    acum_active += curr_active - epd.last_active;
+                    acum_total += elapsed;
+                }
+                epd.last_active = curr_active;
+            }
+
+            let eut = if acum_active == 0 || acum_total == 0 {
+                0.0
+            } else {
+                (acum_active as f64 / acum_total as f64) * 100.0
+            };
+            engs_ut.insert(i915_engine_class_name[cn].to_string(), eut);
+        }
+
+        Ok(engs_ut)
+    }
+}
+
 #[derive(Debug)]
 pub struct DrmDriveri915
 {
@@ -105,6 +183,7 @@ pub struct DrmDriveri915
     freq_limits: Option<Vec<DrmDeviceFreqLimits>>,
     power: Option<Box<dyn GpuPowerIntel>>,
     hwmon: Option<Hwmon>,
+    engs_pmu: Option<I915EnginesPmu>,
 }
 
 impl DrmDriver for DrmDriveri915
@@ -361,6 +440,15 @@ impl DrmDriver for DrmDriveri915
         Ok(cmi)
     }
 
+    fn engs_utilization(&mut self) -> Result<HashMap<String, f64>>
+    {
+        if self.engs_pmu.is_none() {
+            return Ok(HashMap::new());
+        }
+
+        self.engs_pmu.as_mut().unwrap().engs_utilization()
+    }
+
     fn temps(&mut self) -> Result<Vec<DrmDeviceTemperature>>
     {
         if self.hwmon.is_some() {
@@ -382,8 +470,105 @@ impl DrmDriver for DrmDriveri915
 
 impl DrmDriveri915
 {
+    fn engines_info(&self, cpath: &str) -> Result<Vec<I915Engine>>
+    {
+        let engs_dir = Path::new(cpath).join("engine");
+        let mut engs = Vec::new();
+
+        for et in fs::read_dir(&engs_dir)? {
+            let path = et?.path();
+            if !path.is_dir() {
+                continue;
+            }
+
+            let name = fs::read_to_string(path.join("name"))?
+                .trim()
+                .to_string();
+            let class: u16 = fs::read_to_string(path.join("class"))?
+                .trim()
+                .parse()?;
+
+            engs.push(
+                I915Engine {
+                    name,
+                    class,
+                }
+            );
+        }
+
+        Ok(engs)
+    }
+
+    fn init_engines_pmu(&mut self,
+        dtype: &DrmDeviceType, qmd: &DrmDeviceInfo, cpath: &str) -> Result<()>
+    {
+        if !PerfEvent::is_capable() {
+            bail!("No PMU support");
+        }
+
+        let mut src = String::from("i915");
+        if dtype.is_discrete() {
+            src.push_str("_");
+            src.push_str(&qmd.pci_dev);
+        }
+        let src = src.replace(":", "_");
+
+        if !PerfEvent::has_source(&src) {
+            bail!("No PMU source {:?}", &src);
+        }
+
+        let mut pf_evt = PerfEvent::new(&src);
+        let mut pf_attr = perf_event_attr::new();
+        pf_attr.type_ = pf_evt.source_type()?;
+        pf_attr.size = mem::size_of::<perf_event_attr>() as u32;
+        pf_attr.read_format = PERF_FORMAT_GROUP;
+
+        let engs_info = self.engines_info(cpath)?;
+        let mut engs_data = Vec::new();
+        for _ in 0..QM_I915_ENGINE_CLASS_TOTAL {
+            let nvec: Vec<I915EnginePmuData> = Vec::new();
+            engs_data.push(nvec);
+        }
+        let mut idx = 0;
+
+        for eng in engs_info.iter() {
+            let evt_name = format!("{}-busy", &eng.name);
+
+            let evt_unit = pf_evt.event_unit(&evt_name)?;
+            if evt_unit != "ns" {
+                bail!("Event {:?} with unexpected unit {:?} vs \"ns\"",
+                    &evt_name, &evt_unit);
+            }
+
+            pf_attr.config = pf_evt
+                .event_keys_config(&evt_name, &vec!["config"])?["config"];
+            // TODO: check why i915 PMUs only work with CPU 0
+            pf_evt.group_open(&pf_attr, -1, 0, 0)?;
+
+            engs_data[eng.class as usize].push(
+                I915EnginePmuData {
+                    idx,
+                    last_active: 0,
+                }
+            );
+            idx += 1;
+        }
+
+        self.engs_pmu = Some(
+            I915EnginesPmu {
+                pf_evt,
+                nr_evts: idx,
+                engs_data,
+                nr_updates: 0,
+                last_update: time::Instant::now(),
+            }
+        );
+
+        Ok(())
+    }
+
     pub fn new(qmd: &DrmDeviceInfo,
-        _opts: Option<&str>) -> Result<Rc<RefCell<dyn DrmDriver>>>
+        opts: Option<&str>) -> Result<Rc<RefCell<dyn DrmDriver>>>
     {
         let file = File::open(qmd.drm_minors[0].devnode.clone())?;
         let fd = file.as_raw_fd();
@@ -402,6 +587,7 @@ impl DrmDriveri915
             freq_limits: None,
             power: None,
             hwmon: None,
+            engs_pmu: None,
         };
 
         let dtype = i915.dev_type()?;
@@ -417,6 +603,18 @@ impl DrmDriveri915
                 i915.hwmon = hwmon;
             } else {
                 debug!("ERR: no Hwmon support on dGPU: {:?}", hwmon_res);
+            }
+        }
+
+        if let Some(opts_str) = opts {
+            let sep_opts: Vec<&str> = opts_str.split(',').collect();
+            if sep_opts.iter().any(|&o| o == "engines=pmu") {
+                let res = i915.init_engines_pmu(&dtype, qmd, &cpath);
+                if res.is_ok() {
+                    info!("{}: engines PMU initialized", &qmd.pci_dev);
+                } else {
+                    debug!("ERR: failed to enable engines PMU: {:?}", res);
+                }
             }
         }
 
