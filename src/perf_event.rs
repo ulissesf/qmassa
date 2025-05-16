@@ -1038,6 +1038,18 @@ impl PerfEvent
         Ok(nval)
     }
 
+    pub fn event_scale(&self, evt: &str) -> Result<f64>
+    {
+        let sfn = Path::new(QM_PERF_SRC_DIR)
+            .join(&self.src)
+            .join("events")
+            .join(&format!("{}.scale", evt));
+
+        let scale: f64 = fs::read_to_string(&sfn)?.trim().parse()?;
+
+        Ok(scale)
+    }
+
     pub fn event_unit(&self, evt: &str) -> Result<String>
     {
         let ufn = Path::new(QM_PERF_SRC_DIR)
