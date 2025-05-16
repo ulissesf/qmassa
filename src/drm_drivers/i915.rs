@@ -599,7 +599,13 @@ impl DrmDriveri915
         i915.freq_limits()?;
 
         if dtype.is_integrated() {
-            i915.power = IGpuPowerIntel::new()?
+            i915.power = IGpuPowerIntel::new()?;
+            if let Some(po) = &i915.power {
+                info!("{}: rapl power reporting from: {}",
+                    &qmd.pci_dev, po.name());
+            } else {
+                info!("{}: no rapl power reporting", &qmd.pci_dev);
+            }
         } else if dtype.is_discrete() {
             let hwmon_res = Hwmon::from(
                 Path::new(&cpath).join("device/hwmon"));
@@ -609,15 +615,17 @@ impl DrmDriveri915
             } else {
                 debug!("ERR: no Hwmon support on dGPU: {:?}", hwmon_res);
             }
+            info!("{}: Hwmon power reporting: {}", &qmd.pci_dev,
+                if i915.power.is_some() { "OK" } else { "FAILED" });
         }
 
         if let Some(opts_str) = opts {
             let sep_opts: Vec<&str> = opts_str.split(',').collect();
             if sep_opts.iter().any(|&o| o == "engines=pmu") {
                 let res = i915.init_engines_pmu(&dtype, qmd, &cpath);
-                if res.is_ok() {
-                    info!("{}: engines PMU initialized", &qmd.pci_dev);
-                } else {
+                info!("{}: engines PMU init: {}",
+                    &qmd.pci_dev, if res.is_ok() { "OK" } else { "FAILED" });
+                if res.is_err() {
                     debug!("ERR: failed to enable engines PMU: {:?}", res);
                 }
             }

@@ -20,13 +20,15 @@ use crate::drm_devices::DrmDevicePower;
 
 pub trait GpuPowerIntel
 {
+    fn name(&self) -> &str;
+
     fn power_usage(&mut self, hwmon: &Option<Hwmon>) -> Result<DrmDevicePower>;
 }
 
 impl Debug for dyn GpuPowerIntel
 {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-        write!(f, "GpuPowerIntel")
+        write!(f, "GpuPowerIntel({:?})", self.name())
     }
 }
 
@@ -68,6 +70,11 @@ pub struct DGpuPowerIntel
 
 impl GpuPowerIntel for DGpuPowerIntel
 {
+    fn name(&self) -> &str
+    {
+        "dGPU:hwmon"
+    }
+
     fn power_usage(&mut self, hwmon: &Option<Hwmon>) -> Result<DrmDevicePower>
     {
         if self.pwr_func.is_none() {
@@ -351,6 +358,11 @@ pub struct IGpuPowerIntel
 
 impl GpuPowerIntel for IGpuPowerIntel
 {
+    fn name(&self) -> &str
+    {
+        if self.pf_evt.is_some() { "iGPU:perf" } else { "iGPU:MSR" }
+    }
+
     fn power_usage(&mut self, _ign: &Option<Hwmon>) -> Result<DrmDevicePower>
     {
         let gpu_val: u64;
@@ -461,19 +473,23 @@ impl IGpuPowerIntel
         let gpu_scale: f64;
         let pkg_scale: f64;
 
-        if let Ok(tup_res) = IGpuPowerIntel::new_rapl_perf_event() {
+        let pf_res = IGpuPowerIntel::new_rapl_perf_event();
+        if let Ok(tup_res) = pf_res {
             let pf_evt_obj: PerfEvent;
             (pf_evt_obj, gpu_scale, pkg_scale) = tup_res;
             pf_evt = Some(pf_evt_obj);
         } else {
+            debug!("ERR: couldn't get rapl power from perf: {:?}", pf_res);
+
             // fallback to MSR, if possible
-            let tup_res = IGpuPowerIntel::new_rapl_msr();
-            if tup_res.is_err() {
+            let msr_res = IGpuPowerIntel::new_rapl_msr();
+            if msr_res.is_err() {
+                debug!("ERR: couldn't get rapl power from MSR: {:?}", msr_res);
                 return Ok(None);
             }
 
             let msr_obj: MsrIntel;
-            (msr_obj, gpu_scale, pkg_scale) = tup_res.unwrap();
+            (msr_obj, gpu_scale, pkg_scale) = msr_res.unwrap();
             msr = Some(msr_obj);
         }
 

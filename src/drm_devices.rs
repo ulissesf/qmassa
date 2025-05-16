@@ -4,7 +4,7 @@ use std::rc::{Rc, Weak};
 
 use anyhow::{bail, Result};
 use libc;
-use log::{debug, warn};
+use log::{debug, info, warn};
 use serde::{Deserialize, Serialize};
 use udev;
 
@@ -571,6 +571,14 @@ impl DrmDevices
                 dinf.freq_limits = drv_b.freq_limits()?;
                 dinf.driver = Some(drv_ref);
             }
+            info!(
+                "New device: pci_dev={}, vendor_id={}, vendor={:?}, \
+                device_id={}, device={:?}, revision={}, drv_name={}, \
+                dev_type={:?}, drm_minors={:?}",
+                &dinf.pci_dev, &dinf.vendor_id, &dinf.vendor,
+                &dinf.device_id, &dinf.device, &dinf.revision,
+                &dinf.drv_name, &dinf.dev_type, &dinf.drm_minors
+            );
         }
 
         Ok(qmds)
