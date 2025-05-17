@@ -192,11 +192,27 @@ qmassa is tested on some Intel and AMD GPUs but it relies heavily on kernel
 drivers exposing consistent support across GPUs. If you have a problem,
 please file an issue so we can debug it.
 
-#### Limitations
+#### Driver options
+
+The table in this section outlines which drivers in qmassa can be passed
+extra options to control how or from where they report their stats. Options
+are passed to drivers in qmassa's command line as it's shown in the example
+below.
+
+```shell
+sudo qmassa --drv-options xe=<opt1>,<opt2> --drv-options i915=<opt1>
+```
+
+| Driver | Option      | Description                              |
+| ------ | ----------- | ---------------------------------------- |
+| xe     | engines=pmu | Gets overall engine usage from PMU       |
+| i915   | engines=pmu | Gets overall engine usage from PMU       |
+
+#### Driver limitations
 
 * i915: the kernel driver doesn't track/report system memory used.
 * amdgpu: processes using kfd don't report engines and memory usage through
-any open file descriptor of a DRM device node.
+any DRM client fdinfo.
 
 ### Per DRM client (on main screen)
 
