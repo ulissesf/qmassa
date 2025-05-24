@@ -177,13 +177,13 @@ impl DrmDeviceTemperature
         let mut temps = Vec::new();
 
         let slist = hwmon.sensors("temp");
-        for (nr, sensor) in slist.iter().enumerate() {
+        for sensor in slist.iter() {
             if !sensor.has_item("input") {
                 continue;
             }
 
             let name = if sensor.label.is_empty() {
-                format!("{}", nr)
+                format!("{}", &sensor.stype["temp".len()..])
             } else {
                 sensor.label.clone()
             };
@@ -194,6 +194,7 @@ impl DrmDeviceTemperature
                 temp: temp_u64 as f64 / 1000.0,
             });
         }
+        temps.sort_by(|a, b| a.name.cmp(&b.name));
 
         Ok(temps)
     }
@@ -213,13 +214,13 @@ impl DrmDeviceFan
         let mut fans = Vec::new();
 
         let slist = hwmon.sensors("fan");
-        for (nr, sensor) in slist.iter().enumerate() {
+        for sensor in slist.iter() {
             if !sensor.has_item("input") {
                 continue;
             }
 
             let name = if sensor.label.is_empty() {
-                format!("{}", nr)
+                format!("{}", &sensor.stype["fan".len()..])
             } else {
                 sensor.label.clone()
             };
@@ -227,6 +228,7 @@ impl DrmDeviceFan
 
             fans.push(DrmDeviceFan { name, speed, });
         }
+        fans.sort_by(|a, b| a.name.cmp(&b.name));
 
         Ok(fans)
     }
