@@ -351,9 +351,9 @@ impl MainScreen
             lines.push(Line::from(App::short_mem_string(mem_info.vram_rss))
                 .alignment(Alignment::Center));
         }
-        lines.push(Line::from(cli.drm_minor.to_string())
+        lines.push(Line::from(cli.drm_minor().to_string())
             .alignment(Alignment::Center));
-        lines.push(Line::from(cli.client_id.to_string())
+        lines.push(Line::from(cli.client_id().to_string())
             .alignment(Alignment::Center));
 
         let rows = [Row::new(lines),];
@@ -412,7 +412,7 @@ impl MainScreen
         let mut clis_sv_h: u16 = 0;
 
         let model = self.model.borrow();
-        for cli in dinfo.clis_stats.iter() {
+        for cli in dinfo.clients_stats().iter() {
             if cli.is_active || model.args().all_clients {
                 cinfos.push(cli);
                 constrs.push(Constraint::Length(1));
@@ -447,8 +447,8 @@ impl MainScreen
             }
             let sel = cinfos[state.sel_row as usize];
             state.sel_client = Some(DrmClientSelected::new(
-                dinfo.pci_dev.clone(), is_dgfx,
-                sel.pid, sel.drm_minor, sel.client_id));
+                dinfo.pci_dev.clone(), is_dgfx, sel.pid,
+                Some((sel.drm_minor(), sel.client_id()))));
 
             if state.sel_row < y_offset {
                 state.stats_state.scroll_up();
@@ -1302,7 +1302,7 @@ impl MainScreen
             clis_title_area);
 
         // if no DRM clients, nothing more to render
-        if dinfo.clis_stats.is_empty() {
+        if !dinfo.has_clients_stats() {
             return;
         }
 

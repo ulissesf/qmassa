@@ -87,8 +87,7 @@ impl AppDataDeviceStats
 #[derive(Debug, Serialize, Deserialize)]
 pub struct AppDataClientStats
 {
-    pub drm_minor: u32,
-    pub client_id: u32,
+    pub clients: Vec<(u32, u32)>,       // list of (drm_minor, client_id)
     pub pid: u32,
     pub comm: String,
     pub cmdline: String,
@@ -100,6 +99,26 @@ pub struct AppDataClientStats
 
 impl AppDataClientStats
 {
+    pub fn drm_minor(&self) -> u32
+    {
+        self.clients[0].0
+    }
+
+    pub fn client_id(&self) -> u32
+    {
+        self.clients[0].1
+    }
+
+    pub fn client_key(&self) -> (u32, u32)
+    {
+        self.clients[0]
+    }
+
+    pub fn is_single_client(&self) -> bool
+    {
+        self.clients.len() == 1
+    }
+
     fn update_stats(&mut self,
         eng_names: &Vec<String>, cinfo: &DrmClientInfo)
     {
@@ -127,8 +146,7 @@ impl AppDataClientStats
         }
 
         AppDataClientStats {
-            drm_minor: cinfo.drm_minor,
-            client_id: cinfo.client_id,
+            clients: vec![(cinfo.drm_minor, cinfo.client_id)],
             pid: cinfo.proc.pid,
             comm: cinfo.proc.comm.clone(),
             cmdline: cinfo.proc.cmdline.clone(),
@@ -151,17 +169,45 @@ pub struct AppDataDeviceState
     pub eng_names: Vec<String>,
     pub freq_limits: Vec<DrmDeviceFreqLimits>,
     pub dev_stats: AppDataDeviceStats,
-    pub clis_stats: Vec<AppDataClientStats>,
+    clis_stats: Vec<AppDataClientStats>,
 }
 
 impl AppDataDeviceState
 {
+    pub fn find_client_stats(&self,
+        pid: u32, client_key: (u32, u32)) -> Option<&AppDataClientStats>
+    {
+        for cst in self.clis_stats.iter() {
+            if cst.is_single_client() &&
+                cst.pid == pid && cst.client_key() == client_key {
+                return Some(cst);
+            }
+        }
+
+        None
+    }
+
+    pub fn clients_stats(&self) -> Vec<&AppDataClientStats>
+    {
+        let mut cstats = Vec::new();
+        for cst in self.clis_stats.iter() {
+            cstats.push(cst);
+        }
+
+        cstats
+    }
+
+    pub fn has_clients_stats(&self) -> bool
+    {
+        !self.clis_stats.is_empty()
+    }
+
     fn remove_client_stat(&mut self,
         minor: u32, id: u32) -> Option<AppDataClientStats>
     {
         let mut idx = 0;
         for cli_st in &self.clis_stats {
-            if cli_st.drm_minor == minor && cli_st.client_id == id {
+            if cli_st.client_key() == (minor, id) {
                 break;
             }
             idx += 1;

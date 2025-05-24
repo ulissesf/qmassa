@@ -26,21 +26,19 @@ pub struct DrmClientSelected
     pci_dev: String,
     is_dgfx: bool,
     pid: u32,
-    drm_minor: u32,
-    client_id: u32,
+    client_key: Option<(u32, u32)>,
 }
 
 impl DrmClientSelected
 {
     pub fn new(pci_dev: String, is_dgfx: bool,
-        pid: u32, drm_minor: u32, client_id: u32) -> DrmClientSelected
+        pid: u32, client_key: Option<(u32, u32)>) -> DrmClientSelected
     {
         DrmClientSelected {
             pci_dev,
             is_dgfx,
             pid,
-            drm_minor,
-            client_id,
+            client_key,
         }
     }
 }
@@ -112,25 +110,44 @@ impl Screen for DrmClientScreen
     fn draw(&mut self, frame: &mut Frame, tab_area: Rect, main_area: Rect)
     {
         // render tab area with DRM client basic info
-        let widths = vec![Constraint::Fill(1); 4];
-        let rows = [Row::new([
-            Line::from(vec![
-                "PID: ".white().bold(),
-                format!("{}", self.sel.pid).into()])
-            .alignment(Alignment::Center),
-            Line::from(vec![
-                "DEV: ".white().bold(),
-                self.sel.pci_dev.clone().into()])
-            .alignment(Alignment::Center),
-            Line::from(vec![
-                "MINOR: ".white().bold(),
-                format!("{}", self.sel.drm_minor).into()])
-            .alignment(Alignment::Center),
-            Line::from(vec![
-                "CLIENT ID: ".white().bold(),
-                format!("{}", self.sel.client_id).into()])
-            .alignment(Alignment::Center),
-        ])];
+        let widths = if self.sel.client_key.is_some() {
+            vec![Constraint::Fill(1); 4]
+        } else {
+            vec![Constraint::Fill(1); 2]
+        };
+        let rows = if self.sel.client_key.is_some() {
+            let (drm_minor, client_id) =
+                self.sel.client_key.as_ref().unwrap();
+            vec![Row::new([
+                Line::from(vec![
+                    "PID: ".white().bold(),
+                    format!("{}", self.sel.pid).into()])
+                .alignment(Alignment::Center),
+                Line::from(vec![
+                    "DEV: ".white().bold(),
+                    self.sel.pci_dev.clone().into()])
+                .alignment(Alignment::Center),
+                Line::from(vec![
+                    "MINOR: ".white().bold(),
+                    format!("{}", drm_minor).into()])
+                .alignment(Alignment::Center),
+                Line::from(vec![
+                    "ID: ".white().bold(),
+                    format!("{}", client_id).into()])
+                .alignment(Alignment::Center),
+            ])]
+        } else {
+            vec![Row::new([
+                Line::from(vec![
+                    "PID: ".white().bold(),
+                    format!("{}", self.sel.pid).into()])
+                .alignment(Alignment::Center),
+                Line::from(vec![
+                    "DEV: ".white().bold(),
+                    self.sel.pci_dev.clone().into()])
+                .alignment(Alignment::Center),
+            ])]
+        };
         frame.render_widget(Table::new(rows, widths)
             .style(Style::new().white().on_black())
             .column_spacing(1),
@@ -147,14 +164,8 @@ impl Screen for DrmClientScreen
         let model = self.model.borrow();
         let di = model.get_device(&self.sel.pci_dev).unwrap();
 
-        let mut sel_cli: Option<&AppDataClientStats> = None;
-        for cli in di.clis_stats.iter() {
-            if cli.pid == self.sel.pid &&
-                cli.drm_minor == self.sel.drm_minor &&
-                cli.client_id == self.sel.client_id {
-                sel_cli = Some(cli);
-            }
-        }
+        let sel_cli = di.find_client_stats(self.sel.pid,
+            self.sel.client_key.unwrap());
         if sel_cli.is_none() {
             let line = Line::from(vec![
                 ">>>".white().bold().on_red(),
