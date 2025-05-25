@@ -244,7 +244,7 @@ impl Screen for DrmClientScreen
     {
         vec![
             " (←→) Scroll".magenta().bold(),
-            " (< >) Change chart".light_yellow().bold(),
+            " (>) Next chart".light_yellow().bold(),
         ]
     }
 }

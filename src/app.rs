@@ -158,9 +158,9 @@ impl App
 
         let mut st_bar_text = scr.status_bar_text();
         if st_len > 1 {
-            st_bar_text.push(" (Esc) Back".white().bold());
+            st_bar_text.push(" (Esc) Back".light_blue().bold());
         }
-        st_bar_text.push(" (Q) Quit ".white().bold());
+        st_bar_text.push(" (Q)uit ".light_blue().bold());
 
         let instr = Line::from(st_bar_text).style(Style::new().on_black());
 

@@ -293,6 +293,20 @@ impl Screen for MainScreen
                 let mut st = self.dstats_state.borrow_mut();
                 st.req_previous();
             },
+            KeyCode::Char('A') | KeyCode::Char('a') => {
+                let mut model = self.model.borrow_mut();
+                let all_clis = model.args().all_clients;
+                let mut clis_st = self.clis_state.borrow_mut();
+                model.args_mut().all_clients = !all_clis;
+                clis_st.scroll_to_top();
+            },
+            KeyCode::Char('G') | KeyCode::Char('g') => {
+                let mut model = self.model.borrow_mut();
+                let grp_by_pid = model.args().group_by_pid;
+                let mut clis_st = self.clis_state.borrow_mut();
+                model.args_mut().group_by_pid = !grp_by_pid;
+                clis_st.scroll_to_top();
+            },
             KeyCode::Right => {
                 let mut st = self.clis_state.borrow_mut();
                 st.scroll_right();
@@ -327,9 +341,8 @@ impl Screen for MainScreen
     {
         vec![
             " (Tab) Next dev".magenta().bold(),
-            " (< >) Change chart".light_yellow().bold(),
-            " (↑↓←→) Scroll".white().bold(),
-            " (Enter) Select".white().bold(),
+            " (>) Next chart".light_yellow().bold(),
+            " ↑↓←→, Enter, (G)roup by PID, (A)ll clients".white().bold(),
         ]
     }
 }
