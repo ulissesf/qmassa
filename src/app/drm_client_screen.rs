@@ -164,8 +164,16 @@ impl Screen for DrmClientScreen
         let model = self.model.borrow();
         let di = model.get_device(&self.sel.pci_dev).unwrap();
 
-        let sel_cli = di.find_client_stats(self.sel.pid,
-            self.sel.client_key.unwrap());
+        let mut by_pid: Option<AppDataClientStats> = None;
+        if self.sel.client_key.is_none() {
+            by_pid = di.find_pid_client_stats(self.sel.pid);
+        }
+
+        let sel_cli = if self.sel.client_key.is_none() {
+            by_pid.as_ref()
+        } else {
+            di.find_client_stats(self.sel.pid, self.sel.client_key.unwrap())
+        };
         if sel_cli.is_none() {
             let line = Line::from(vec![
                 ">>>".white().bold().on_red(),

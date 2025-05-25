@@ -351,10 +351,12 @@ impl MainScreen
             lines.push(Line::from(App::short_mem_string(mem_info.vram_rss))
                 .alignment(Alignment::Center));
         }
-        lines.push(Line::from(cli.drm_minor().to_string())
-            .alignment(Alignment::Center));
-        lines.push(Line::from(cli.client_id().to_string())
-            .alignment(Alignment::Center));
+        if !self.model.borrow().args().group_by_pid {
+            lines.push(Line::from(cli.drm_minor().to_string())
+                .alignment(Alignment::Center));
+            lines.push(Line::from(cli.client_id().to_string())
+                .alignment(Alignment::Center));
+        }
 
         let rows = [Row::new(lines),];
         Table::new(rows, widths)
@@ -412,7 +414,18 @@ impl MainScreen
         let mut clis_sv_h: u16 = 0;
 
         let model = self.model.borrow();
-        for cli in dinfo.clients_stats().iter() {
+        let mut by_pid: Option<Vec<_>> = None;
+        if model.args().group_by_pid {
+            by_pid = Some(dinfo.clients_stats_by_pid());
+        }
+
+        let clis_list = if model.args().group_by_pid {
+            by_pid.as_ref().unwrap().iter().collect()
+        } else {
+            dinfo.clients_stats()
+        };
+
+        for cli in clis_list.iter() {
             if cli.is_active || model.args().all_clients {
                 cinfos.push(cli);
                 constrs.push(Constraint::Length(1));
@@ -448,7 +461,8 @@ impl MainScreen
             let sel = cinfos[state.sel_row as usize];
             state.sel_client = Some(DrmClientSelected::new(
                 dinfo.pci_dev.clone(), is_dgfx, sel.pid,
-                Some((sel.drm_minor(), sel.client_id()))));
+                if !model.args().group_by_pid {
+                    Some(sel.client_key()) } else { None }));
 
             if state.sel_row < y_offset {
                 state.stats_state.scroll_up();
@@ -463,10 +477,14 @@ impl MainScreen
                 .borders(Borders::NONE)
                 .style(Style::new().on_dark_gray()),
                 hdr_sv_area);
+        let mut pidmem_space = if is_dgfx { 32 } else { 26 };
+        if model.args().group_by_pid {
+            pidmem_space -= 10;
+        }
         let max_engs_width = min(dinfo.eng_names.len() as u16 * 12,
             (visible_area.width as f64 * 0.53) as u16);
         let line_widths = vec![
-            Constraint::Max(if is_dgfx { 32 } else { 26 }),
+            Constraint::Max(pidmem_space),
             Constraint::Length(1),
             Constraint::Max(max_engs_width),
             Constraint::Max(7),
@@ -488,10 +506,12 @@ impl MainScreen
             texts.push(Line::from("VRAM").alignment(Alignment::Center));
             pidmem_widths.push(Constraint::Min(5));
         }
-        texts.push(Line::from("MIN").alignment(Alignment::Center));
-        pidmem_widths.push(Constraint::Min(3));
-        texts.push(Line::from("ID").alignment(Alignment::Center));
-        pidmem_widths.push(Constraint::Min(3));
+        if !model.args().group_by_pid {
+            texts.push(Line::from("MIN").alignment(Alignment::Center));
+            pidmem_widths.push(Constraint::Min(3));
+            texts.push(Line::from("ID").alignment(Alignment::Center));
+            pidmem_widths.push(Constraint::Min(3));
+        }
         hdr_sv.render_widget(Table::new([Row::new(texts)], &pidmem_widths)
             .column_spacing(1)
             .block(Block::new()
@@ -1292,7 +1312,7 @@ impl MainScreen
                     &format!("(PID tree at {}) ", &base_pid));
             }
         }
-        let clis_title = Line::from(vec![clis_title_str.into(),])
+        let clis_title = Line::from(clis_title_str)
             .magenta().bold().on_black();
         frame.render_widget(Block::new()
             .borders(Borders::TOP)

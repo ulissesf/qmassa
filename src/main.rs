@@ -48,13 +48,17 @@ pub struct CliArgs {
     #[arg(short, long, default_value = "1500")]
     ms_interval: u64,
 
+    /// Number of stats updates/iterations
+    #[arg(short, long, default_value = "-1")]
+    nr_iterations: i32,
+
     /// Show all DRM clients [default: only active]
     #[arg(short, long, action = ArgAction::SetTrue)]
     all_clients: bool,
 
-    /// Number of stats updates/iterations
-    #[arg(short, long, default_value = "-1")]
-    nr_iterations: i32,
+    /// Group DRM client stats by PID [default: split by DRM minor & client ID]
+    #[arg(short, long, action = ArgAction::SetTrue)]
+    group_by_pid: bool,
 
     /// Save stats to a JSON file
     #[arg(short, long)]
