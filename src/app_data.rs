@@ -1,12 +1,14 @@
 use core::fmt::Debug;
 use std::collections::{HashMap, HashSet, VecDeque};
 use std::cell::{RefCell, Ref};
+use std::cmp::max;
 use std::fs::{self, File};
 use std::io::{Write, Seek, SeekFrom};
 use std::rc::Rc;
 use std::time;
 
 use anyhow::Result;
+use log::error;
 use serde::{Deserialize, Serialize};
 use serde_json;
 
@@ -84,7 +86,7 @@ impl AppDataDeviceStats
     }
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AppDataClientStats
 {
     pub clients: Vec<(u32, u32)>,       // list of (drm_minor, client_id)
@@ -117,6 +119,89 @@ impl AppDataClientStats
     pub fn is_single_client(&self) -> bool
     {
         self.clients.len() == 1
+    }
+
+    fn acum_mem_info(&mut self, mi: &VecDeque<DrmClientMemInfo>)
+    {
+        let dst_len = self.mem_info.len();
+        let src_len = mi.len();
+        let mut cnt = max(dst_len, src_len);
+
+        let mut new_vmi = VecDeque::new();
+        while cnt > 0 {
+            let mut nmi = DrmClientMemInfo::new();
+
+            if dst_len >= cnt {
+                nmi.acum(&self.mem_info[dst_len - cnt]);
+            }
+            if src_len >= cnt {
+                nmi.acum(&mi[src_len - cnt]);
+            }
+
+            new_vmi.push_back(nmi);
+            cnt -= 1;
+        }
+
+        self.mem_info = new_vmi;
+    }
+
+    fn acum_eng_usage(&mut self, eu: &HashMap<String, VecDeque<f64>>)
+    {
+        let dst_set: HashSet<String> =
+            HashSet::from_iter(self.eng_usage.keys().cloned());
+        let src_set: HashSet<String> = HashSet::from_iter(eu.keys().cloned());
+
+        for new_en in src_set.difference(&dst_set) {
+            self.eng_usage.insert(new_en.clone(), eu[new_en].clone());
+        }
+
+        for en in dst_set.intersection(&src_set) {
+            let dst_len = self.eng_usage[en].len();
+            let src_len = eu[en].len();
+            let mut cnt = max(dst_len, src_len);
+
+            let mut new_veu = VecDeque::new();
+            while cnt > 0 {
+                let mut neu = 0.0;
+
+                if dst_len >= cnt {
+                    neu += self.eng_usage[en][dst_len - cnt];
+                }
+                if src_len >= cnt {
+                    neu += eu[en][src_len - cnt];
+                }
+
+                new_veu.push_back(neu);
+                cnt -= 1;
+            }
+
+            self.eng_usage.remove(en);
+            self.eng_usage.insert(en.clone(), new_veu);
+        }
+    }
+
+    fn acum_stats(&mut self, cli: &AppDataClientStats)
+    {
+        if self.pid != cli.pid ||
+            self.comm != cli.comm ||
+            self.cmdline != cli.cmdline {
+            error!("Trying to acum stats {:?} to {:?}: different processes!",
+                cli, self);
+            return;
+        }
+        if !cli.is_single_client() {
+            error!("Source stats {:?} need to be single DRM client stats",
+                cli);
+            return;
+        }
+
+        self.clients.push(cli.client_key());
+        self.is_active = self.is_active || cli.is_active;
+        if cli.cpu_usage.len() > self.cpu_usage.len() {
+            self.cpu_usage = cli.cpu_usage.clone();
+        }
+        self.acum_mem_info(&cli.mem_info);
+        self.acum_eng_usage(&cli.eng_usage);
     }
 
     fn update_stats(&mut self,
@@ -174,6 +259,46 @@ pub struct AppDataDeviceState
 
 impl AppDataDeviceState
 {
+    pub fn find_pid_client_stats(&self,
+        pid: u32) -> Option<AppDataClientStats>
+    {
+        let mut res: Option<AppDataClientStats> = None;
+
+        for cli in self.clis_stats.iter() {
+            if cli.pid == pid {
+                res = res.map_or_else(
+                    || Some(cli.clone()),
+                    |mut st| { st.acum_stats(cli); Some(st) });
+            }
+        }
+
+        res
+    }
+
+    pub fn clients_stats_by_pid(&self) -> Vec<AppDataClientStats>
+    {
+        let mut st_by_pid: HashMap<u32, AppDataClientStats> = HashMap::new();
+        for cli in self.clis_stats.iter() {
+            if !st_by_pid.contains_key(&cli.pid) {
+                st_by_pid.insert(cli.pid, cli.clone());
+            } else {
+                let st = st_by_pid.get_mut(&cli.pid).unwrap();
+                st.acum_stats(cli);
+            }
+        }
+
+        let mut pid_ord: Vec<_> = st_by_pid.keys().cloned().collect();
+        pid_ord.sort();
+
+        let mut res = Vec::new();
+        for pid in pid_ord.into_iter() {
+            let st = st_by_pid.remove(&pid).unwrap();
+            res.push(st);
+        }
+
+        res
+    }
+
     pub fn find_client_stats(&self,
         pid: u32, client_key: (u32, u32)) -> Option<&AppDataClientStats>
     {
@@ -189,12 +314,7 @@ impl AppDataDeviceState
 
     pub fn clients_stats(&self) -> Vec<&AppDataClientStats>
     {
-        let mut cstats = Vec::new();
-        for cst in self.clis_stats.iter() {
-            cstats.push(cst);
-        }
-
-        cstats
+        self.clis_stats.iter().collect()
     }
 
     pub fn has_clients_stats(&self) -> bool
@@ -357,6 +477,8 @@ pub trait AppData
 
     fn args(&self) -> &CliArgs;
 
+    fn args_mut(&mut self) -> &mut CliArgs;
+
     fn timestamps(&self) -> &VecDeque<u128>;
 
     fn devices(&self) -> &Vec<AppDataDeviceState>;
@@ -386,6 +508,11 @@ impl AppData for AppDataJson
     fn args(&self) -> &CliArgs
     {
         &self.args
+    }
+
+    fn args_mut(&mut self) -> &mut CliArgs
+    {
+        &mut self.args
     }
 
     fn timestamps(&self) -> &VecDeque<u128>
@@ -513,6 +640,11 @@ impl AppData for AppDataLive
     fn args(&self) -> &CliArgs
     {
         &self.args
+    }
+
+    fn args_mut(&mut self) -> &mut CliArgs
+    {
+        &mut self.args
     }
 
     fn timestamps(&self) -> &VecDeque<u128>

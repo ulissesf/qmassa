@@ -53,7 +53,7 @@ impl DrmEngineDelta
     }
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DrmClientMemInfo
 {
     pub smem_used: u64,
@@ -64,6 +64,14 @@ pub struct DrmClientMemInfo
 
 impl DrmClientMemInfo
 {
+    pub fn acum(&mut self, mi: &DrmClientMemInfo)
+    {
+        self.smem_used += mi.smem_used;
+        self.smem_rss += mi.smem_rss;
+        self.vram_used += mi.vram_used;
+        self.vram_rss += mi.vram_rss;
+    }
+
     pub fn new() -> DrmClientMemInfo
     {
         DrmClientMemInfo {
