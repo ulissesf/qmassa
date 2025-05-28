@@ -209,10 +209,10 @@ below.
 sudo qmassa --drv-options xe=<opt1>,<opt2> --drv-options i915=<opt1>
 ```
 
-| Driver | Option      | Description                              |
-| ------ | ----------- | ---------------------------------------- |
-| xe     | [devslot=<PCI slot>],engines=pmu | Gets overall engine usage from PMU. If devslot is passed, it applies only to that device. |
-| i915   | [devslot=<PCI slot>],engines=pmu | Gets overall engine usage from PMU. If devslot is passed, it applies only to that device. |
+| Driver | Option                             | Description |
+| ------ | ---------------------------------- | ----------- |
+| xe     | \[devslot=<PCI slot\>,]engines=pmu | Engine usage from PMU. If devslot is passed, it applies only to that device. |
+| i915   | \[devslot=<PCI slot\>,]engines=pmu | Engine usage from PMU. If devslot is passed, it applies only to that device. |
 
 #### Driver limitations
 
