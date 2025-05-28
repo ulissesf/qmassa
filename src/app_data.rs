@@ -279,12 +279,9 @@ impl AppDataDeviceState
     {
         let mut st_by_pid: HashMap<u32, AppDataClientStats> = HashMap::new();
         for cli in self.clis_stats.iter() {
-            if !st_by_pid.contains_key(&cli.pid) {
-                st_by_pid.insert(cli.pid, cli.clone());
-            } else {
-                let st = st_by_pid.get_mut(&cli.pid).unwrap();
-                st.acum_stats(cli);
-            }
+            st_by_pid.entry(cli.pid)
+                .and_modify(|st| st.acum_stats(cli))
+                .or_insert(cli.clone());
         }
 
         let mut pid_ord: Vec<_> = st_by_pid.keys().cloned().collect();
