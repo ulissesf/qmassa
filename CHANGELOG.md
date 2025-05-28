@@ -1,5 +1,15 @@
 # Changelog
 
+## [v0.7.1](https://github.com/ulissesf/qmassa/releases/tag/v0.7.1) - 2025-05-27
+
+### Features
+
+- Add prefix to temps/fans chart legends. (@ulissesf)
+
+### Fixes
+
+- Show stable and ordered list of Hwmon temps/fans. (@ulissesf)
+
 ## [v0.7.0](https://github.com/ulissesf/qmassa/releases/tag/v0.7.0) - 2025-04-20
 
 ### Features
