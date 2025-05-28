@@ -573,7 +573,7 @@ impl DrmDriveri915
     }
 
     pub fn new(qmd: &DrmDeviceInfo,
-        opts: Option<&str>) -> Result<Rc<RefCell<dyn DrmDriver>>>
+        opts: Option<&Vec<&str>>) -> Result<Rc<RefCell<dyn DrmDriver>>>
     {
         let file = File::open(qmd.drm_minors[0].devnode.clone())?;
         let fd = file.as_raw_fd();
@@ -619,9 +619,29 @@ impl DrmDriveri915
                 if i915.power.is_some() { "OK" } else { "FAILED" });
         }
 
-        if let Some(opts_str) = opts {
-            let sep_opts: Vec<&str> = opts_str.split(',').collect();
-            if sep_opts.iter().any(|&o| o == "engines=pmu") {
+        if let Some(opts_vec) = opts {
+            let mut use_eng_pmu = false;
+
+            for &opts_str in opts_vec.iter() {
+                let sep_opts: Vec<&str> = opts_str.split(',').collect();
+                let mut want_eng_pmu = false;
+                let mut devslot = "all";
+
+                for opt in sep_opts.iter() {
+                    if opt.starts_with("devslot=") {
+                        devslot = &opt["devslot=".len()..];
+                    } else if opt == &"engines=pmu" {
+                        want_eng_pmu = true;
+                    }
+                }
+
+                if want_eng_pmu &&
+                    (devslot == "all" || devslot == qmd.pci_dev) {
+                    use_eng_pmu = true;
+                }
+            }
+
+            if use_eng_pmu {
                 let res = i915.init_engines_pmu(&dtype, qmd, &cpath);
                 info!("{}: engines PMU init: {}",
                     &qmd.pci_dev, if res.is_ok() { "OK" } else { "FAILED" });

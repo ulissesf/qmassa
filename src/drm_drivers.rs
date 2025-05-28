@@ -91,9 +91,9 @@ impl Debug for dyn DrmDriver
 }
 
 pub fn driver_from(qmd: &DrmDeviceInfo,
-    opts: Option<&str>) -> Result<Option<Rc<RefCell<dyn DrmDriver>>>>
+    opts: Option<&Vec<&str>>) -> Result<Option<Rc<RefCell<dyn DrmDriver>>>>
 {
-    let drvs: &[(&str, fn(&DrmDeviceInfo, Option<&str>) -> Result<Rc<RefCell<dyn DrmDriver>>>)] = &[
+    let drvs: &[(&str, fn(&DrmDeviceInfo, Option<&Vec<&str>>) -> Result<Rc<RefCell<dyn DrmDriver>>>)] = &[
         ("xe", DrmDriverXe::new),
         ("i915", DrmDriveri915::new),
         ("amdgpu", DrmDriverAmdgpu::new),

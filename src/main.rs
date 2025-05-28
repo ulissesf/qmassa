@@ -211,11 +211,13 @@ fn run_default_cmd(args: CliArgs) -> Result<()>
         slots_lst = slots_str.split(',').collect();
     }
 
-    let mut drv_opts: HashMap<&str, &str> = HashMap::new();
+    let mut drv_opts: HashMap<&str, Vec<&str>> = HashMap::new();
     if args.drv_options.is_some() {
         for dopt in args.drv_options.as_ref().unwrap().iter() {
             if let Some((drv, opts)) = dopt.split_once('=') {
-                drv_opts.insert(drv, opts);
+                drv_opts.entry(drv)
+                    .and_modify(|vo| vo.push(opts))
+                    .or_insert(vec![opts,]);
             }
         }
     }
