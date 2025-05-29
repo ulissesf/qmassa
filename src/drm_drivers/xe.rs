@@ -127,9 +127,9 @@ const DRM_IOCTL_XE_DEVICE_QUERY: u64 = drm_iowr!(DRM_XE_DEVICE_QUERY,
 #[derive(Debug)]
 struct XeEngine
 {
-    gt_id: u16,
-    class: u16,
-    instance: u16,
+    gt_id: u64,
+    class: u64,
+    instance: u64,
 }
 
 #[derive(Debug)]
@@ -556,9 +556,9 @@ impl DrmDriverXe
         let mut ret = Vec::new();
         for e in engs {
             let ne = XeEngine {
-                gt_id: e.instance.gt_id,
-                class: e.instance.engine_class,
-                instance: e.instance.engine_instance,
+                gt_id: e.instance.gt_id as u64,
+                class: e.instance.engine_class as u64,
+                instance: e.instance.engine_instance as u64,
             };
             ret.push(ne);
         }
@@ -568,14 +568,64 @@ impl DrmDriverXe
         Ok(ret)
     }
 
-    fn init_engines_pmu(&mut self, qmd: &DrmDeviceInfo) -> Result<()>
+    fn parse_eng_pmu_opts(pci_dev: &str, opts_vec: &Vec<&str>) -> (bool, u64)
+    {
+        let mut use_eng_pmu = false;
+        let mut sriov_fn: u64 = 0;  // fn == 0 => PF
+
+        for &opts_str in opts_vec.iter() {
+            let sep_opts: Vec<&str> = opts_str.split(',').collect();
+            let mut want_eng_pmu = false;
+            let mut devslot = "all";
+
+            for opt in sep_opts.iter() {
+                if opt.starts_with("devslot=") {
+                    devslot = &opt["devslot=".len()..];
+                } else if opt.starts_with("engines=pmu") {
+                    let mut mlen = "engines=pmu".len();
+                    if opt.len() > mlen {
+                        let mut valid = true;
+
+                        if !opt[mlen..].starts_with(":sriov_fn=") {
+                            valid = false;
+                        } else {
+                            mlen += ":sriov_fn=".len();
+                            let fn_str = &opt[mlen..];
+                            if let Ok(fn_val) = fn_str.parse::<u64>() {
+                                sriov_fn = fn_val;
+                            } else {
+                                valid = false;
+                            }
+                        }
+
+                        if !valid {
+                            debug!("ERR: wrong engines PMU option: {:?}",
+                                opt);
+                            continue;
+                        }
+                    }
+
+                    want_eng_pmu = true;
+                }
+            }
+
+            if want_eng_pmu &&
+                (devslot == "all" || devslot == pci_dev) {
+                use_eng_pmu = true;
+            }
+        }
+
+        (use_eng_pmu, sriov_fn)
+    }
+
+    fn init_engines_pmu(&mut self, pci_dev: &str, sriov_fn: u64) -> Result<()>
     {
         if !PerfEvent::is_capable() {
             bail!("No PMU support");
         }
 
         let mut src = String::from("xe_");
-        src.push_str(&qmd.pci_dev);
+        src.push_str(pci_dev);
         let src = src.replace(":", "_");
 
         if !PerfEvent::has_source(&src) {
@@ -603,15 +653,17 @@ impl DrmDriverXe
         for eng in engs_info.iter() {
             let eng_act_cfg = pf_evt.format_config(
                 vec![
-                    ("gt", eng.gt_id as u64),
-                    ("engine_class", eng.class as u64),
-                    ("engine_instance", eng.instance as u64)],
+                    ("gt", eng.gt_id),
+                    ("engine_class", eng.class),
+                    ("engine_instance", eng.instance),
+                    ("function", sriov_fn)],
                 act_cfg)?;
             let eng_tot_cfg = pf_evt.format_config(
                 vec![
-                    ("gt", eng.gt_id as u64),
-                    ("engine_class", eng.class as u64),
-                    ("engine_instance", eng.instance as u64)],
+                    ("gt", eng.gt_id),
+                    ("engine_class", eng.class),
+                    ("engine_instance", eng.instance),
+                    ("function", sriov_fn)],
                 tot_cfg)?;
 
             pf_attr.config = eng_act_cfg;
@@ -690,29 +742,10 @@ impl DrmDriverXe
         }
 
         if let Some(opts_vec) = opts {
-            let mut use_eng_pmu = false;
-
-            for &opts_str in opts_vec.iter() {
-                let sep_opts: Vec<&str> = opts_str.split(',').collect();
-                let mut want_eng_pmu = false;
-                let mut devslot = "all";
-
-                for opt in sep_opts.iter() {
-                    if opt.starts_with("devslot=") {
-                        devslot = &opt["devslot=".len()..];
-                    } else if opt == &"engines=pmu" {
-                        want_eng_pmu = true;
-                    }
-                }
-
-                if want_eng_pmu &&
-                    (devslot == "all" || devslot == qmd.pci_dev) {
-                    use_eng_pmu = true;
-                }
-            }
-
+            let (use_eng_pmu, sriov_fn) =
+                DrmDriverXe::parse_eng_pmu_opts(&qmd.pci_dev, opts_vec);
             if use_eng_pmu {
-                let res = xe.init_engines_pmu(qmd);
+                let res = xe.init_engines_pmu(&qmd.pci_dev, sriov_fn);
                 info!("{}: engines PMU init: {}",
                     &qmd.pci_dev, if res.is_ok() { "OK" } else { "FAILED" });
                 if res.is_err() {
