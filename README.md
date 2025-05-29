@@ -200,7 +200,7 @@ please file an issue so we can debug it.
 
 #### Driver options
 
-The table in this section outlines which drivers in qmassa can be passed
+The tables in this section outline which drivers in qmassa can be passed
 extra options to control how or from where they report their stats. Options
 are passed to drivers in qmassa's command line as it's shown in the example
 below.
@@ -209,10 +209,13 @@ below.
 sudo qmassa --drv-options xe=<opt1>,<opt2> --drv-options i915=<opt1>
 ```
 
-| Driver | Option                             | Description |
-| ------ | ---------------------------------- | ----------- |
-| xe     | \[devslot=<PCI slot\>,]engines=pmu | Engine usage from PMU. If devslot is passed, it applies only to that device. |
-| i915   | \[devslot=<PCI slot\>,]engines=pmu | Engine usage from PMU. If devslot is passed, it applies only to that device. |
+| Options for i915                   | Description                           |
+| ---------------------------------- | ------------------------------------- |
+| \[devslot=<PCI slot\>,]engines=pmu | Engine usage from PMU. If devslot is passed, it applies only to that device. |
+
+| Options for xe                     | Description                           |
+| ---------------------------------- | ------------------------------------- |
+| \[devslot=<PCI slot\>,]engines=pmu\[:sriov_fn=<nr\>] | Engine usage from PMU. If devslot is passed, it applies only to that device. If sriov_fn is passed, it monitors that function. (Linux kernel 6.15+) |
 
 #### Driver limitations
 
