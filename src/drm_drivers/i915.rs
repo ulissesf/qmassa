@@ -505,7 +505,7 @@ impl DrmDriveri915
     }
 
     fn init_engines_pmu(&mut self,
-        dtype: &DrmDeviceType, qmd: &DrmDeviceInfo, cpath: &str) -> Result<()>
+        dtype: &DrmDeviceType, pci_dev: &str, cpath: &str) -> Result<()>
     {
         if !PerfEvent::is_capable() {
             bail!("No PMU support");
@@ -514,7 +514,7 @@ impl DrmDriveri915
         let mut src = String::from("i915");
         if dtype.is_discrete() {
             src.push_str("_");
-            src.push_str(&qmd.pci_dev);
+            src.push_str(pci_dev);
         }
         let src = src.replace(":", "_");
 
@@ -642,7 +642,7 @@ impl DrmDriveri915
             }
 
             if use_eng_pmu {
-                let res = i915.init_engines_pmu(&dtype, qmd, &cpath);
+                let res = i915.init_engines_pmu(&dtype, &qmd.pci_dev, &cpath);
                 info!("{}: engines PMU init: {}",
                     &qmd.pci_dev, if res.is_ok() { "OK" } else { "FAILED" });
                 if res.is_err() {
