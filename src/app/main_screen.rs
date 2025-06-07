@@ -120,6 +120,9 @@ impl DeviceStatsState
     fn exec_req(&mut self, nr_charts: &Vec<u8>)
     {
         if self.req_op < 0 {
+            if nr_charts[self.sel as usize] == 0 {
+                self.exec_next(nr_charts);
+            }
             return;
         }
 
