@@ -568,10 +568,29 @@ impl DrmDriverXe
         Ok(ret)
     }
 
+    fn sriov_pf_dev_from(pci_dev: &str) -> String
+    {
+        // assumes PF == 0 on Intel GPUs with Xe KMD
+        format!("{}.0", &pci_dev[..pci_dev.find(".").unwrap()])
+    }
+
+    fn sriov_fn_from(pci_dev: &str) -> Result<u64>
+    {
+        // getting fn directly from PCI slot name
+        Ok(pci_dev[pci_dev.find(".").unwrap() + 1..].parse()?)
+    }
+
     fn parse_eng_pmu_opts(pci_dev: &str, opts_vec: &Vec<&str>) -> (bool, u64)
     {
+        let sriov_fn = DrmDriverXe::sriov_fn_from(pci_dev);
+        if let Err(err) = sriov_fn {
+            debug!("ERR: failed getting SR-IOV fn from {:?}: {}",
+                pci_dev, err);
+            return (false, 0);
+        }
+
+        let sriov_fn = sriov_fn.unwrap();
         let mut use_eng_pmu = false;
-        let mut sriov_fn: u64 = 0;  // fn == 0 => PF
 
         for &opts_str in opts_vec.iter() {
             let sep_opts: Vec<&str> = opts_str.split(',').collect();
@@ -581,30 +600,7 @@ impl DrmDriverXe
             for opt in sep_opts.iter() {
                 if opt.starts_with("devslot=") {
                     devslot = &opt["devslot=".len()..];
-                } else if opt.starts_with("engines=pmu") {
-                    let mut mlen = "engines=pmu".len();
-                    if opt.len() > mlen {
-                        let mut valid = true;
-
-                        if !opt[mlen..].starts_with(":sriov_fn=") {
-                            valid = false;
-                        } else {
-                            mlen += ":sriov_fn=".len();
-                            let fn_str = &opt[mlen..];
-                            if let Ok(fn_val) = fn_str.parse::<u64>() {
-                                sriov_fn = fn_val;
-                            } else {
-                                valid = false;
-                            }
-                        }
-
-                        if !valid {
-                            debug!("ERR: wrong engines PMU option: {:?}",
-                                opt);
-                            continue;
-                        }
-                    }
-
+                } else if opt == &"engines=pmu" {
                     want_eng_pmu = true;
                 }
             }
@@ -625,7 +621,7 @@ impl DrmDriverXe
         }
 
         let mut src = String::from("xe_");
-        src.push_str(pci_dev);
+        src.push_str(&DrmDriverXe::sriov_pf_dev_from(pci_dev));
         let src = src.replace(":", "_");
 
         if !PerfEvent::has_source(&src) {

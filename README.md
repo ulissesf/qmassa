@@ -215,7 +215,7 @@ sudo qmassa --drv-options xe=<opt1>,<opt2> --drv-options i915=<opt1>
 
 | Options for xe                     | Description                           |
 | ---------------------------------- | ------------------------------------- |
-| \[devslot=<PCI slot\>,]engines=pmu\[:sriov_fn=<nr\>] | Engine usage from PMU. If devslot is passed, it applies only to that device. If sriov_fn is passed, it monitors that function. (Linux kernel 6.15+) |
+| \[devslot=<PCI slot\>,]engines=pmu | Engine usage from PMU. If devslot is passed, it applies only to that device. It gets the SR-IOV function (PF or VF) from the PCI slot name. (Linux kernel 6.15+) |
 
 #### Driver limitations
 
