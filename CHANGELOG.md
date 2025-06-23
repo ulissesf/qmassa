@@ -1,5 +1,22 @@
 # Changelog
 
+## [v1.0.0](https://github.com/ulissesf/qmassa/releases/tag/v1.0.0) - 2025-06-22
+
+### Features
+
+- SR-IOV support for Intel Xe DrmDriver PMU engine utilization reporting. (@ulissesf)
+- TUI toggles to list all DRM clients and grouped by PID. (@ulissesf)
+- TUI option to display DRM clients grouped by PID. (@ulissesf)
+- Intel i915 & Xe DrmDrivers expose engines utlization from PMU. (@ulissesf)
+- DrmDrivers can receive command-line options. (@ulissesf)
+- DrmDrivers can report engines utilization instead of system's DRM fdinfo. (@ulissesf)
+- Add prefix to temps/fans chart legends. (@ulissesf)
+
+### Fixes
+
+- Don't crash when no GPU frequencies are reported. (@ulissesf)
+- Show stable and ordered list of Hwmon temps/fans. (@ulissesf)
+
 ## [v0.7.0](https://github.com/ulissesf/qmassa/releases/tag/v0.7.0) - 2025-04-20
 
 ### Features
