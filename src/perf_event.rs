@@ -1028,7 +1028,7 @@ impl PerfEvent
     }
 
     pub fn format_config(&self,
-        ops: Vec<(&str, u64)>, val: u64) -> Result<u64>
+        ops: &Vec<(&str, u64)>, val: u64) -> Result<u64>
     {
         let mut nval = val;
         for (param, pval) in ops.iter() {
@@ -1036,6 +1036,15 @@ impl PerfEvent
         }
 
         Ok(nval)
+    }
+
+    pub fn has_format_param(&self, param: &str) -> bool
+    {
+        Path::new(QM_PERF_SRC_DIR)
+            .join(&self.src)
+            .join("format")
+            .join(param)
+            .is_file()
     }
 
     pub fn event_scale(&self, evt: &str) -> Result<f64>

@@ -637,6 +637,7 @@ impl DrmDriverXe
         let cpu: i32 = unsafe { libc::sched_getcpu() };
         let act_cfg = pf_evt.event_config("engine-active-ticks")?;
         let tot_cfg = pf_evt.event_config("engine-total-ticks")?;
+        let has_sriov = pf_evt.has_format_param("function");
 
         let engs_info = self.engines_info()?;
         let mut engs_data = Vec::new();
@@ -647,20 +648,17 @@ impl DrmDriverXe
         let mut idx = 0;
 
         for eng in engs_info.iter() {
-            let eng_act_cfg = pf_evt.format_config(
-                vec![
-                    ("gt", eng.gt_id),
-                    ("engine_class", eng.class),
-                    ("engine_instance", eng.instance),
-                    ("function", sriov_fn)],
-                act_cfg)?;
-            let eng_tot_cfg = pf_evt.format_config(
-                vec![
-                    ("gt", eng.gt_id),
-                    ("engine_class", eng.class),
-                    ("engine_instance", eng.instance),
-                    ("function", sriov_fn)],
-                tot_cfg)?;
+            let mut params = vec![
+                ("gt", eng.gt_id),
+                ("engine_class", eng.class),
+                ("engine_instance", eng.instance),
+            ];
+            if has_sriov {
+                params.push(("function", sriov_fn));
+            }
+
+            let eng_act_cfg = pf_evt.format_config(&params, act_cfg)?;
+            let eng_tot_cfg = pf_evt.format_config(&params, tot_cfg)?;
 
             pf_attr.config = eng_act_cfg;
             pf_evt.group_open(&pf_attr, -1, cpu, 0)?;
