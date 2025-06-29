@@ -1,5 +1,11 @@
 # Changelog
 
+## [v1.0.1](https://github.com/ulissesf/qmassa/releases/tag/v1.0.1) - 2025-06-28
+
+### Fixes
+
+- Fix engines PMU with Xe driver when GPU doesn't support SR-IOV. (@ulissesf)
+
 ## [v1.0.0](https://github.com/ulissesf/qmassa/releases/tag/v1.0.0) - 2025-06-22
 
 ### Features
