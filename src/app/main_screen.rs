@@ -340,7 +340,7 @@ impl Screen for MainScreen
         None
     }
 
-    fn status_bar_text(&mut self) -> Vec<Span>
+    fn status_bar_text(&mut self) -> Vec<Span<'_>>
     {
         vec![
             " (Tab) Next dev".magenta().bold(),
@@ -353,7 +353,7 @@ impl Screen for MainScreen
 impl MainScreen
 {
     fn client_pidmem(&self, cli: &AppDataClientStats,
-        is_dgfx: bool, widths: &Vec<Constraint>) -> Table
+        is_dgfx: bool, widths: &Vec<Constraint>) -> Table<'_>
     {
         let mem_info = cli.mem_info.back().unwrap();
 
@@ -398,7 +398,7 @@ impl MainScreen
         }
     }
 
-    fn client_cpu_usage(&self, cli: &AppDataClientStats) -> Gauge
+    fn client_cpu_usage(&self, cli: &AppDataClientStats) -> Gauge<'_>
     {
         let cpu = *cli.cpu_usage.back().unwrap();
         let label_str = if cpu > 999.9 {
@@ -411,7 +411,7 @@ impl MainScreen
         App::gauge_colored_from(label, cpu/100.0)
     }
 
-    fn client_cmd(&self, cli: &AppDataClientStats) -> Line
+    fn client_cmd(&self, cli: &AppDataClientStats) -> Line<'_>
     {
         Line::from(format!("[{}] {}", &cli.comm, &cli.cmdline))
             .alignment(Alignment::Left)

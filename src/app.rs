@@ -37,7 +37,7 @@ pub trait Screen
 
     fn handle_key_event(&mut self, key_event: KeyEvent) -> Option<ScreenAction>;
 
-    fn status_bar_text(&mut self) -> Vec<Span>;
+    fn status_bar_text(&mut self) -> Vec<Span<'_>>;
 }
 
 impl Debug for dyn Screen

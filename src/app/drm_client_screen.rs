@@ -240,7 +240,7 @@ impl Screen for DrmClientScreen
         None
     }
 
-    fn status_bar_text(&mut self) -> Vec<Span>
+    fn status_bar_text(&mut self) -> Vec<Span<'_>>
     {
         vec![
             " (←→) Scroll".magenta().bold(),
