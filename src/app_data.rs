@@ -2,13 +2,13 @@ use core::fmt::Debug;
 use std::collections::{HashMap, HashSet, VecDeque};
 use std::cell::{RefCell, Ref};
 use std::cmp::max;
-use std::fs::{self, File};
-use std::io::{Write, Seek, SeekFrom};
+use std::fs::File;
+use std::io::{BufRead, BufReader, Write};
 use std::rc::Rc;
 use std::time;
 
-use anyhow::Result;
-use log::error;
+use anyhow::{bail, Result};
+use log::{error, info};
 use serde::{Deserialize, Serialize};
 use serde_json;
 
@@ -492,12 +492,12 @@ impl Debug for dyn AppData
     }
 }
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug)]
 pub struct AppDataJson
 {
-    version: String,
     args: CliArgs,
     states: VecDeque<AppDataState>,
+    freader: BufReader<File>,
 }
 
 impl AppData for AppDataJson
@@ -541,11 +541,15 @@ impl AppData for AppDataJson
 
     fn refresh(&mut self) -> Result<bool>
     {
-        self.states.pop_front();
-        if self.states.is_empty() {
-            // End of JSON data!
+        let curr = self.next_state()?;
+        if curr.is_none() {
+            // End of JSON data
             return Ok(false);
         }
+        let curr = curr.unwrap();
+
+        self.states.pop_front();
+        self.states.push_back(curr);
 
         Ok(true)
     }
@@ -563,21 +567,64 @@ impl AppDataJson
         self.states.is_empty()
     }
 
-    fn new(args: CliArgs) -> AppDataJson
+    fn next_state(&mut self) -> Result<Option<AppDataState>>
     {
-        AppDataJson {
-            version: env!("CARGO_PKG_VERSION").to_string(),
-            args,
-            states: VecDeque::new(),
+        // try to read and deserialize one more state from JSON
+        let mut buf = String::new();
+        if self.freader.read_line(&mut buf)? == 0 {
+            // End of JSON file!
+            return Ok(None);
+        }
+
+        let curr: AppDataState = serde_json::from_str(&buf)?;
+
+        Ok(Some(curr))
+    }
+
+    pub fn load_states(&mut self) -> Result<()>
+    {
+        loop {
+            let curr = self.next_state()?;
+            if curr.is_none() {
+                return Ok(());
+            }
+            let curr = curr.unwrap();
+
+            self.states.push_back(curr);
         }
     }
 
     pub fn from(json_fname: &str) -> Result<AppDataJson>
     {
-        let json_str = fs::read_to_string(json_fname)?;
-        let res: AppDataJson = serde_json::from_str(&json_str)?;
+        let file = File::open(json_fname)?;
+        let mut freader = BufReader::new(file);
 
-        Ok(res)
+        let mut buf = String::new();
+        if freader.read_line(&mut buf)? == 0 {
+            bail!("Invalid JSON {}: no version information", json_fname);
+        }
+        let version: String = serde_json::from_str(&buf)?;
+
+        let wanted = env!("CARGO_PKG_VERSION");
+        if version != wanted {
+            bail!("Incompatible version in JSON {:?}: expected {}, got {}.",
+                json_fname, wanted, version);
+        }
+
+        buf.clear();
+        if freader.read_line(&mut buf)? == 0 {
+            bail!("Invalid JSON {}: no args information", json_fname);
+        }
+        let args: CliArgs = serde_json::from_str(&buf)?;
+
+        info!("Opened JSON {:?}: version {}, arguments {:?}",
+            json_fname, &version, &args);
+
+        Ok(AppDataJson {
+            args,
+            states: VecDeque::new(),
+            freader,
+        })
     }
 }
 
@@ -589,7 +636,6 @@ pub struct AppDataLive
     state: AppDataState,
     start_time: time::Instant,
     json: Option<File>,
-    is_json_initial: bool,
 }
 
 impl AppData for AppDataLive
@@ -597,19 +643,19 @@ impl AppData for AppDataLive
     fn start_json_file(&mut self) -> Result<()>
     {
         if let Some(fname) = &self.args.to_json {
-            // create JSON structure, drop saving to JSON & no TUI options
+            // drop saving to JSON & no TUI options
             let mut args = self.args.clone();
             args.to_json = None;
             args.no_tui = false;
-            let jd = AppDataJson::new(args);
 
             // create file and write initial JSON
             let mut jf = File::create(fname)?;
-            serde_json::to_writer_pretty(&mut jf, &jd)?;
+            serde_json::to_writer(&mut jf, env!("CARGO_PKG_VERSION"))?;
+            writeln!(jf)?;
+            serde_json::to_writer(&mut jf, &args)?;
             writeln!(jf)?;
 
             self.json = Some(jf);
-            self.is_json_initial = true;
         }
 
         Ok(())
@@ -618,17 +664,8 @@ impl AppData for AppDataLive
     fn update_json_file(&mut self) -> Result<()>
     {
         if let Some(jf) = &mut self.json {
-            // overwrite last 4 bytes ("]\n}\n") with new state
-            jf.seek(SeekFrom::End(-4))?;
-            if !self.is_json_initial {
-                writeln!(jf, ",")?;
-            }
-            serde_json::to_writer_pretty(&mut *jf, &self.state)?;
-
-            // make it a valid JSON again
-            writeln!(jf, "]\n}}")?;
-
-            self.is_json_initial = false;
+            serde_json::to_writer(&mut *jf, &self.state)?;
+            writeln!(jf)?;
         }
 
         Ok(())
@@ -718,7 +755,6 @@ impl AppDataLive
             state: AppDataState::new(),
             start_time: time::Instant::now(),
             json: None,
-            is_json_initial: true,
         }
     }
 }

@@ -123,10 +123,7 @@ fn run_replay_cmd(args: ReplayArgs) -> Result<()>
 {
     // get app data from JSON file
     let jsondata = AppDataJson::from(&args.json_file)
-        .context("Failed to load data from JSON file")?;
-    if jsondata.is_empty() {
-        bail!("JSON file is empty!");
-    }
+        .context("Failed to open valid JSON file")?;
 
     // create tui app and run the mainloop
     let mut app = App::from(Rc::new(RefCell::new(jsondata)));
@@ -140,8 +137,10 @@ fn run_plot_cmd(args: PlotArgs) -> Result<()>
     println!("qmassa: Plotting charts from {:?}", args.json_file);
 
     // get app data from JSON file
-    let jsondata = AppDataJson::from(&args.json_file)
-        .context("Failed to load data from JSON file")?;
+    let mut jsondata = AppDataJson::from(&args.json_file)
+        .context("Failed to open valid JSON file")?;
+
+    jsondata.load_states()?;
     if jsondata.is_empty() {
         bail!("JSON file is empty!");
     }
