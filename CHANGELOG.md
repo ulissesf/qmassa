@@ -1,5 +1,16 @@
 # Changelog
 
+## [v1.1.0](https://github.com/ulissesf/qmassa/releases/tag/v1.1.0) - 2025-11-02
+
+### Features
+
+- Optimize JSON output for improved stream processing. (@ulissesf)
+
+### Fixes
+
+- Fix Rust 1.89 lifetime ellision warnings. (@ulissesf)
+- Fix engines PMU with Xe driver when GPU doesn't support SR-IOV. (@ulissesf)
+
 ## [v1.0.0](https://github.com/ulissesf/qmassa/releases/tag/v1.0.0) - 2025-06-22
 
 ### Features

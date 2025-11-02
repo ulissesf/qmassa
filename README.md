@@ -160,7 +160,8 @@ but if you save the stats to a JSON file you can get them all in bytes.
 VRAM data is only displayed for discrete GPUs.
 
 The overall engines usage depends on the DRM clients that the user has
-access to. In order to have a system view, please run qmassa as root.
+access to. They're calculated by adding up the usage from all the visible
+DRM clients. Thus, in order to have a system view, please run qmassa as root.
 
 The frequency graphs range from min to max values and plot the instant
 driver-requested (if supported) and actual device/engines frequency for
