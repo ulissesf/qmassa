@@ -12,6 +12,7 @@ use std::mem;
 use std::io;
 
 use anyhow::Result;
+use libc::Ioctl;
 use log::{debug, warn};
 
 use crate::drm_drivers::DrmDriver;
@@ -300,8 +301,8 @@ impl drm_amdgpu_info
     }
 }
 
-const DRM_AMDGPU_INFO: u64 = 0x05;
-const DRM_IOCTL_AMDGPU_INFO: u64 = drm_iow!(DRM_AMDGPU_INFO,
+const DRM_AMDGPU_INFO: Ioctl = 0x05;
+const DRM_IOCTL_AMDGPU_INFO: Ioctl = drm_iow!(DRM_AMDGPU_INFO,
     mem::size_of::<drm_amdgpu_info>());
 
 #[derive(Debug)]

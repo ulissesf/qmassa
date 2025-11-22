@@ -13,7 +13,7 @@ use std::mem;
 use std::io;
 
 use anyhow::{bail, Result};
-use libc;
+use libc::{self, Ioctl};
 use log::{debug, info, warn};
 
 use crate::perf_event::{perf_event_attr, PERF_FORMAT_GROUP, PerfEvent};
@@ -120,8 +120,8 @@ const DRM_XE_DEVICE_QUERY_ENGINES: u32 = 0;
 const DRM_XE_DEVICE_QUERY_MEM_REGIONS: u32 = 1;
 const DRM_XE_DEVICE_QUERY_CONFIG: u32 = 2;
 
-const DRM_XE_DEVICE_QUERY: u64 = 0x00;
-const DRM_IOCTL_XE_DEVICE_QUERY: u64 = drm_iowr!(DRM_XE_DEVICE_QUERY,
+const DRM_XE_DEVICE_QUERY: Ioctl = 0x00;
+const DRM_IOCTL_XE_DEVICE_QUERY: Ioctl = drm_iowr!(DRM_XE_DEVICE_QUERY,
     mem::size_of::<drm_xe_device_query>());
 
 #[derive(Debug)]

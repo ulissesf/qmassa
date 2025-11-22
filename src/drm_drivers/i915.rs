@@ -14,6 +14,7 @@ use std::mem;
 use std::io;
 
 use anyhow::{bail, Result};
+use libc::Ioctl;
 use log::{debug, info, warn};
 
 use crate::perf_event::{perf_event_attr, PERF_FORMAT_GROUP, PerfEvent};
@@ -93,8 +94,8 @@ struct drm_i915_query {
     items_ptr: u64,
 }
 
-const DRM_I915_QUERY: u64 = 0x39;
-const DRM_IOCTL_I915_QUERY: u64 = drm_iowr!(DRM_I915_QUERY,
+const DRM_I915_QUERY: Ioctl = 0x39;
+const DRM_IOCTL_I915_QUERY: Ioctl = drm_iowr!(DRM_I915_QUERY,
     mem::size_of::<drm_i915_query>());
 
 const I915_ENGINE_CLASS_RENDER: u16 = 0;

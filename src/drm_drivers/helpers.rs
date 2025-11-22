@@ -2,10 +2,12 @@
 #![allow(non_camel_case_types)]
 #![allow(non_upper_case_globals)]
 
+use libc::Ioctl;
+
 
 // helpers for generating DRM IOCTL request codes
-pub const DRM_IOCTL_BASE: u64 = 'd' as u64;
-pub const DRM_COMMAND_BASE: u64 = 0x40;
+pub const DRM_IOCTL_BASE: Ioctl = 'd' as Ioctl;
+pub const DRM_COMMAND_BASE: Ioctl = 0x40;
 
 macro_rules! drm_iow
 {
