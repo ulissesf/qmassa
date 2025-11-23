@@ -9,6 +9,7 @@ use log::{debug, warn};
 use libc;
 
 use crate::drm_fdinfo::DrmFdinfo;
+use crate::drm_devices::sysname_from_drm_minor;
 
 
 thread_local! {
@@ -166,12 +167,20 @@ impl ProcInfo
                 debug!("ERR: failed to parse DRM fdinfo {:?}: {:?}", fipath, err);
                 continue;
             }
-            let finfo = finfo.unwrap();
+            let mut finfo = finfo.unwrap();
 
             if finfo.pci_dev.is_empty() {
-                debug!("INF: DRM fdinfo {:?} with no PCI dev, ignoring.",
+                debug!("INF: no PCI dev in DRM fdinfo {:?}, trying to find sysname.",
                     fipath);
-                continue;
+                let sysname = sysname_from_drm_minor(finfo.drm_minor);
+                if let Err(err) = sysname {
+                    debug!("ERR: failed to find sysname for DRM fdinfo {:?} with DRM minor {:?}: {:?}, skipping it.",
+                    fipath, finfo.drm_minor, err);
+                    continue;
+                }
+                finfo.pci_dev = sysname.unwrap();
+                debug!("INF: found sysname {:?} for DRM fdinfo {:?}.",
+                    &finfo.pci_dev, fipath);
             }
 
             res.push(finfo);

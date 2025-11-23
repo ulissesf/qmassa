@@ -412,8 +412,12 @@ impl AppDataDeviceState
 
         AppDataDeviceState {
             pci_dev: dinfo.pci_dev.clone(),
-            vdr_dev_rev: format!("{} {} (rev {})",
-                dinfo.vendor, dinfo.device, dinfo.revision),
+            vdr_dev_rev: if !dinfo.vendor.is_empty() {
+                format!("{} {} (rev {})",
+                    dinfo.vendor, dinfo.device, dinfo.revision)
+            } else {
+                dinfo.pci_dev.clone()
+            },
             dev_type: dinfo.dev_type.clone(),
             drv_name: dinfo.drv_name.clone(),
             dev_nodes: dnodes,

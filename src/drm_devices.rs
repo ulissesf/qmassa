@@ -1,5 +1,7 @@
 use std::collections::{HashMap, HashSet};
 use std::cell::RefCell;
+use std::fs;
+use std::path::Path;
 use std::rc::{Rc, Weak};
 
 use anyhow::{bail, Result};
@@ -244,7 +246,7 @@ pub struct DrmMinorInfo
 
 impl DrmMinorInfo
 {
-    pub fn from(devnode: &String, devnum: u64) -> Result<DrmMinorInfo>
+    fn from(devnode: String, devnum: u64) -> Result<DrmMinorInfo>
     {
         let mj = libc::major(devnum);
         let mn = libc::minor(devnum);
@@ -255,7 +257,7 @@ impl DrmMinorInfo
         }
 
         Ok(DrmMinorInfo {
-            devnode: devnode.clone(),
+            devnode: devnode,
             drm_minor: mn,
         })
     }
@@ -512,35 +514,47 @@ impl DrmDevices
 
         for d in enumerator.scan_devices()? {
             let pdev = d.parent().unwrap();
-            let sysname = String::from(pdev.sysname().to_str().unwrap());
+            let sysname = pdev.sysname().to_str().unwrap().to_string();
 
             if !dev_slots.is_empty() &&
                 !dev_slots.iter().any(|&ds| ds == sysname) {
                 continue;
             }
 
+            let vendor_id: String;
+            let vendor: String;
+            let device_id: String;
+            let device: String;
+            let revision: String;
+
             if !qmds.infos.contains_key(&sysname) {
-                let pciid = if let Some(pciid) = pdev.property_value("PCI_ID") {
-                    pciid.to_str().unwrap()
+                if let Some(pciid) = pdev.property_value("PCI_ID") {
+                    let pciid = pciid.to_str().unwrap();
+
+                    vendor_id = String::from(&pciid[0..4]);
+                    vendor = DrmDevices::find_vendor(&vendor_id);
+
+                    device_id = String::from(&pciid[5..9]);
+                    device = DrmDevices::find_device(&vendor_id, &device_id);
+
+                    let rev_str = pdev.attribute_value("revision")
+                        .unwrap().to_str().unwrap();
+                    revision = if rev_str.starts_with("0x") {
+                        String::from(&rev_str[2..])
+                    } else {
+                        String::from(rev_str)
+                    };
                 } else {
-                    debug!("INF: Ignoring device without PCI_ID: {:?}",
-                        pdev.syspath());
-                    continue;
+                    // not a PCI device
+                    vendor_id = String::new();
+                    vendor = String::new();
+                    device_id = String::new();
+                    device = String::new();
+                    revision = String::new();
                 };
 
-                let vendor_id = String::from(&pciid[0..4]);
-                let vendor = DrmDevices::find_vendor(&vendor_id);
-                let device_id = String::from(&pciid[5..9]);
-                let device = DrmDevices::find_device(&vendor_id, &device_id);
-                let revision = pdev.attribute_value("revision")
-                    .unwrap().to_str().unwrap();
-                let revision = if revision.starts_with("0x") {
-                    String::from(&revision[2..])
-                } else {
-                    String::from(revision)
-                };
-                let drv_name = String::from(pdev.driver()
-                    .unwrap().to_str().unwrap());
+                let drv_name = pdev.driver().unwrap()
+                    .to_str().unwrap().to_string();
 
                 let ndinf = DrmDeviceInfo {
                     pci_dev: sysname.clone(),
@@ -555,9 +569,9 @@ impl DrmDevices
                 qmds.infos.insert(sysname.clone(), ndinf);
             }
 
-            let devnode = String::from(d.devnode().unwrap().to_str().unwrap());
+            let devnode = d.devnode().unwrap().to_str().unwrap().to_string();
             let devnum = d.devnum().unwrap();
-            let minf = DrmMinorInfo::from(&devnode, devnum)?;
+            let minf = DrmMinorInfo::from(devnode, devnum)?;
 
             let dinf = qmds.infos.get_mut(&sysname).unwrap();
             dinf.drm_minors.push(minf);
@@ -585,4 +599,24 @@ impl DrmDevices
 
         Ok(qmds)
     }
+}
+
+pub fn sysname_from_drm_minor(mn: u32) -> Result<String>
+{
+    let card = format!("/sys/class/drm/card{}", mn);
+    let render = format!("/sys/class/drm/renderD{}", mn);
+
+    let lnk = if Path::new(&card).is_symlink() {
+        &card
+    } else if Path::new(&render).is_symlink() {
+        &render
+    } else {
+        bail!("No device for DRM minor {:?} in /sys/class/drm", mn);
+    };
+
+    let sysname = fs::read_link(Path::new(lnk).join("device"))?
+        .file_name().unwrap()
+        .to_str().unwrap().to_string();
+
+    Ok(sysname)
 }
