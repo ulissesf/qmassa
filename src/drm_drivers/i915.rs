@@ -614,7 +614,8 @@ impl DrmDriveri915
                 i915.power = DGpuPowerIntel::from(hwmon.as_ref().unwrap())?;
                 i915.hwmon = hwmon;
             } else {
-                debug!("ERR: no Hwmon support on dGPU: {:?}", hwmon_res);
+                debug!("{}: ERR: no Hwmon support on dGPU: {:?}",
+                    &qmd.pci_dev, hwmon_res);
             }
             info!("{}: Hwmon power reporting: {}", &qmd.pci_dev,
                 if i915.power.is_some() { "OK" } else { "FAILED" });
@@ -647,7 +648,8 @@ impl DrmDriveri915
                 info!("{}: engines PMU init: {}",
                     &qmd.pci_dev, if res.is_ok() { "OK" } else { "FAILED" });
                 if res.is_err() {
-                    debug!("ERR: failed to enable engines PMU: {:?}", res);
+                    debug!("{}: ERR: failed to enable engines PMU: {:?}",
+                        &qmd.pci_dev, res);
                 }
             }
         }

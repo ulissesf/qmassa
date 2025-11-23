@@ -729,7 +729,8 @@ impl DrmDriverXe
                 xe.power = DGpuPowerIntel::from(hwmon.as_ref().unwrap())?;
                 xe.hwmon = hwmon;
             } else {
-                debug!("ERR: no Hwmon support on dGPU: {:?}", hwmon_res);
+                debug!("{}: ERR: no Hwmon support on dGPU: {:?}",
+                    &qmd.pci_dev, hwmon_res);
             }
             info!("{}: Hwmon power reporting: {}", &qmd.pci_dev,
                 if xe.power.is_some() { "OK" } else { "FAILED" });
@@ -743,7 +744,8 @@ impl DrmDriverXe
                 info!("{}: engines PMU init: {}",
                     &qmd.pci_dev, if res.is_ok() { "OK" } else { "FAILED" });
                 if res.is_err() {
-                    debug!("ERR: failed to enable engines PMU: {:?}", res);
+                    debug!("{}: ERR: failed to enable engines PMU: {:?}",
+                        &qmd.pci_dev, res);
                 }
             }
         }
