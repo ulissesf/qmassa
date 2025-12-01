@@ -958,16 +958,19 @@ impl MainScreen
         tstamps: &VecDeque<u128>, frame: &mut Frame, area: Rect)
     {
         let is_dgfx = dinfo.dev_type.is_discrete();
+        let nr_mem = !dinfo.dev_stats.mem_info.is_empty() as usize;
         let nr_engines = dinfo.eng_names.len();
-        let nr_freqs = dinfo.dev_stats.freqs.back().unwrap().len();
+        let nr_freqs = dinfo.dev_stats.freqs.back().unwrap_or(&vec![]).len();
+        let nr_pwr = !dinfo.dev_stats.power.is_empty() as usize;
         let nr_temps = dinfo.dev_stats.temps.back().unwrap_or(&vec![]).len();
         let nr_fans = dinfo.dev_stats.fans.back().unwrap_or(&vec![]).len();
 
         // # stats = smem + vram(if dgfx) + # engines +
         //               # freqs + power + # temps + # fans
         let nr_stats =
-            1 + is_dgfx as usize + nr_engines +
-            nr_freqs + 1 + nr_temps + nr_fans;
+            nr_mem + (nr_mem * is_dgfx as usize) + nr_engines +
+            nr_freqs + nr_pwr + nr_temps + nr_fans;
+
         // Can stats fit in just a single table row or not?
         // If not, split meminfo + engines and freqs + power + temps + fans
         let one_row = nr_stats * 10 <= area.width as usize;
@@ -1004,12 +1007,17 @@ impl MainScreen
             .column_spacing(1),
             inf_area);
 
+        // if no dev stats, exit
+        if nr_stats == 0 {
+            return;
+        }
+
         // change selected chart, if needed
         let nr_charts: Vec<u8> = vec![
-            1,                       // MEMINFO
+            nr_mem as u8,            // MEMINFO
             (nr_engines > 0) as u8,  // ENGINES
             nr_freqs as u8,          // FREQS
-            1,                       // POWER
+            nr_pwr as u8,            // POWER
             (nr_temps > 0) as u8,    // TEMPS
             (nr_fans > 0) as u8,     // FANS
         ];
@@ -1037,9 +1045,11 @@ impl MainScreen
 
         let mut dstats_widths: Vec<Constraint> = Vec::new();
         let mut dstats2_widths: Vec<Constraint> = Vec::new();
-        dstats_widths.push(Constraint::Length(12));   // SMEM
-        if is_dgfx {
-            dstats_widths.push(Constraint::Length(12));   // VRAM
+        if nr_mem > 0 {
+            dstats_widths.push(Constraint::Length(12));   // SMEM
+            if is_dgfx {
+                dstats_widths.push(Constraint::Length(12));   // VRAM
+            }
         }
         for _ in 0..nr_engines {
             dstats_widths.push(Constraint::Fill(1));  // ENGINES
@@ -1049,7 +1059,9 @@ impl MainScreen
         for _ in 0..nr_freqs {
             ds_widths_ref.push(Constraint::Min(10));      // FREQS
         }
-        ds_widths_ref.push(Constraint::Min(12));      // POWER
+        if nr_pwr > 0 {
+            ds_widths_ref.push(Constraint::Min(12));      // POWER
+        }
         for _ in 0..nr_temps {
             ds_widths_ref.push(Constraint::Min(9));       // TEMPS
         }
@@ -1072,15 +1084,17 @@ impl MainScreen
         let wh_bold = Style::new().white().bold();
         let ly_bold = Style::new().light_yellow().bold();
 
-        hdrs_lst.push(Line::from("SMEM")
-            .alignment(Alignment::Center)
-            .style(if ds_st.sel == DEVICE_STATS_MEMINFO {
-                ly_bold } else { wh_bold }));
-        if is_dgfx {
-            hdrs_lst.push(Line::from("VRAM")
+        if nr_mem > 0 {
+            hdrs_lst.push(Line::from("SMEM")
                 .alignment(Alignment::Center)
                 .style(if ds_st.sel == DEVICE_STATS_MEMINFO {
                     ly_bold } else { wh_bold }));
+            if is_dgfx {
+                hdrs_lst.push(Line::from("VRAM")
+                    .alignment(Alignment::Center)
+                    .style(if ds_st.sel == DEVICE_STATS_MEMINFO {
+                        ly_bold } else { wh_bold }));
+            }
         }
         for en in dinfo.eng_names.iter() {
             hdrs_lst.push(Line::from(en.to_uppercase())
@@ -1103,10 +1117,12 @@ impl MainScreen
                 .style(if ds_st.sel == DEVICE_STATS_FREQS &&
                     ds_st.sub_sel == fq_nr as u8 { ly_bold } else { wh_bold }));
         }
-        hdrs_lst_ref.push(Line::from("POWER")
-            .alignment(Alignment::Center)
-            .style(if ds_st.sel == DEVICE_STATS_POWER {
-                ly_bold } else { wh_bold }));
+        if nr_pwr > 0 {
+            hdrs_lst_ref.push(Line::from("POWER")
+                .alignment(Alignment::Center)
+                .style(if ds_st.sel == DEVICE_STATS_POWER {
+                    ly_bold } else { wh_bold }));
+        }
         if nr_temps > 0 {
             for tmp in dinfo.dev_stats.temps.back().unwrap().iter() {
                 let label = format!("TP-{}",
@@ -1144,22 +1160,24 @@ impl MainScreen
         let mut dstats_gs: Vec<Gauge> = Vec::new();
         let mut dstats2_gs: Vec<Gauge> = Vec::new();
 
-        let mi = dinfo.dev_stats.mem_info.back().unwrap();
-        let smem_label = Span::styled(format!("{}/{}",
-            App::short_mem_string(mi.smem_used),
-            App::short_mem_string(mi.smem_total)),
-            Style::new().white());
-        let smem_ratio = if mi.smem_total > 0 {
-            mi.smem_used as f64 / mi.smem_total as f64 } else { 0.0 };
-        dstats_gs.push(App::gauge_colored_from(smem_label, smem_ratio));
-        if is_dgfx {
-            let vram_label = Span::styled(format!("{}/{}",
-                App::short_mem_string(mi.vram_used),
-                App::short_mem_string(mi.vram_total)),
+        if nr_mem > 0 {
+            let mi = dinfo.dev_stats.mem_info.back().unwrap();
+            let smem_label = Span::styled(format!("{}/{}",
+                App::short_mem_string(mi.smem_used),
+                App::short_mem_string(mi.smem_total)),
                 Style::new().white());
-            let vram_ratio = if mi.vram_total > 0 {
-                mi.vram_used as f64 / mi.vram_total as f64 } else { 0.0 };
-            dstats_gs.push(App::gauge_colored_from(vram_label, vram_ratio));
+            let smem_ratio = if mi.smem_total > 0 {
+                mi.smem_used as f64 / mi.smem_total as f64 } else { 0.0 };
+            dstats_gs.push(App::gauge_colored_from(smem_label, smem_ratio));
+            if is_dgfx {
+                let vram_label = Span::styled(format!("{}/{}",
+                    App::short_mem_string(mi.vram_used),
+                    App::short_mem_string(mi.vram_total)),
+                    Style::new().white());
+                let vram_ratio = if mi.vram_total > 0 {
+                    mi.vram_used as f64 / mi.vram_total as f64 } else { 0.0 };
+                dstats_gs.push(App::gauge_colored_from(vram_label, vram_ratio));
+            }
         }
 
         for en in dinfo.eng_names.iter() {
@@ -1173,23 +1191,27 @@ impl MainScreen
         let ds_gs_ref: &mut Vec<Gauge> =
             if one_row { &mut dstats_gs } else { &mut dstats2_gs };
 
-        for (nr, fq) in dinfo.dev_stats.freqs.back().unwrap().iter().enumerate() {
-            let maximum = dinfo.freq_limits[nr].maximum;
-            let fq_label = Span::styled(
-                format!("{}/{}", fq.act_freq, maximum),
-                Style::new().white());
-            let fq_ratio = if maximum > 0 {
-                fq.act_freq as f64 / maximum as f64 } else { 0.0 };
-            ds_gs_ref.push(App::gauge_colored_from(fq_label, fq_ratio));
+        if nr_freqs > 0 {
+            for (nr, fq) in dinfo.dev_stats.freqs.back().unwrap().iter().enumerate() {
+                let maximum = dinfo.freq_limits[nr].maximum;
+                let fq_label = Span::styled(
+                    format!("{}/{}", fq.act_freq, maximum),
+                    Style::new().white());
+                let fq_ratio = if maximum > 0 {
+                    fq.act_freq as f64 / maximum as f64 } else { 0.0 };
+                ds_gs_ref.push(App::gauge_colored_from(fq_label, fq_ratio));
+            }
         }
 
-        let pwr = dinfo.dev_stats.power.back().unwrap();
-        let pwr_label = Span::styled(
-            format!("{:.1}/{:.1}", pwr.gpu_cur_power, pwr.pkg_cur_power),
-            Style::new().white());
-        let pwr_ratio = if pwr.pkg_cur_power > 0.0 {
-            pwr.gpu_cur_power / pwr.pkg_cur_power } else { 0.0 };
-        ds_gs_ref.push(App::gauge_colored_from(pwr_label, pwr_ratio));
+        if nr_pwr > 0 {
+            let pwr = dinfo.dev_stats.power.back().unwrap();
+            let pwr_label = Span::styled(
+                format!("{:.1}/{:.1}", pwr.gpu_cur_power, pwr.pkg_cur_power),
+                Style::new().white());
+            let pwr_ratio = if pwr.pkg_cur_power > 0.0 {
+                pwr.gpu_cur_power / pwr.pkg_cur_power } else { 0.0 };
+            ds_gs_ref.push(App::gauge_colored_from(pwr_label, pwr_ratio));
+        }
 
         if nr_temps > 0 {
             for tmp in dinfo.dev_stats.temps.back().unwrap().iter() {

@@ -402,6 +402,11 @@ impl DrmDeviceInfo
 
         Ok(())
     }
+
+    pub fn has_driver(&self) -> bool
+    {
+        self.driver.is_some()
+    }
 }
 
 #[derive(Debug)]

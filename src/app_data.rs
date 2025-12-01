@@ -47,9 +47,11 @@ impl AppDataDeviceStats
     fn update_stats(&mut self,
         eng_names: &Vec<String>, dinfo: &DrmDeviceInfo)
     {
-        limited_vec_push(&mut self.freqs, dinfo.freqs.clone());
-        limited_vec_push(&mut self.power, dinfo.power.clone());
-        limited_vec_push(&mut self.mem_info, dinfo.mem_info.clone());
+        if dinfo.has_driver() {
+            limited_vec_push(&mut self.freqs, dinfo.freqs.clone());
+            limited_vec_push(&mut self.power, dinfo.power.clone());
+            limited_vec_push(&mut self.mem_info, dinfo.mem_info.clone());
+        }
 
         for en in eng_names.iter() {
             if !self.eng_usage.contains_key(en) {
