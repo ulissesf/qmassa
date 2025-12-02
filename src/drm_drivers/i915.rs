@@ -7,6 +7,7 @@ use std::path::{Path, PathBuf};
 use std::fs::{self, File};
 use std::os::fd::{RawFd, AsRawFd};
 use std::cell::RefCell;
+use std::cmp::max;
 use std::rc::Rc;
 use std::time;
 use std::alloc;
@@ -132,6 +133,7 @@ struct I915EnginesPmu
 {
     pf_evt: PerfEvent,
     nr_evts: usize,
+    nr_engs: usize,
     engs_data: Vec<Vec<I915EnginePmuData>>,
     nr_updates: u64,
     last_update: time::Instant,
@@ -148,7 +150,7 @@ impl I915EnginesPmu
         self.last_update = time::Instant::now();
         self.nr_updates += 1;
 
-        for cn in 0..QM_I915_ENGINE_CLASS_TOTAL {
+        for cn in 0..self.nr_engs {
             let mut acum_active = 0;
             let mut acum_total = 0;
 
@@ -530,8 +532,12 @@ impl DrmDriveri915
         pf_attr.read_format = PERF_FORMAT_GROUP;
 
         let engs_info = self.engines_info(cpath)?;
+        let mut nr_engs = 0;
+        for eng in engs_info.iter() {
+            nr_engs = max(nr_engs, (eng.class + 1) as usize);
+        }
         let mut engs_data = Vec::new();
-        for _ in 0..QM_I915_ENGINE_CLASS_TOTAL {
+        for _ in 0..nr_engs {
             let nvec: Vec<I915EnginePmuData> = Vec::new();
             engs_data.push(nvec);
         }
@@ -564,6 +570,7 @@ impl DrmDriveri915
             I915EnginesPmu {
                 pf_evt,
                 nr_evts: idx,
+                nr_engs,
                 engs_data,
                 nr_updates: 0,
                 last_update: time::Instant::now(),
