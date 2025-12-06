@@ -1,4 +1,4 @@
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 use std::cell::RefCell;
 use std::fs;
 use std::path::Path;
@@ -316,34 +316,17 @@ impl Default for DrmDeviceInfo
 
 impl DrmDeviceInfo
 {
-    // tries to get DrmDriver's info, falls back to DRM clients list
     pub fn eng_utilization(&self, eng: &String) -> f64
     {
         if !self.engs_utilization.is_empty() {
             if self.engs_utilization.contains_key(eng) {
                 return self.engs_utilization[eng];
             }
-            return 0.0;
-        } else if let Some(vref) = &self.drm_clis {
-            let clis_b = vref.borrow();
-
-            let mut res: f64 = 0.0;
-            for cli in clis_b.iter() {
-                res += cli.eng_utilization(eng);
-            }
-
-            if res > 100.0 {
-                warn!("{}: engine {:?} utilization at {:?}, clamped to 100%.",
-                    &self.pci_dev, eng, res);
-                res = 100.0;
-            }
-            return res;
         }
 
         0.0
     }
 
-    // tries to get DrmDriver's info, falls back to DRM clients list
     pub fn engines(&self) -> Vec<String>
     {
         let mut engs = Vec::new();
@@ -352,24 +335,9 @@ impl DrmDeviceInfo
             engs = self.engs_utilization.keys()
                 .map(|nm| nm.clone())
                 .collect();
-        } else if let Some(vref) = &self.drm_clis {
-            let clis_b = vref.borrow();
-
-            let mut tst: HashSet<&str> = HashSet::new();
-            for cli in clis_b.iter() {
-                for en in cli.engines() {
-                    tst.insert(en);
-                }
-            }
-
-            for en in tst.iter() {
-                engs.push(en.to_string());
-            }
-        }
-
-        if !engs.is_empty() {
             engs.sort();
         }
+
         engs
     }
 
@@ -384,6 +352,10 @@ impl DrmDeviceInfo
 
     pub fn refresh(&mut self) -> Result<()>
     {
+        // reset engines usage data
+        self.engs_utilization.drain();
+
+        // update usage data from specific driver
         if let Some(drv_ref) = &self.driver {
             let mut drv_b = drv_ref.borrow_mut();
 
@@ -397,6 +369,32 @@ impl DrmDeviceInfo
             if self.dev_type.is_discrete() {
                 self.temps = drv_b.temps()?;
                 self.fans = drv_b.fans()?;
+            }
+        }
+
+        // if no driver was found or it doesn't provide engines usage data,
+        // fall back to adding up utilization from DRM clients list
+        if self.engs_utilization.is_empty() {
+            if let Some(vref) = &self.drm_clis {
+                let clis_b = vref.borrow();
+
+                for cli in clis_b.iter() {
+                    for en in cli.engines() {
+                        let ut = cli.eng_utilization(en);
+                        self.engs_utilization
+                            .entry(en.clone())
+                            .and_modify(|tot| *tot += ut)
+                            .or_insert(ut);
+                    }
+                }
+
+                for (en, tot) in self.engs_utilization.iter_mut() {
+                    if *tot > 100.0 {
+                        warn!("{}: engine {:?} utilization at {:?}, clamped to 100%.",
+                            &self.pci_dev, en, tot);
+                        *tot = 100.0;
+                    }
+                }
             }
         }
 
