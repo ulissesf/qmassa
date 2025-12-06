@@ -36,7 +36,7 @@ use plotter::Plotter;
 #[derive(Parser, Clone, Debug, Deserialize, Serialize)]
 #[command(version, about, long_about = None)]
 pub struct CliArgs {
-    /// Show only specific PCI devices (comma-separated list) [default: all devices]
+    /// Show only specific devices (comma-separated list) [default: all devices]
     #[arg(short, long)]
     dev_slots: Option<String>,
 
@@ -109,7 +109,7 @@ struct PlotArgs
     #[arg(short, long)]
     out_prefix: String,
 
-    /// Plot only specific PCI devices (comma-separated list) [default: all devices]
+    /// Plot only specific devices (comma-separated list) [default: all devices]
     #[arg(short, long)]
     dev_slots: Option<String>,
 
