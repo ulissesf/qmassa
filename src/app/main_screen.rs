@@ -1320,12 +1320,23 @@ impl MainScreen
             Constraint::Length(1),
             Constraint::Min(5),
         ]).areas(dev_blk_area);
+        let mut title_str = if self.model.borrow().args().show_pciid {
+            dinfo.pci_id.clone()
+        } else {
+            dinfo.vdr_dev.clone()
+        };
+        if title_str.is_empty() {
+            title_str = dinfo.pci_dev.clone();
+        }
+        if !dinfo.revision.is_empty() {
+            title_str = format!("{} (rev {})", &title_str, &dinfo.revision);
+        }
+        let dev_title_len = title_str.len() + 2;
         let dev_title = Line::from(vec![
             " ".into(),
-            dinfo.vdr_dev_rev.clone().into(),
+            title_str.into(),
             " ".into(),
         ]).magenta().bold().on_black();
-        let dev_title_len = dinfo.vdr_dev_rev.len() + 2;
         frame.render_widget(Block::new()
             .borders(Borders::TOP)
             .border_type(BorderType::Double)

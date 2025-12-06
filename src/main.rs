@@ -60,6 +60,10 @@ pub struct CliArgs {
     #[arg(short, long, action = ArgAction::SetTrue)]
     group_by_pid: bool,
 
+    /// Show PCI ID numbers instead of names [default: show names]
+    #[arg(short, long, action = ArgAction::SetTrue)]
+    show_pciid: bool,
+
     /// Save stats to a JSON file
     #[arg(short, long)]
     to_json: Option<String>,

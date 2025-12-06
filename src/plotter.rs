@@ -234,7 +234,7 @@ impl Plotter
                 let y_max = max(mi.smem_total, mi.vram_total) as f64 /
                     (1024.0 * 1024.0);
                 self.plot_chart(
-                    &out_file, &format!("{} - Memory Info", &di.vdr_dev_rev),
+                    &out_file, &format!("{} - Memory Info", &di.pci_dev),
                     "Time (s)", "Memory used (MiB)",
                     x_max, y_max, &meminfo)?;
             }
@@ -242,7 +242,7 @@ impl Plotter
                 let out_file = format!("{}-{}-engines.svg",
                     &self.out_prefix, &di.pci_dev);
                 self.plot_chart(
-                    &out_file, &format!("{} - Engines Usage", &di.vdr_dev_rev),
+                    &out_file, &format!("{} - Engines Usage", &di.pci_dev),
                     "Time (s)", "Usage (%)",
                     x_max, 100.0, &engines)?;
             }
@@ -253,7 +253,7 @@ impl Plotter
                     self.plot_chart(
                         &out_file,
                         &format!("{} - {} Frequencies",
-                            &di.vdr_dev_rev, &fl.name.to_uppercase()),
+                            &di.pci_dev, &fl.name.to_uppercase()),
                         "Time (s)", "Frequency (MHz)",
                         x_max, fl.maximum as f64, &freqs[nr])?;
                 }
@@ -262,7 +262,7 @@ impl Plotter
                 let out_file = format!("{}-{}-power.svg",
                     &self.out_prefix, &di.pci_dev);
                 self.plot_chart(
-                    &out_file, &format!("{} - Power Usage", &di.vdr_dev_rev),
+                    &out_file, &format!("{} - Power Usage", &di.pci_dev),
                     "Time (s)", "Power (W)",
                     x_max, max_power, &power)?;
             }
@@ -270,7 +270,7 @@ impl Plotter
                 let out_file = format!("{}-{}-temps.svg",
                     &self.out_prefix, &di.pci_dev);
                 self.plot_chart(
-                    &out_file, &format!("{} - Temperatures", &di.vdr_dev_rev),
+                    &out_file, &format!("{} - Temperatures", &di.pci_dev),
                     "Time (s)", "Temperature (C)",
                     x_max, max_temp, &temps)?;
             }
@@ -278,7 +278,7 @@ impl Plotter
                 let out_file = format!("{}-{}-fans.svg",
                     &self.out_prefix, &di.pci_dev);
                 self.plot_chart(
-                    &out_file, &format!("{} - Fans", &di.vdr_dev_rev),
+                    &out_file, &format!("{} - Fans", &di.pci_dev),
                     "Time (s)", "Speed (RPM)",
                     x_max, max_fan, &fans)?;
             }

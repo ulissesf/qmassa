@@ -249,7 +249,9 @@ impl AppDataClientStats
 pub struct AppDataDeviceState
 {
     pub pci_dev: String,
-    pub vdr_dev_rev: String,
+    pub pci_id: String,
+    pub vdr_dev: String,
+    pub revision: String,
     pub dev_type: DrmDeviceType,
     pub drv_name: String,
     pub dev_nodes: String,
@@ -414,12 +416,17 @@ impl AppDataDeviceState
 
         AppDataDeviceState {
             pci_dev: dinfo.pci_dev.clone(),
-            vdr_dev_rev: if !dinfo.vendor.is_empty() {
-                format!("{} {} (rev {})",
-                    dinfo.vendor, dinfo.device, dinfo.revision)
+            pci_id: if !dinfo.vendor_id.is_empty() {
+                format!("{}:{}", dinfo.vendor_id, dinfo.device_id)
             } else {
-                dinfo.pci_dev.clone()
+                String::new()
             },
+            vdr_dev: if !dinfo.vendor.is_empty() {
+                format!("{} {}", dinfo.vendor, dinfo.device)
+            } else {
+                String::new()
+            },
+            revision: dinfo.revision.clone(),
             dev_type: dinfo.dev_type.clone(),
             drv_name: dinfo.drv_name.clone(),
             dev_nodes: dnodes,
