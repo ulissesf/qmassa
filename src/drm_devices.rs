@@ -236,6 +236,8 @@ impl DrmDeviceFan
     }
 }
 
+pub const DRM_DEVNODE_MAJOR: u32 = 226;
+
 #[derive(Debug)]
 #[allow(dead_code)]
 pub struct DrmMinorInfo
@@ -251,9 +253,9 @@ impl DrmMinorInfo
         let mj = libc::major(devnum);
         let mn = libc::minor(devnum);
 
-        if mj != 226 {
-            bail!("Expected DRM major 226 but found {:?} for {:?}",
-                mj, devnode);
+        if mj != DRM_DEVNODE_MAJOR {
+            bail!("Expected DRM major {:?} but found {:?} for {:?}",
+                DRM_DEVNODE_MAJOR, mj, devnode);
         }
 
         Ok(DrmMinorInfo {

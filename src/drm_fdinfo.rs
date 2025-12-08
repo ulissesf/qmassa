@@ -7,6 +7,8 @@ use anyhow::Result;
 use libc;
 use log::debug;
 
+use crate::drm_devices::DRM_DEVNODE_MAJOR;
+
 
 #[derive(Debug)]
 #[allow(dead_code)]
@@ -141,11 +143,11 @@ impl DrmFdinfo
         let st_mode = met.st_mode();
         let st_rdev = met.st_rdev();
 
-        // check it's char device and major 226 for DRM device
+        // check it's char device and DRM device major number
         let mj = libc::major(st_rdev);
         let mn = libc::minor(st_rdev);
 
-        if st_mode & libc::S_IFMT == libc::S_IFCHR && mj == 226 {
+        if st_mode & libc::S_IFMT == libc::S_IFCHR && mj == DRM_DEVNODE_MAJOR {
             *minor = mn;
             return Ok(true);
         }
