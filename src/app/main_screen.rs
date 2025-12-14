@@ -310,6 +310,11 @@ impl Screen for MainScreen
                 model.args_mut().group_by_pid = !grp_by_pid;
                 clis_st.scroll_to_top();
             },
+            KeyCode::Char('S') | KeyCode::Char('s') => {
+                let mut model = self.model.borrow_mut();
+                let show_pciid = model.args().show_pciid;
+                model.args_mut().show_pciid = !show_pciid;
+            },
             KeyCode::Right => {
                 let mut st = self.clis_state.borrow_mut();
                 st.scroll_right();

@@ -106,6 +106,12 @@ Grouping DRM clients by PID. Toggle it pressing 'G'/'g' in the TUI.
 sudo qmassa -g
 ```
 
+Show PCI IDs (when available) instead of names. Toggle it pressing 'S'/'s' in the TUI.
+
+```shell
+sudo qmassa -s
+```
+
 Run qmassa's TUI and save stats to a JSON file.
 
 ```shell
