@@ -1,5 +1,19 @@
 # Changelog
 
+## [v1.2.0](https://github.com/ulissesf/qmassa/releases/tag/v1.2.0) - 2025-12-13
+
+### Features
+
+- CLI option and TUI toggle to show PCI IDs or names. (@ulissesf)
+- Simplify TUI when no qmassa driver is available. (@ulissesf)
+- Support non-PCI GPU DRM devices. (@ulissesf)
+- Support all Rust libc options. (@ulissesf)
+
+### Fixes
+
+- Show only existing HW engines with i915 PMU. (@ulissesf)
+- Fix crash with musl and tested on aarch64. (@ulissesf)
+
 ## [v1.1.0](https://github.com/ulissesf/qmassa/releases/tag/v1.1.0) - 2025-11-02
 
 ### Features
