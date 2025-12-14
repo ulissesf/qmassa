@@ -494,20 +494,20 @@ impl DrmDriver for DrmDriverXe
 
     fn temps(&mut self) -> Result<Vec<DrmDeviceTemperature>>
     {
-        if self.hwmon.is_some() {
-            DrmDeviceTemperature::from_hwmon(self.hwmon.as_ref().unwrap())
-        } else {
-            Ok(Vec::new())
+        if self.hwmon.is_none() {
+            return Ok(Vec::new());
         }
+
+        DrmDeviceTemperature::from_hwmon(self.hwmon.as_ref().unwrap())
     }
 
     fn fans(&mut self) -> Result<Vec<DrmDeviceFan>>
     {
-        if self.hwmon.is_some() {
-            DrmDeviceFan::from_hwmon(self.hwmon.as_ref().unwrap())
-        } else {
-            Ok(Vec::new())
+        if self.hwmon.is_none() {
+            return Ok(Vec::new());
         }
+
+        DrmDeviceFan::from_hwmon(self.hwmon.as_ref().unwrap())
     }
 }
 
