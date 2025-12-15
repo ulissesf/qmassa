@@ -94,19 +94,19 @@ sudo qmassa -m 1000
 ```
 
 Showing all DRM clients including the inactive ones (no memory allocated or
-engines being used). Toggle it pressing 'A'/'a' in the TUI.
+engines being used). Toggle by pressing 'A'/'a' in the TUI.
 
 ```shell
 sudo qmassa -a
 ```
 
-Grouping DRM clients by PID. Toggle it pressing 'G'/'g' in the TUI.
+Grouping DRM clients by PID. Toggle by pressing 'G'/'g' in the TUI.
 
 ```shell
 sudo qmassa -g
 ```
 
-Show PCI IDs (when available) instead of names. Toggle it pressing 'S'/'s' in the TUI.
+Show PCI IDs (when available) instead of names. Toggle by pressing 'S'/'s' in the TUI.
 
 ```shell
 sudo qmassa -s
