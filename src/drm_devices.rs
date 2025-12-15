@@ -477,7 +477,7 @@ impl DrmDevices
         }
     }
 
-    fn find_vendor(vendor_id: &String) -> String
+    fn vendor_name(vendor_id: &String) -> String
     {
         if let Ok(hwdb) = udev::Hwdb::new() {
             let id = u32::from_str_radix(vendor_id, 16).unwrap();
@@ -492,7 +492,7 @@ impl DrmDevices
         vendor_id.clone()
     }
 
-    fn find_device(vendor_id: &String, device_id: &String) -> String
+    fn device_name(vendor_id: &String, device_id: &String) -> String
     {
         if let Ok(hwdb) = udev::Hwdb::new() {
             let vid = u32::from_str_radix(vendor_id, 16).unwrap();
@@ -537,10 +537,10 @@ impl DrmDevices
                     let pciid = pciid.to_str().unwrap();
 
                     vendor_id = String::from(&pciid[0..4]);
-                    vendor = DrmDevices::find_vendor(&vendor_id);
+                    vendor = DrmDevices::vendor_name(&vendor_id);
 
                     device_id = String::from(&pciid[5..9]);
-                    device = DrmDevices::find_device(&vendor_id, &device_id);
+                    device = DrmDevices::device_name(&vendor_id, &device_id);
 
                     let rev_str = pdev.attribute_value("revision")
                         .unwrap().to_str().unwrap();
