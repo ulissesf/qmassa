@@ -182,6 +182,67 @@ impl I915EnginesPmu
 }
 
 #[derive(Debug)]
+struct I915GTFreqsPmuData
+{
+    last_cur: u64,
+    last_act: u64,
+}
+
+#[derive(Debug)]
+struct I915FreqsPmu
+{
+    pf_evt: PerfEvent,
+    gts_data: Vec<I915GTFreqsPmuData>,
+    nr_updates: u64,
+    elapsed: f64,
+    last_update: time::Instant,
+}
+
+impl I915FreqsPmu
+{
+    // returns (requested, actual) freqs for a GT
+    fn freqs(&mut self, gt_nr: usize, data: &Vec<u64>) -> Result<(u64, u64)>
+    {
+        if gt_nr >= self.gts_data.len() {
+            bail!("No freqs PMU set up for GT {:?}", gt_nr);
+        }
+        let gt_data = &mut self.gts_data[gt_nr];
+
+        let mut delta_cur = 0;
+        let mut delta_act = 0;
+        let base_idx = 1 + 2 * gt_nr;
+        let curr_cur = data[base_idx];
+        let curr_act = data[base_idx + 1];
+
+        if self.nr_updates >= 2 {
+            delta_cur = curr_cur - gt_data.last_cur;
+            delta_act = curr_act - gt_data.last_act;
+        }
+        gt_data.last_cur = curr_cur;
+        gt_data.last_act = curr_act;
+
+        if self.elapsed == 0.0 {
+            Ok((0, 0))
+        } else {
+            let ret_cur = delta_cur as f64 / self.elapsed;
+            let ret_act = delta_act as f64 / self.elapsed;
+
+            Ok((ret_cur as u64, ret_act as u64))
+        }
+    }
+
+    fn read_all(&mut self) -> Result<Vec<u64>>
+    {
+        let data = self.pf_evt.read(1 + 2 * self.gts_data.len())?;
+        self.elapsed = self.last_update.elapsed().as_secs_f64();
+        self.last_update = time::Instant::now();
+        self.nr_updates += 1;
+
+        Ok(data)
+    }
+}
+
+#[derive(Debug)]
 pub struct DrmDriveri915
 {
     _dn_file: File,
@@ -192,6 +253,7 @@ pub struct DrmDriveri915
     power: Option<Box<dyn GpuPowerIntel>>,
     hwmon: Option<Hwmon>,
     engs_pmu: Option<I915EnginesPmu>,
+    freqs_pmu: Option<I915FreqsPmu>,
 }
 
 impl DrmDriver for DrmDriveri915
@@ -333,6 +395,11 @@ impl DrmDriver for DrmDriveri915
 
     fn freqs(&mut self) -> Result<Vec<DrmDeviceFreqs>>
     {
+        let mut freqs_data = None;
+        if let Some(fp) = &mut self.freqs_pmu {
+            freqs_data = Some(fp.read_all()?);
+        }
+
         let mut fqs = Vec::new();
         for nr in 0.. {
             let freqs_dir = self.base_gts_dir.join(format!("gt{}", nr));
@@ -344,17 +411,25 @@ impl DrmDriver for DrmDriveri915
             let fstr = fs::read_to_string(&fpath)?;
             let min_val: u64 = fstr.trim_end().parse()?;
 
-            let fpath = freqs_dir.join("rps_cur_freq_mhz");
-            let fstr = fs::read_to_string(&fpath)?;
-            let cur_val: u64 = fstr.trim_end().parse()?;
-
-            let fpath = freqs_dir.join("rps_act_freq_mhz");
-            let fstr = fs::read_to_string(&fpath)?;
-            let act_val: u64 = fstr.trim_end().parse()?;
-
             let fpath = freqs_dir.join("rps_max_freq_mhz");
             let fstr = fs::read_to_string(&fpath)?;
             let max_val: u64 = fstr.trim_end().parse()?;
+
+            let (cur_val, act_val) = if self.freqs_pmu.is_none() {
+                let fpath = freqs_dir.join("rps_cur_freq_mhz");
+                let fstr = fs::read_to_string(&fpath)?;
+                let c_val: u64 = fstr.trim_end().parse()?;
+
+                let fpath = freqs_dir.join("rps_act_freq_mhz");
+                let fstr = fs::read_to_string(&fpath)?;
+                let a_val: u64 = fstr.trim_end().parse()?;
+
+                (c_val, a_val)
+            } else {
+                self.freqs_pmu
+                    .as_mut().unwrap()
+                    .freqs(nr, freqs_data.as_ref().unwrap())?
+            };
 
             let fpath = freqs_dir.join("throttle_reason_pl1");
             let pl1 = fpath.is_file() &&
@@ -478,10 +553,11 @@ impl DrmDriver for DrmDriveri915
 
 impl DrmDriveri915
 {
-    fn engines_info(&self, cpath: &str) -> Result<Vec<I915Engine>>
+    fn engines_info(cpath: &str) -> Result<(usize, Vec<I915Engine>)>
     {
         let engs_dir = Path::new(cpath).join("engine");
         let mut engs = Vec::new();
+        let mut nr_engs = 0;
 
         for et in fs::read_dir(&engs_dir)? {
             let path = et?.path();
@@ -496,6 +572,7 @@ impl DrmDriveri915
                 .trim()
                 .parse()?;
 
+            nr_engs = max(nr_engs, class as usize + 1);
             engs.push(
                 I915Engine {
                     name,
@@ -504,38 +581,18 @@ impl DrmDriveri915
             );
         }
 
-        Ok(engs)
+        Ok((nr_engs, engs))
     }
 
-    fn init_engines_pmu(&mut self,
-        dtype: &DrmDeviceType, pci_dev: &str, cpath: &str) -> Result<()>
+    fn init_engines_pmu(&mut self, src: &str, cpath: &str) -> Result<()>
     {
-        if !PerfEvent::is_capable() {
-            bail!("No PMU support");
-        }
-
-        let mut src = String::from("i915");
-        if dtype.is_discrete() {
-            src.push_str("_");
-            src.push_str(pci_dev);
-        }
-        let src = src.replace(":", "_");
-
-        if !PerfEvent::has_source(&src) {
-            bail!("No PMU source {:?}", &src);
-        }
-
-        let mut pf_evt = PerfEvent::new(&src);
+        let mut pf_evt = PerfEvent::new(src);
         let mut pf_attr = perf_event_attr::new();
         pf_attr.type_ = pf_evt.source_type()?;
         pf_attr.size = mem::size_of::<perf_event_attr>() as u32;
         pf_attr.read_format = PERF_FORMAT_GROUP;
 
-        let engs_info = self.engines_info(cpath)?;
-        let mut nr_engs = 0;
-        for eng in engs_info.iter() {
-            nr_engs = max(nr_engs, (eng.class + 1) as usize);
-        }
+        let (nr_engs, engs_info) = DrmDriveri915::engines_info(cpath)?;
         let mut engs_data = Vec::new();
         for _ in 0..nr_engs {
             let nvec: Vec<I915EnginePmuData> = Vec::new();
@@ -554,7 +611,7 @@ impl DrmDriveri915
 
             pf_attr.config = pf_evt
                 .event_keys_config(&evt_name, &vec!["config"])?["config"];
-            // TODO: check why i915 PMUs only work with CPU 0
+            // i915 PMUs only work with CPU 0
             pf_evt.group_open(&pf_attr, -1, 0, 0)?;
 
             engs_data[eng.class as usize].push(
@@ -580,6 +637,117 @@ impl DrmDriveri915
         Ok(())
     }
 
+    fn init_freqs_pmu(&mut self, src: &str) -> Result<()>
+    {
+        let mut pf_evt = PerfEvent::new(src);
+        let mut gts_data = Vec::new();
+
+        let mut pf_attr = perf_event_attr::new();
+        pf_attr.type_ = pf_evt.source_type()?;
+        pf_attr.size = mem::size_of::<perf_event_attr>() as u32;
+        pf_attr.read_format = PERF_FORMAT_GROUP;
+
+        let cur_cfg = pf_evt
+                .event_keys_config("requested-frequency",
+                    &vec!["config"])?["config"];
+        let act_cfg = pf_evt
+                .event_keys_config("actual-frequency",
+                    &vec!["config"])?["config"];
+
+        let cur_unit = pf_evt.event_unit("requested-frequency")?;
+        let act_unit = pf_evt.event_unit("actual-frequency")?;
+        if cur_unit != "M" || act_unit != "M" {
+            bail!("Requested and actual freqs not in \"M\", got {:?} and {:?}.",
+                cur_unit, act_unit);
+        }
+
+        for nr in 0.. {
+            let gt_dir = self.base_gts_dir.join(format!("gt{}", nr));
+            if !gt_dir.is_dir() {
+                break;
+            }
+
+            // i915 details:
+            //  - GT nr goes in the top 4 bits of config
+            //  - PMUs only work with CPU 0
+
+            pf_attr.config = cur_cfg | ((nr as u64) << 60);
+            pf_evt.group_open(&pf_attr, -1, 0, 0)?;
+
+            pf_attr.config = act_cfg | ((nr as u64) << 60);
+            pf_evt.group_open(&pf_attr, -1, 0, 0)?;
+
+            gts_data.push(
+                I915GTFreqsPmuData {
+                    last_cur: 0,
+                    last_act: 0,
+                }
+            );
+        }
+
+        self.freqs_pmu = Some(
+            I915FreqsPmu {
+                pf_evt,
+                gts_data,
+                nr_updates: 0,
+                elapsed: 0.0,
+                last_update: time::Instant::now(),
+            }
+        );
+
+        Ok(())
+    }
+
+    fn pmu_evt_source(pci_dev: &str, dtype: &DrmDeviceType) -> Result<String>
+    {
+        if !PerfEvent::is_capable() {
+            bail!("No PMU support");
+        }
+
+        let mut src = String::from("i915");
+        if dtype.is_discrete() {
+            src.push_str("_");
+            src.push_str(pci_dev);
+        }
+        let src = src.replace(":", "_");
+
+        if !PerfEvent::has_source(&src) {
+            bail!("No PMU source {:?}", &src);
+        }
+
+        Ok(src)
+    }
+
+    fn parse_pmu_opts(pci_dev: &str, opts_vec: &Vec<&str>) -> (bool, bool)
+    {
+        let mut use_eng_pmu = false;
+        let mut use_freq_pmu = false;
+
+        for &opts_str in opts_vec.iter() {
+            let sep_opts: Vec<&str> = opts_str.split(',').collect();
+            let mut want_eng_pmu = false;
+            let mut want_freq_pmu = false;
+            let mut devslot = "all";
+
+            for opt in sep_opts.iter() {
+                if opt.starts_with("devslot=") {
+                    devslot = &opt["devslot=".len()..];
+                } else if opt == &"engines=pmu" {
+                    want_eng_pmu = true;
+                } else if opt == &"freqs=pmu" {
+                    want_freq_pmu = true;
+                }
+            }
+
+            if devslot == "all" || devslot == pci_dev {
+                use_eng_pmu = use_eng_pmu || want_eng_pmu;
+                use_freq_pmu = use_freq_pmu || want_freq_pmu;
+            }
+        }
+
+        (use_eng_pmu, use_freq_pmu)
+    }
+
     pub fn new(qmd: &DrmDeviceInfo,
         opts: Option<&Vec<&str>>) -> Result<Rc<RefCell<dyn DrmDriver>>>
     {
@@ -601,6 +769,7 @@ impl DrmDriveri915
             power: None,
             hwmon: None,
             engs_pmu: None,
+            freqs_pmu: None,
         };
 
         let dtype = i915.dev_type()?;
@@ -629,33 +798,34 @@ impl DrmDriveri915
         }
 
         if let Some(opts_vec) = opts {
-            let mut use_eng_pmu = false;
+            let (mut use_eng_pmu, mut use_freq_pmu) =
+                DrmDriveri915::parse_pmu_opts(&qmd.pci_dev, opts_vec);
 
-            for &opts_str in opts_vec.iter() {
-                let sep_opts: Vec<&str> = opts_str.split(',').collect();
-                let mut want_eng_pmu = false;
-                let mut devslot = "all";
-
-                for opt in sep_opts.iter() {
-                    if opt.starts_with("devslot=") {
-                        devslot = &opt["devslot=".len()..];
-                    } else if opt == &"engines=pmu" {
-                        want_eng_pmu = true;
-                    }
-                }
-
-                if want_eng_pmu &&
-                    (devslot == "all" || devslot == qmd.pci_dev) {
-                    use_eng_pmu = true;
-                }
+            let pmu_src_res =
+                DrmDriveri915::pmu_evt_source(&qmd.pci_dev, &dtype);
+            if (use_eng_pmu || use_freq_pmu) && pmu_src_res.is_err() {
+                use_eng_pmu = false;
+                use_freq_pmu = false;
+                debug!("{}: ERR: failed to find PMU source: {:?}",
+                    &qmd.pci_dev, pmu_src_res);
             }
+            let pmu_src = pmu_src_res.unwrap_or(String::new());
 
             if use_eng_pmu {
-                let res = i915.init_engines_pmu(&dtype, &qmd.pci_dev, &cpath);
+                let res = i915.init_engines_pmu(&pmu_src, &cpath);
                 info!("{}: engines PMU init: {}",
                     &qmd.pci_dev, if res.is_ok() { "OK" } else { "FAILED" });
                 if res.is_err() {
                     debug!("{}: ERR: failed to enable engines PMU: {:?}",
+                        &qmd.pci_dev, res);
+                }
+            }
+            if use_freq_pmu {
+                let res = i915.init_freqs_pmu(&pmu_src);
+                info!("{}: freqs PMU init: {}",
+                    &qmd.pci_dev, if res.is_ok() { "OK" } else { "FAILED" });
+                if res.is_err() {
+                    debug!("{}: ERR: failed to enable freqs PMU: {:?}",
                         &qmd.pci_dev, res);
                 }
             }
