@@ -216,13 +216,17 @@ below.
 sudo qmassa --drv-options xe=<opt1>,<opt2> --drv-options i915=<opt1>
 ```
 
-| Options for i915                   | Description                           |
-| ---------------------------------- | ------------------------------------- |
-| \[devslot=<PCI slot\>,]engines=pmu | Engine usage from PMU. If devslot is passed, it applies only to that device. |
+| Options for i915               | Description                                |
+| ------------------------------ | ------------------------------------------ |
+| devslot=<PCI slot or sysname\> | Applies other options to a specific device |
+| engines=pmu                    | Engines usage reporting from PMU           |
+| freqs=pmu                      | Frequencies reporting from PMU             |
 
-| Options for xe                     | Description                           |
-| ---------------------------------- | ------------------------------------- |
-| \[devslot=<PCI slot\>,]engines=pmu | Engine usage from PMU. If devslot is passed, it applies only to that device. It gets the SR-IOV function (PF or VF) from the PCI slot name. (Linux kernel 6.15+) |
+| Options for xe                 | Description                                |
+| ------------------------------ | ------------------------------------------ |
+| devslot=<PCI slot or sysname\> | Applies other options to a specific device |
+| engines=pmu                    | Engines usage reporting from PMU. Gets the SR-IOV function (PF or VF) from the PCI slot name (Linux kernel 6.15+). |
+| freqs=pmu                      | Frequencies reporting from PMU             |
 
 #### Driver limitations
 

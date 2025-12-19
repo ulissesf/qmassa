@@ -7,6 +7,7 @@ use std::path::{Path, PathBuf};
 use std::fs::{self, File};
 use std::os::fd::{RawFd, AsRawFd};
 use std::cell::RefCell;
+use std::cmp::max;
 use std::rc::Rc;
 use std::alloc;
 use std::mem;
@@ -145,6 +146,7 @@ struct XeEnginesPmu
 {
     pf_evt: PerfEvent,
     nr_evts: usize,
+    nr_engs: usize,
     engs_data: Vec<Vec<XeEnginePmuData>>,
     nr_updates: u64,
 }
@@ -155,10 +157,10 @@ impl XeEnginesPmu
     {
         let mut engs_ut = HashMap::new();
 
-        let data = self.pf_evt.read(self.nr_evts + 1)?;
+        let data = self.pf_evt.read(1 + self.nr_evts)?;
         self.nr_updates += 1;
 
-        for cn in 0..QM_DRM_XE_ENGINE_CLASS_TOTAL {
+        for cn in 0..self.nr_engs {
             let mut acum_active = 0;
             let mut acum_total = 0;
 
@@ -192,6 +194,56 @@ impl XeEnginesPmu
 }
 
 #[derive(Debug)]
+struct XeGTFreqsPmuData
+{
+    last_cur: u64,
+    last_act: u64,
+}
+
+#[derive(Debug)]
+struct XeFreqsPmu
+{
+    pf_evt: PerfEvent,
+    gts_data: Vec<XeGTFreqsPmuData>,
+    nr_updates: u64,
+}
+
+impl XeFreqsPmu
+{
+    // returns (requested, actual) freqs for a GT
+    fn freqs(&mut self, gt_nr: usize, data: &Vec<u64>) -> Result<(u64, u64)>
+    {
+        if gt_nr >= self.gts_data.len() {
+            bail!("No freqs PMU set up for GT {:?}", gt_nr);
+        }
+        let gt_data = &mut self.gts_data[gt_nr];
+
+        let mut delta_cur = 0;
+        let mut delta_act = 0;
+        let base_idx = 1 + 2 * gt_nr;
+        let curr_cur = data[base_idx];
+        let curr_act = data[base_idx + 1];
+
+        if self.nr_updates >= 2 {
+            delta_cur = curr_cur - gt_data.last_cur;
+            delta_act = curr_act - gt_data.last_act;
+        }
+        gt_data.last_cur = curr_cur;
+        gt_data.last_act = curr_act;
+
+        Ok((delta_cur, delta_act))
+    }
+
+    fn read_all(&mut self) -> Result<Vec<u64>>
+    {
+        let data = self.pf_evt.read(1 + 2 * self.gts_data.len())?;
+        self.nr_updates += 1;
+
+        Ok(data)
+    }
+}
+
+#[derive(Debug)]
 pub struct DrmDriverXe
 {
     _dn_file: File,
@@ -202,6 +254,7 @@ pub struct DrmDriverXe
     power: Option<Box<dyn GpuPowerIntel>>,
     hwmon: Option<Hwmon>,
     engs_pmu: Option<XeEnginesPmu>,
+    freqs_pmu: Option<XeFreqsPmu>,
 }
 
 impl DrmDriver for DrmDriverXe
@@ -370,6 +423,11 @@ impl DrmDriver for DrmDriverXe
 
     fn freqs(&mut self) -> Result<Vec<DrmDeviceFreqs>>
     {
+        let mut freqs_data = None;
+        if let Some(fp) = &mut self.freqs_pmu {
+            freqs_data = Some(fp.read_all()?);
+        }
+
         let mut fqs = Vec::new();
         for nr in 0.. {
             let freqs_dir = self.base_gts_dir.join(format!("gt{}/freq0", nr));
@@ -382,17 +440,25 @@ impl DrmDriver for DrmDriverXe
             let fstr = fs::read_to_string(&fpath)?;
             let min_val: u64 = fstr.trim_end().parse()?;
 
-            let fpath = freqs_dir.join("cur_freq");
-            let fstr = fs::read_to_string(&fpath)?;
-            let cur_val: u64 = fstr.trim_end().parse()?;
-
-            let fpath = freqs_dir.join("act_freq");
-            let fstr = fs::read_to_string(&fpath)?;
-            let act_val: u64 = fstr.trim_end().parse()?;
-
             let fpath = freqs_dir.join("max_freq");
             let fstr = fs::read_to_string(&fpath)?;
             let max_val: u64 = fstr.trim_end().parse()?;
+
+            let (cur_val, act_val) = if self.freqs_pmu.is_none() {
+                let fpath = freqs_dir.join("cur_freq");
+                let fstr = fs::read_to_string(&fpath)?;
+                let c_val: u64 = fstr.trim_end().parse()?;
+
+                let fpath = freqs_dir.join("act_freq");
+                let fstr = fs::read_to_string(&fpath)?;
+                let a_val: u64 = fstr.trim_end().parse()?;
+
+                (c_val, a_val)
+            } else {
+                self.freqs_pmu
+                    .as_mut().unwrap()
+                    .freqs(nr, freqs_data.as_ref().unwrap())?
+            };
 
             let fpath = throttle_dir.join("reason_pl1");
             let pl1 = fs::read_to_string(&fpath)?.trim() == "1";
@@ -513,7 +579,7 @@ impl DrmDriver for DrmDriverXe
 
 impl DrmDriverXe
 {
-    fn engines_info(&self) -> Result<Vec<XeEngine>>
+    fn engines_info(&self) -> Result<(usize, Vec<XeEngine>)>
     {
         let mut dq = drm_xe_device_query {
             extensions: 0,
@@ -554,7 +620,9 @@ impl DrmDriverXe
             (*qengs).engines.as_slice((*qengs).num_engines as usize) };
 
         let mut ret = Vec::new();
+        let mut nr_engs = 0;
         for e in engs {
+            nr_engs = max(nr_engs, e.instance.engine_class as usize + 1);
             let ne = XeEngine {
                 gt_id: e.instance.gt_id as u64,
                 class: e.instance.engine_class as u64,
@@ -565,70 +633,12 @@ impl DrmDriverXe
 
         unsafe { alloc::dealloc(qengs as *mut u8, layout); }
 
-        Ok(ret)
+        Ok((nr_engs, ret))
     }
 
-    fn sriov_pf_dev_from(pci_dev: &str) -> String
+    fn init_engines_pmu(&mut self, src: &str, sriov_fn: u64) -> Result<()>
     {
-        // assumes PF == 0 on Intel GPUs with Xe KMD
-        format!("{}.0", &pci_dev[..pci_dev.find(".").unwrap()])
-    }
-
-    fn sriov_fn_from(pci_dev: &str) -> Result<u64>
-    {
-        // getting fn directly from PCI slot name
-        Ok(pci_dev[pci_dev.find(".").unwrap() + 1..].parse()?)
-    }
-
-    fn parse_eng_pmu_opts(pci_dev: &str, opts_vec: &Vec<&str>) -> (bool, u64)
-    {
-        let sriov_fn = DrmDriverXe::sriov_fn_from(pci_dev);
-        if let Err(err) = sriov_fn {
-            debug!("ERR: failed getting SR-IOV fn from {:?}: {}",
-                pci_dev, err);
-            return (false, 0);
-        }
-
-        let sriov_fn = sriov_fn.unwrap();
-        let mut use_eng_pmu = false;
-
-        for &opts_str in opts_vec.iter() {
-            let sep_opts: Vec<&str> = opts_str.split(',').collect();
-            let mut want_eng_pmu = false;
-            let mut devslot = "all";
-
-            for opt in sep_opts.iter() {
-                if opt.starts_with("devslot=") {
-                    devslot = &opt["devslot=".len()..];
-                } else if opt == &"engines=pmu" {
-                    want_eng_pmu = true;
-                }
-            }
-
-            if want_eng_pmu &&
-                (devslot == "all" || devslot == pci_dev) {
-                use_eng_pmu = true;
-            }
-        }
-
-        (use_eng_pmu, sriov_fn)
-    }
-
-    fn init_engines_pmu(&mut self, pci_dev: &str, sriov_fn: u64) -> Result<()>
-    {
-        if !PerfEvent::is_capable() {
-            bail!("No PMU support");
-        }
-
-        let mut src = String::from("xe_");
-        src.push_str(&DrmDriverXe::sriov_pf_dev_from(pci_dev));
-        let src = src.replace(":", "_");
-
-        if !PerfEvent::has_source(&src) {
-            bail!("No PMU source {:?}", &src);
-        }
-
-        let mut pf_evt = PerfEvent::new(&src);
+        let mut pf_evt = PerfEvent::new(src);
         let mut pf_attr = perf_event_attr::new();
         pf_attr.type_ = pf_evt.source_type()?;
         pf_attr.size = mem::size_of::<perf_event_attr>() as u32;
@@ -639,9 +649,9 @@ impl DrmDriverXe
         let tot_cfg = pf_evt.event_config("engine-total-ticks")?;
         let has_sriov = pf_evt.has_format_param("function");
 
-        let engs_info = self.engines_info()?;
+        let (nr_engs, engs_info) = self.engines_info()?;
         let mut engs_data = Vec::new();
-        for _ in 0..QM_DRM_XE_ENGINE_CLASS_TOTAL {
+        for _ in 0..nr_engs {
             let nvec: Vec<XeEnginePmuData> = Vec::new();
             engs_data.push(nvec);
         }
@@ -657,13 +667,10 @@ impl DrmDriverXe
                 params.push(("function", sriov_fn));
             }
 
-            let eng_act_cfg = pf_evt.format_config(&params, act_cfg)?;
-            let eng_tot_cfg = pf_evt.format_config(&params, tot_cfg)?;
-
-            pf_attr.config = eng_act_cfg;
+            pf_attr.config = pf_evt.format_config(&params, act_cfg)?;
             pf_evt.group_open(&pf_attr, -1, cpu, 0)?;
 
-            pf_attr.config = eng_tot_cfg;
+            pf_attr.config = pf_evt.format_config(&params, tot_cfg)?;
             pf_evt.group_open(&pf_attr, -1, cpu, 0)?;
 
             engs_data[eng.class as usize].push(
@@ -680,12 +687,135 @@ impl DrmDriverXe
             XeEnginesPmu {
                 pf_evt,
                 nr_evts: idx,
+                nr_engs,
                 engs_data,
                 nr_updates: 0,
             }
         );
 
         Ok(())
+    }
+
+    fn init_freqs_pmu(&mut self, src: &str) -> Result<()>
+    {
+        let mut pf_evt = PerfEvent::new(src);
+        let mut gts_data = Vec::new();
+
+        let mut pf_attr = perf_event_attr::new();
+        pf_attr.type_ = pf_evt.source_type()?;
+        pf_attr.size = mem::size_of::<perf_event_attr>() as u32;
+        pf_attr.read_format = PERF_FORMAT_GROUP;
+
+        let cpu: i32 = unsafe { libc::sched_getcpu() };
+        let cur_cfg = pf_evt.event_config("gt-requested-frequency")?;
+        let act_cfg = pf_evt.event_config("gt-actual-frequency")?;
+
+        let cur_unit = pf_evt.event_unit("gt-requested-frequency")?;
+        let act_unit = pf_evt.event_unit("gt-actual-frequency")?;
+        if cur_unit != "MHz" || act_unit != "MHz" {
+            bail!("Requested and actual freqs not in MHz, got {:?} and {:?}.",
+                cur_unit, act_unit);
+        }
+
+        for nr in 0.. {
+            let gt_dir = self.base_gts_dir.join(format!("gt{}", nr));
+            if !gt_dir.is_dir() {
+                break;
+            }
+
+            let params = vec![("gt", nr),];
+
+            pf_attr.config = pf_evt.format_config(&params, cur_cfg)?;
+            pf_evt.group_open(&pf_attr, -1, cpu, 0)?;
+
+            pf_attr.config = pf_evt.format_config(&params, act_cfg)?;
+            pf_evt.group_open(&pf_attr, -1, cpu, 0)?;
+
+            gts_data.push(
+                XeGTFreqsPmuData {
+                    last_cur: 0,
+                    last_act: 0,
+                }
+            );
+         }
+
+        self.freqs_pmu = Some(
+            XeFreqsPmu {
+                pf_evt,
+                gts_data,
+                nr_updates: 0,
+            }
+        );
+
+        Ok(())
+    }
+
+    fn sriov_pf_dev_from(pci_dev: &str) -> String
+    {
+        // assumes PF == 0 on Intel GPUs with Xe KMD
+        format!("{}.0", &pci_dev[..pci_dev.find(".").unwrap()])
+    }
+
+    fn pmu_evt_source(pci_dev: &str) -> Result<String>
+    {
+        if !PerfEvent::is_capable() {
+            bail!("No PMU support");
+        }
+
+        let mut src = String::from("xe_");
+        src.push_str(&DrmDriverXe::sriov_pf_dev_from(pci_dev));
+        let src = src.replace(":", "_");
+
+        if !PerfEvent::has_source(&src) {
+            bail!("No PMU source {:?}", &src);
+        }
+
+        Ok(src)
+    }
+
+    fn sriov_fn_from(pci_dev: &str) -> Result<u64>
+    {
+        // getting fn directly from PCI slot name
+        Ok(pci_dev[pci_dev.find(".").unwrap() + 1..].parse()?)
+    }
+
+    fn parse_pmu_opts(pci_dev: &str,
+        opts_vec: &Vec<&str>) -> (bool, bool, u64)
+    {
+        let sriov_fn = DrmDriverXe::sriov_fn_from(pci_dev);
+        if let Err(err) = sriov_fn {
+            debug!("ERR: failed getting SR-IOV fn from {:?}: {}",
+                pci_dev, err);
+            return (false, false, 0);
+        }
+
+        let sriov_fn = sriov_fn.unwrap();
+        let mut use_eng_pmu = false;
+        let mut use_freq_pmu = false;
+
+        for &opts_str in opts_vec.iter() {
+            let sep_opts: Vec<&str> = opts_str.split(',').collect();
+            let mut want_eng_pmu = false;
+            let mut want_freq_pmu = false;
+            let mut devslot = "all";
+
+            for opt in sep_opts.iter() {
+                if opt.starts_with("devslot=") {
+                    devslot = &opt["devslot=".len()..];
+                } else if opt == &"engines=pmu" {
+                    want_eng_pmu = true;
+                } else if opt == &"freqs=pmu" {
+                    want_freq_pmu = true;
+                }
+            }
+
+            if devslot == "all" || devslot == pci_dev {
+                use_eng_pmu = use_eng_pmu || want_eng_pmu;
+                use_freq_pmu = use_freq_pmu || want_freq_pmu;
+            }
+        }
+
+        (use_eng_pmu, use_freq_pmu, sriov_fn)
     }
 
     pub fn new(qmd: &DrmDeviceInfo,
@@ -710,6 +840,7 @@ impl DrmDriverXe
             power: None,
             hwmon: None,
             engs_pmu: None,
+            freqs_pmu: None,
         };
 
         let dtype = xe.dev_type()?;
@@ -737,14 +868,34 @@ impl DrmDriverXe
         }
 
         if let Some(opts_vec) = opts {
-            let (use_eng_pmu, sriov_fn) =
-                DrmDriverXe::parse_eng_pmu_opts(&qmd.pci_dev, opts_vec);
+            let (mut use_eng_pmu, mut use_freq_pmu, sriov_fn) =
+                DrmDriverXe::parse_pmu_opts(&qmd.pci_dev, opts_vec);
+
+            let pmu_src_res =
+                DrmDriverXe::pmu_evt_source(&qmd.pci_dev);
+            if (use_eng_pmu || use_freq_pmu) && pmu_src_res.is_err() {
+                use_eng_pmu = false;
+                use_freq_pmu = false;
+                debug!("{}: ERR: failed to find PMU source: {:?}",
+                    &qmd.pci_dev, pmu_src_res);
+            }
+            let pmu_src = pmu_src_res.unwrap_or(String::new());
+
             if use_eng_pmu {
-                let res = xe.init_engines_pmu(&qmd.pci_dev, sriov_fn);
+                let res = xe.init_engines_pmu(&pmu_src, sriov_fn);
                 info!("{}: engines PMU init: {}",
                     &qmd.pci_dev, if res.is_ok() { "OK" } else { "FAILED" });
                 if res.is_err() {
                     debug!("{}: ERR: failed to enable engines PMU: {:?}",
+                        &qmd.pci_dev, res);
+                }
+            }
+            if use_freq_pmu {
+                let res = xe.init_freqs_pmu(&pmu_src);
+                info!("{}: freqs PMU init: {}",
+                    &qmd.pci_dev, if res.is_ok() { "OK" } else { "FAILED" });
+                if res.is_err() {
+                    debug!("{}: ERR: failed to enable freqs PMU: {:?}",
                         &qmd.pci_dev, res);
                 }
             }
