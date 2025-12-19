@@ -212,7 +212,7 @@ impl ProcInfo
 
         let max_pct = min(self.nr_threads, nr_cpus as u64) as f64 * 100.0;
         if res > max_pct {
-            warn!("Process {:?} (pid {}) CPU utilization at {:.1}%, \
+            warn!("Process {:?} (pid {}) CPU utilization at {:?}%, \
                 clamped to max {:.1}% (# CPUs: {}, # threads: {}).",
                 self.comm, self.pid, res, max_pct, nr_cpus, self.nr_threads);
             res = max_pct;

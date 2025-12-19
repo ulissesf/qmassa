@@ -182,7 +182,7 @@ impl XeEnginesPmu
                 (acum_active as f64 / acum_total as f64) * 100.0
             };
             if eut > 100.0 {
-                warn!("Engine {:?} utilization at {:.1}%, \
+                warn!("Engine {:?} utilization at {:?}%, \
                     clamped to 100%.", xe_engine_class_name[cn], eut);
                 eut = 100.0;
             }

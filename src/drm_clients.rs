@@ -176,7 +176,7 @@ impl DrmClientInfo
         }
 
         if res > 100.0 {
-            warn!("{}: engine {:?} utilization at {:.1}%, clamped to 100%.",
+            warn!("{}: engine {:?} utilization at {:?}%, clamped to 100%.",
                 &self.pci_dev, eng, res);
             res = 100.0;
         }
