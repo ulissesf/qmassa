@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::os::linux::fs::MetadataExt;
+use std::time;
 use std::fs;
 
 use anyhow::Result;
@@ -118,6 +119,7 @@ pub struct DrmFdinfo
     pub path: PathBuf,
     pub engines: HashMap<String, DrmEngine>,
     pub mem_regions: HashMap<String, DrmMemRegion>,
+    pub time_sampled: time::Instant,
 }
 
 impl Default for DrmFdinfo
@@ -131,6 +133,7 @@ impl Default for DrmFdinfo
             path: PathBuf::new(),
             engines: HashMap::new(),
             mem_regions: HashMap::new(),
+            time_sampled: time::Instant::now(),
         }
     }
 }

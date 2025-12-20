@@ -274,8 +274,9 @@ impl DrmClientInfo
         self.mem_regions = fdi.mem_regions;
 
         // one more update for this DRM client
-        self.ms_elapsed = self.last_update.elapsed().as_millis() as u64;
-        self.last_update = time::Instant::now();
+        self.ms_elapsed = fdi.time_sampled
+            .saturating_duration_since(self.last_update).as_millis() as u64;
+        self.last_update = fdi.time_sampled;
         self.nr_updates += 1;
     }
 
