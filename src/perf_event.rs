@@ -1122,19 +1122,25 @@ impl PerfEvent
         Ok(typ)
     }
 
-    pub fn new(src: &str) -> PerfEvent
-    {
-        PerfEvent {
-            src: src.to_string(),
-            perf_fd: -1,
-            grp_fds: Vec::new(),
-        }
-    }
-
     pub fn has_source(src: &str) -> bool
     {
         Path::new("/sys/bus/event_source/devices").join(src).is_symlink() &&
             Path::new(QM_PERF_SRC_DIR).join(src).is_dir()
+    }
+
+    pub fn from_pmu(src: &str) -> Result<PerfEvent>
+    {
+        if !PerfEvent::has_source(src) {
+            bail!("Failed to find dynamic PMU source {:?}", src);
+        }
+
+        Ok(
+            PerfEvent {
+                src: src.to_string(),
+                perf_fd: -1,
+                grp_fds: Vec::new(),
+            }
+        )
     }
 
     pub fn is_capable() -> bool

@@ -586,7 +586,7 @@ impl DrmDriveri915
 
     fn init_engines_pmu(&mut self, src: &str, cpath: &str) -> Result<()>
     {
-        let mut pf_evt = PerfEvent::new(src);
+        let mut pf_evt = PerfEvent::from_pmu(src)?;
         let mut pf_attr = perf_event_attr::new();
         pf_attr.type_ = pf_evt.source_type()?;
         pf_attr.size = mem::size_of::<perf_event_attr>() as u32;
@@ -639,7 +639,7 @@ impl DrmDriveri915
 
     fn init_freqs_pmu(&mut self, src: &str) -> Result<()>
     {
-        let mut pf_evt = PerfEvent::new(src);
+        let mut pf_evt = PerfEvent::from_pmu(src)?;
         let mut gts_data = Vec::new();
 
         let mut pf_attr = perf_event_attr::new();

@@ -409,7 +409,7 @@ impl IGpuPowerIntel
             bail!("No perf event support, no rapl power reporting");
         }
 
-        let mut pf_evt = PerfEvent::new("power");
+        let mut pf_evt = PerfEvent::from_pmu("power")?;
         let type_: u32 = pf_evt.source_type()?;
         let cpu: i32 = unsafe { libc::sched_getcpu() };
 
