@@ -8,7 +8,7 @@ license = "Apache-2.0"
 keywords = ["gpu", "graphics", "statistics", "usage"]
 categories = ["command-line-utilities", "graphics"]
 edition = "2021"
-rust-version = "1.74.0"
+rust-version = "1.75.0"
 
 [dependencies]
 anyhow = "1.0.100"
