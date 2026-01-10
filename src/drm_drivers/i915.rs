@@ -751,11 +751,11 @@ impl DrmDriveri915
     pub fn new(qmd: &DrmDeviceInfo,
         opts: Option<&Vec<&str>>) -> Result<Rc<RefCell<dyn DrmDriver>>>
     {
-        let file = File::open(qmd.drm_minors[0].devnode.clone())?;
+        let file = File::open(&qmd.dev_nodes[0].devnode)?;
         let fd = file.as_raw_fd();
 
         let mut cpath = String::from("/sys/class/drm/");
-        let card = Path::new(&qmd.drm_minors[0].devnode)
+        let card = Path::new(&qmd.dev_nodes[0].devnode)
             .file_name().unwrap().to_str().unwrap();
         cpath.push_str(card);
 

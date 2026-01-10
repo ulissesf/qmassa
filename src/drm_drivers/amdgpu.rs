@@ -516,7 +516,7 @@ impl DrmDriverAmdgpu
         _opts: Option<&Vec<&str>>) -> Result<Rc<RefCell<dyn DrmDriver>>>
     {
         let mut dn: &str = "";
-        for c in qmd.drm_minors.iter() {
+        for c in qmd.dev_nodes.iter() {
             if c.devnode.contains("render") {
                 dn = &c.devnode;
                 break;

@@ -240,15 +240,16 @@ pub const DRM_DEVNODE_MAJOR: u32 = 226;
 
 #[derive(Debug)]
 #[allow(dead_code)]
-pub struct DrmMinorInfo
+pub struct DeviceNodeInfo
 {
     pub devnode: String,
-    pub drm_minor: u32,
+    pub major: u32,
+    pub minor: u32,
 }
 
-impl DrmMinorInfo
+impl DeviceNodeInfo
 {
-    fn from(devnode: String, devnum: u64) -> Result<DrmMinorInfo>
+    fn from_drm(devnode: String, devnum: u64) -> Result<DeviceNodeInfo>
     {
         let mj = libc::major(devnum);
         let mn = libc::minor(devnum);
@@ -258,9 +259,10 @@ impl DrmMinorInfo
                 DRM_DEVNODE_MAJOR, mj, devnode);
         }
 
-        Ok(DrmMinorInfo {
+        Ok(DeviceNodeInfo {
             devnode: devnode,
-            drm_minor: mn,
+            major: DRM_DEVNODE_MAJOR,
+            minor: mn,
         })
     }
 }
@@ -276,7 +278,7 @@ pub struct DrmDeviceInfo
     pub device: String,
     pub revision: String,
     pub drv_name: String,
-    pub drm_minors: Vec<DrmMinorInfo>,
+    pub dev_nodes: Vec<DeviceNodeInfo>,
     pub dev_type: DrmDeviceType,
     pub freq_limits: Vec<DrmDeviceFreqLimits>,
     pub freqs: Vec<DrmDeviceFreqs>,
@@ -301,7 +303,7 @@ impl Default for DrmDeviceInfo
             device: String::new(),
             revision: String::new(),
             drv_name: String::new(),
-            drm_minors: Vec::new(),
+            dev_nodes: Vec::new(),
             dev_type: DrmDeviceType::Unknown,
             freq_limits: vec![DrmDeviceFreqLimits::new(),],
             freqs: vec![DrmDeviceFreqs::new(),],
@@ -576,10 +578,10 @@ impl DrmDevices
 
             let devnode = d.devnode().unwrap().to_str().unwrap().to_string();
             let devnum = d.devnum().unwrap();
-            let minf = DrmMinorInfo::from(devnode, devnum)?;
+            let minf = DeviceNodeInfo::from_drm(devnode, devnum)?;
 
             let dinf = qmds.infos.get_mut(&sysname).unwrap();
-            dinf.drm_minors.push(minf);
+            dinf.dev_nodes.push(minf);
         }
 
         for dinf in qmds.infos.values_mut() {
@@ -595,10 +597,10 @@ impl DrmDevices
             info!(
                 "New device: pci_dev={}, vendor_id={}, vendor={:?}, \
                 device_id={}, device={:?}, revision={}, drv_name={}, \
-                dev_type={:?}, drm_minors={:?}",
+                dev_type={:?}, dev_nodes={:?}",
                 &dinf.pci_dev, &dinf.vendor_id, &dinf.vendor,
                 &dinf.device_id, &dinf.device, &dinf.revision,
-                &dinf.drv_name, &dinf.dev_type, &dinf.drm_minors
+                &dinf.drv_name, &dinf.dev_type, &dinf.dev_nodes
             );
         }
 

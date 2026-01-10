@@ -389,24 +389,24 @@ impl AppDataDeviceState
         self.clis_stats = ncstats;
     }
 
-    fn card_from(devnode: &String) -> &str
+    fn fname_from(devnode: &String) -> &str
     {
-        if devnode.starts_with("/dev/dri/") {
-            &devnode["/dev/dri/".len()..]
-        } else {
-            devnode
+        // assumes devnodes don't end in "/"
+        match devnode.rfind("/") {
+            Some(idx) => &devnode[idx + 1..],
+            None => devnode
         }
     }
 
     fn from(dinfo: &DrmDeviceInfo) -> AppDataDeviceState
     {
-        let cn = AppDataDeviceState::card_from(
-            &dinfo.drm_minors[0].devnode);
+        let cn = AppDataDeviceState::fname_from(
+            &dinfo.dev_nodes[0].devnode);
         let mut dnodes = String::from(cn);
 
-        for idx in 1..dinfo.drm_minors.len() {
-            let cn = AppDataDeviceState::card_from(
-                &dinfo.drm_minors[idx].devnode);
+        for idx in 1..dinfo.dev_nodes.len() {
+            let cn = AppDataDeviceState::fname_from(
+                &dinfo.dev_nodes[idx].devnode);
             dnodes.push_str(", ");
             dnodes.push_str(cn);
         }
