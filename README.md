@@ -293,7 +293,7 @@ terminal-based UI and leverages [many](Cargo.toml) other Rust crates.
 
 ## License
 
-Copyright © 2024-2025 Ulisses Furquim
+Copyright © 2024-2026 Ulisses Furquim
 
 This project is distributed under the terms of the Apache License (Version 2.0).
 See [LICENSE](LICENSE) for details.
