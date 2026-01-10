@@ -1,5 +1,11 @@
 # Changelog
 
+## [v1.2.1](https://github.com/ulissesf/qmassa/releases/tag/v1.2.1) - 2026-01-09
+
+### Fixes
+
+- Set MSRV to 1.75 and fix deps. (@ulissesf)
+
 ## [v1.2.0](https://github.com/ulissesf/qmassa/releases/tag/v1.2.0) - 2025-12-13
 
 ### Features
