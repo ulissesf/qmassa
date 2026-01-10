@@ -750,20 +750,27 @@ impl DrmDriverXe
         Ok(())
     }
 
-    fn sriov_pf_dev_from(pci_dev: &str) -> String
+    fn sriov_pf_dev_from(pci_dev: &str, dev_path: &PathBuf) -> Result<String>
     {
-        // assumes PF == 0 on Intel GPUs with Xe KMD
-        format!("{}.0", &pci_dev[..pci_dev.find(".").unwrap()])
+        let pf_path = dev_path.join("physfn");
+        if !pf_path.is_symlink() {
+            return Ok(pci_dev.to_string());
+        }
+
+        Ok(fs::read_link(pf_path)?
+            .file_name().unwrap()
+            .to_str().unwrap()
+            .to_string())
     }
 
-    fn pmu_evt_source(pci_dev: &str) -> Result<String>
+    fn pmu_evt_source(pci_dev: &str, dev_path: &PathBuf) -> Result<String>
     {
         if !PerfEvent::is_capable() {
             bail!("No PMU support");
         }
 
         let mut src = String::from("xe_");
-        src.push_str(&DrmDriverXe::sriov_pf_dev_from(pci_dev));
+        src.push_str(&DrmDriverXe::sriov_pf_dev_from(pci_dev, dev_path)?);
         let src = src.replace(":", "_");
 
         if !PerfEvent::has_source(&src) {
@@ -773,16 +780,37 @@ impl DrmDriverXe
         Ok(src)
     }
 
-    fn sriov_fn_from(pci_dev: &str) -> Result<u64>
+    fn sriov_fn_from(pci_dev: &str, dev_path: &PathBuf) -> Result<u64>
     {
-        // getting fn directly from PCI slot name
-        Ok(pci_dev[pci_dev.find(".").unwrap() + 1..].parse()?)
+        let pf_path = dev_path.join("physfn");
+        if !pf_path.is_symlink() {
+            // PF fn is 0
+            return Ok(0);
+        }
+
+        // find VF fn number > 0
+        for nr in 0.. {
+            let virt_path = pf_path.join(format!("virtfn{}", nr));
+            if !virt_path.is_symlink() {
+                bail!("Couldn't find SR-IOV VF fn for {:?}", pci_dev);
+            }
+
+            let dpath = fs::read_link(virt_path)?
+                .file_name().unwrap()
+                .to_str().unwrap()
+                .to_string();
+            if dpath == pci_dev {
+                return Ok(nr as u64 + 1);
+            }
+        }
+
+        bail!("Couldn't find SR-IOV fn for {:?}", pci_dev);
     }
 
-    fn parse_pmu_opts(pci_dev: &str,
+    fn parse_pmu_opts(pci_dev: &str, dev_path: &PathBuf,
         opts_vec: &Vec<&str>) -> (bool, bool, u64)
     {
-        let sriov_fn = DrmDriverXe::sriov_fn_from(pci_dev);
+        let sriov_fn = DrmDriverXe::sriov_fn_from(pci_dev, dev_path);
         if let Err(err) = sriov_fn {
             debug!("ERR: failed getting SR-IOV fn from {:?}: {}",
                 pci_dev, err);
@@ -869,10 +897,10 @@ impl DrmDriverXe
 
         if let Some(opts_vec) = opts {
             let (mut use_eng_pmu, mut use_freq_pmu, sriov_fn) =
-                DrmDriverXe::parse_pmu_opts(&qmd.pci_dev, opts_vec);
+                DrmDriverXe::parse_pmu_opts(&qmd.pci_dev, &dev_path, opts_vec);
 
             let pmu_src_res =
-                DrmDriverXe::pmu_evt_source(&qmd.pci_dev);
+                DrmDriverXe::pmu_evt_source(&qmd.pci_dev, &dev_path);
             if (use_eng_pmu || use_freq_pmu) && pmu_src_res.is_err() {
                 use_eng_pmu = false;
                 use_freq_pmu = false;
