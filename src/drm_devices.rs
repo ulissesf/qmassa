@@ -282,21 +282,33 @@ pub struct DeviceNodeInfo
 
 impl DeviceNodeInfo
 {
-    fn from_drm(devnode: String, devnum: u64) -> Result<DeviceNodeInfo>
+    fn from_major(devnode: String, devnum: u64,
+        major: u32, major_str: &str) -> Result<DeviceNodeInfo>
     {
         let mj = libc::major(devnum);
         let mn = libc::minor(devnum);
 
-        if mj != DRM_DEVNODE_MAJOR {
-            bail!("Expected DRM major {:?} but found {:?} for {:?}",
-                DRM_DEVNODE_MAJOR, mj, devnode);
+        if major > 0 && mj != major {
+            bail!("Expected {} major {:?} but found {:?} for {:?}",
+                major_str, major, mj, devnode);
         }
 
         Ok(DeviceNodeInfo {
             devnode: devnode,
-            major: DRM_DEVNODE_MAJOR,
+            major: mj,
             minor: mn,
         })
+    }
+
+    fn from_drm(devnode: String, devnum: u64) -> Result<DeviceNodeInfo>
+    {
+        DeviceNodeInfo::from_major(
+            devnode, devnum, DRM_DEVNODE_MAJOR, "DRM")
+    }
+
+    fn from(devnode: String, devnum: u64) -> Result<DeviceNodeInfo>
+    {
+        DeviceNodeInfo::from_major(devnode, devnum, 0, "")
     }
 }
 
@@ -442,6 +454,25 @@ impl DrmDeviceInfo
     {
         self.driver.is_some()
     }
+
+    fn is_drm_vfio(&self) -> bool
+    {
+        if self.dev_nodes.is_empty() {
+            return false;
+        }
+
+        let dn = Path::new(&self.dev_nodes[0].devnode)
+            .file_name().unwrap()
+            .to_str().unwrap();
+        let dev_path = Path::new("/sys/class/vfio-dev")
+            .join(dn)
+            .join("device");
+        let physfn_path = Path::new(&dev_path)
+            .join("physfn");
+
+        dev_path.is_symlink() && physfn_path.is_symlink() &&
+            Path::new(&physfn_path).join("drm").is_dir()
+    }
 }
 
 #[derive(Debug)]
@@ -543,16 +574,15 @@ impl DrmDevices
         device_id.clone()
     }
 
-    pub fn find_devices(dev_slots: &Vec<&str>,
-        drv_opts: &HashMap<&str, Vec<&str>>) -> Result<DrmDevices>
+    fn devices_from_udev(
+        dev_slots: &Vec<&str>,
+        mut udev_enum: udev::Enumerator,
+        devnodeinfo_from: fn(String, u64) -> Result<DeviceNodeInfo>
+    ) -> Result<HashMap<String, DrmDeviceInfo>>
     {
-        let mut qmds = DrmDevices::new();
+        let mut devs = HashMap::new();
 
-        let mut enumerator = udev::Enumerator::new()?;
-        enumerator.match_subsystem("drm")?;
-        enumerator.match_property("DEVNAME", "/dev/dri/*")?;
-
-        for d in enumerator.scan_devices()? {
+        for d in udev_enum.scan_devices()? {
             let pdev = d.parent().unwrap();
             let sysname = pdev.sysname().to_str().unwrap().to_string();
 
@@ -567,7 +597,7 @@ impl DrmDevices
             let device: String;
             let revision: String;
 
-            if !qmds.infos.contains_key(&sysname) {
+            if !devs.contains_key(&sysname) {
                 if let Some(pciid) = pdev.property_value("PCI_ID") {
                     let pciid = pciid.to_str().unwrap();
 
@@ -606,17 +636,56 @@ impl DrmDevices
                     drv_name,
                     ..Default::default()
                 };
-                qmds.infos.insert(sysname.clone(), ndinf);
+                devs.insert(sysname.clone(), ndinf);
             }
 
             let devnode = d.devnode().unwrap().to_str().unwrap().to_string();
             let devnum = d.devnum().unwrap();
-            let minf = DeviceNodeInfo::from_drm(devnode, devnum)?;
+            let minf = devnodeinfo_from(devnode, devnum)?;
 
-            let dinf = qmds.infos.get_mut(&sysname).unwrap();
+            let dinf = devs.get_mut(&sysname).unwrap();
             dinf.dev_nodes.push(minf);
         }
 
+        Ok(devs)
+    }
+
+    pub fn find_devices(dev_slots: &Vec<&str>,
+        drv_opts: &HashMap<&str, Vec<&str>>) -> Result<DrmDevices>
+    {
+        let mut qmds = DrmDevices::new();
+
+        // find DRM devices
+        let mut drm_enum = udev::Enumerator::new()?;
+        drm_enum.match_subsystem("drm")?;
+        drm_enum.match_property("DEVNAME", "/dev/dri/*")?;
+
+        qmds.infos = DrmDevices::devices_from_udev(
+            dev_slots, drm_enum, DeviceNodeInfo::from_drm)?;
+
+        // find VFIO devices
+        let mut vfio_enum = udev::Enumerator::new()?;
+        vfio_enum.match_subsystem("vfio-dev")?;
+        vfio_enum.match_property("DEVNAME", "/dev/vfio/devices/*")?;
+
+        let vfio_devs = DrmDevices::devices_from_udev(
+            dev_slots, vfio_enum, DeviceNodeInfo::from)?;
+
+        for (dname, dinfo) in vfio_devs.into_iter() {
+            if qmds.infos.contains_key(&dname) {
+                warn!("Found {:?} on both DRM and VFIO, ignoring VFIO.",
+                    &dname);
+                continue;
+            }
+            if !dinfo.is_drm_vfio() {
+                debug!("INF: VFIO device {:?} not for DRM physfn, ignoring.",
+                    &dname);
+                continue;
+            }
+            qmds.infos.insert(dname, dinfo);
+        }
+
+        // initialize drivers and log devices found
         for dinf in qmds.infos.values_mut() {
             let dopts = drv_opts.get(dinf.drv_name.as_str());
             if let Some(drv_ref) = drm_drivers::driver_from(dinf, dopts)? {
