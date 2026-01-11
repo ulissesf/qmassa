@@ -15,35 +15,68 @@ use crate::drm_clients::{DrmClients, DrmClientInfo};
 use crate::drm_drivers::{self, DrmDriver};
 
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub enum VirtFn
+{
+    NoVirt,
+    SriovPF,
+    SriovVF,
+    VFIO,
+}
+
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum DrmDeviceType
 {
     Unknown,
-    Integrated,
-    Discrete,
+    Integrated(VirtFn),
+    Discrete(VirtFn),
 }
 
 impl DrmDeviceType
 {
     pub fn is_discrete(&self) -> bool
     {
-        *self == DrmDeviceType::Discrete
+        match self {
+            DrmDeviceType::Discrete(_) => true,
+            _ => false
+        }
     }
 
     pub fn is_integrated(&self) -> bool
     {
-        *self == DrmDeviceType::Integrated
+        match self {
+            DrmDeviceType::Integrated(_) => true,
+            _ => false
+        }
     }
 
     pub fn to_string(&self) -> String
     {
-        if self.is_discrete() {
-            String::from("Discrete")
-        } else if self.is_integrated() {
-            String::from("Integrated")
-        } else {
-            String::from("Unknown")
+        let mut ret = String::new();
+
+        let sriovfn = match *self {
+            DrmDeviceType::Discrete(sfn) => {
+                ret.push_str("Discrete");
+                sfn
+            },
+            DrmDeviceType::Integrated(sfn) => {
+                ret.push_str("Integrated");
+                sfn
+            },
+            DrmDeviceType::Unknown => {
+                ret.push_str("Unknown");
+                VirtFn::NoVirt
+            }
+        };
+
+        match sriovfn {
+            VirtFn::SriovPF => ret.push_str(" (PF)"),
+            VirtFn::SriovVF => ret.push_str(" (VF)"),
+            VirtFn::VFIO => ret.push_str(" (VFIO)"),
+            _ => {}
         }
+
+        ret
     }
 }
 

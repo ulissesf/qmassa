@@ -25,7 +25,7 @@ use crate::drm_drivers::{
     intel_power::{GpuPowerIntel, IGpuPowerIntel, DGpuPowerIntel},
 };
 use crate::drm_devices::{
-    DrmDeviceType, DrmDeviceFreqs, DrmDeviceFreqLimits,
+    VirtFn, DrmDeviceType, DrmDeviceFreqs, DrmDeviceFreqLimits,
     DrmDeviceThrottleReasons, DrmDevicePower, DrmDeviceMemInfo,
     DrmDeviceTemperature, DrmDeviceFan, DrmDeviceInfo
 };
@@ -271,9 +271,9 @@ impl DrmDriver for DrmDriveri915
 
         let dmi = self.mem_info()?;
         let qmdt = if dmi.vram_total > 0 {
-            DrmDeviceType::Discrete
+            DrmDeviceType::Discrete(VirtFn::NoVirt)
         } else {
-            DrmDeviceType::Integrated
+            DrmDeviceType::Integrated(VirtFn::NoVirt)
         };
 
         self.dev_type = Some(qmdt.clone());

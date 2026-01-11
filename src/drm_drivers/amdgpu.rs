@@ -20,7 +20,8 @@ use crate::drm_drivers::helpers::{drm_iow, drm_ioctl};
 use crate::hwmon::Hwmon;
 use crate::drm_devices::{
     DrmDeviceType, DrmDeviceFreqLimits, DrmDeviceFreqs, DrmDevicePower,
-    DrmDeviceMemInfo, DrmDeviceTemperature, DrmDeviceFan, DrmDeviceInfo
+    DrmDeviceMemInfo, DrmDeviceTemperature, DrmDeviceFan, DrmDeviceInfo,
+    VirtFn,
 };
 use crate::drm_fdinfo::DrmMemRegion;
 use crate::drm_clients::DrmClientMemInfo;
@@ -337,9 +338,9 @@ impl DrmDriver for DrmDriverAmdgpu
             qid_ptr as u64, mem::size_of::<drm_amdgpu_info_device>() as u32)?;
 
         let qmdt = if qid.ids_flags & AMDGPU_IDS_FLAGS_FUSION > 0 {
-            DrmDeviceType::Integrated
+            DrmDeviceType::Integrated(VirtFn::NoVirt)
         } else {
-            DrmDeviceType::Discrete
+            DrmDeviceType::Discrete(VirtFn::NoVirt)
         };
 
         self.dev_type = Some(qmdt.clone());

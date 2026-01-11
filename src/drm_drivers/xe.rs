@@ -24,7 +24,7 @@ use crate::drm_drivers::{
     intel_power::{GpuPowerIntel, IGpuPowerIntel, DGpuPowerIntel},
 };
 use crate::drm_devices::{
-    DrmDeviceType, DrmDeviceFreqLimits, DrmDeviceFreqs,
+    VirtFn, DrmDeviceType, DrmDeviceFreqLimits, DrmDeviceFreqs,
     DrmDeviceThrottleReasons, DrmDevicePower, DrmDeviceMemInfo,
     DrmDeviceTemperature, DrmDeviceFan, DrmDeviceInfo
 };
@@ -309,9 +309,9 @@ impl DrmDriver for DrmDriverXe
         let flags = cfg[DRM_XE_QUERY_CONFIG_FLAGS];
 
         let qmdt = if flags & DRM_XE_QUERY_CONFIG_FLAG_HAS_VRAM > 0 {
-            DrmDeviceType::Discrete
+            DrmDeviceType::Discrete(VirtFn::NoVirt)
         } else {
-            DrmDeviceType::Integrated
+            DrmDeviceType::Integrated(VirtFn::NoVirt)
         };
 
         unsafe { alloc::dealloc(qcfg as *mut u8, layout); }
