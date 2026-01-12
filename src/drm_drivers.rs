@@ -16,6 +16,7 @@ mod helpers;
 mod intel_power;
 mod xe;
 use xe::DrmDriverXe;
+use xe::DrmDriverXeVfio;
 mod i915;
 use i915::DrmDriveri915;
 mod amdgpu;
@@ -97,6 +98,7 @@ pub fn driver_from(qmd: &DrmDeviceInfo,
         ("xe", DrmDriverXe::new),
         ("i915", DrmDriveri915::new),
         ("amdgpu", DrmDriverAmdgpu::new),
+        ("xe-vfio-pci", DrmDriverXeVfio::new),
     ];
 
     for (dn, drv_newfunc) in drvs {

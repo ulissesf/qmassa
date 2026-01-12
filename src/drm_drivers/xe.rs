@@ -125,12 +125,133 @@ const DRM_XE_DEVICE_QUERY: Ioctl = 0x00;
 const DRM_IOCTL_XE_DEVICE_QUERY: Ioctl = drm_iowr!(DRM_XE_DEVICE_QUERY,
     mem::size_of::<drm_xe_device_query>());
 
+//
+// SR-IOV and PMU helpers
+//
+
+fn xe_sriov_pf_dev_from(pci_dev: &str, dev_path: &PathBuf) -> Result<String>
+{
+    let pf_path = dev_path.join("physfn");
+    if !pf_path.is_symlink() {
+        return Ok(pci_dev.to_string());
+    }
+
+    Ok(fs::read_link(pf_path)?
+        .file_name().unwrap()
+        .to_str().unwrap()
+        .to_string())
+}
+
+fn xe_pmu_source_from(pci_dev: &str, dev_path: &PathBuf) -> Result<String>
+{
+    if !PerfEvent::is_capable() {
+        bail!("No PMU support");
+    }
+
+    let mut src = String::from("xe_");
+    src.push_str(&xe_sriov_pf_dev_from(pci_dev, dev_path)?);
+    let src = src.replace(":", "_");
+
+    if !PerfEvent::has_source(&src) {
+        bail!("No PMU source {:?}", &src);
+    }
+
+    Ok(src)
+}
+
+fn xe_sriov_fn_from(pci_dev: &str, dev_path: &PathBuf) -> Result<u64>
+{
+    let pf_path = dev_path.join("physfn");
+    if !pf_path.is_symlink() {
+        // PF fn is 0
+        return Ok(0);
+    }
+
+    // find VF fn number > 0
+    for nr in 0.. {
+        let virt_path = pf_path.join(format!("virtfn{}", nr));
+        if !virt_path.is_symlink() {
+            bail!("Couldn't find SR-IOV VF fn for {:?}", pci_dev);
+        }
+
+        let dpath = fs::read_link(virt_path)?
+            .file_name().unwrap()
+            .to_str().unwrap()
+            .to_string();
+        if dpath == pci_dev {
+            return Ok(nr as u64 + 1);
+        }
+    }
+
+    bail!("Couldn't find SR-IOV fn for {:?}", pci_dev);
+}
+
 #[derive(Debug)]
 struct XeEngine
 {
     gt_id: u64,
     class: u64,
     instance: u64,
+}
+
+impl XeEngine
+{
+    fn engines_from(dn_fd: RawFd) -> Result<(usize, Vec<XeEngine>)>
+    {
+        let mut dq = drm_xe_device_query {
+            extensions: 0,
+            query: DRM_XE_DEVICE_QUERY_ENGINES,
+            size: 0,
+            data: 0,
+            reserved: [0, 0],
+        };
+
+        let res = drm_ioctl!(dn_fd, DRM_IOCTL_XE_DEVICE_QUERY, &mut dq);
+        if res < 0 {
+            return Err(io::Error::last_os_error().into());
+        }
+
+        if dq.size as usize == 0 {
+            warn!("Xe query engines ioctl returned 0 size, aborting.");
+            bail!("Xe query engines ioctl returned 0 size");
+        }
+
+        let layout = alloc::Layout::from_size_align(dq.size as usize,
+            mem::align_of::<u64>())?;
+        let qengs = unsafe {
+            let ptr = alloc::alloc(layout) as *mut drm_xe_query_engines;
+            if ptr.is_null() {
+                panic!("Can't allocate memory for Xe query engines ioctl()");
+            }
+
+            ptr
+        };
+        dq.data = qengs as u64;
+
+        let res = drm_ioctl!(dn_fd, DRM_IOCTL_XE_DEVICE_QUERY, &mut dq);
+        if res < 0 {
+            unsafe { alloc::dealloc(qengs as *mut u8, layout); }
+            return Err(io::Error::last_os_error().into());
+        }
+        let engs = unsafe {
+            (*qengs).engines.as_slice((*qengs).num_engines as usize) };
+
+        let mut ret = Vec::new();
+        let mut nr_engs = 0;
+        for e in engs {
+            nr_engs = max(nr_engs, e.instance.engine_class as usize + 1);
+            let ne = XeEngine {
+                gt_id: e.instance.gt_id as u64,
+                class: e.instance.engine_class as u64,
+                instance: e.instance.engine_instance as u64,
+            };
+            ret.push(ne);
+        }
+
+        unsafe { alloc::dealloc(qengs as *mut u8, layout); }
+
+        Ok((nr_engs, ret))
+    }
 }
 
 #[derive(Debug)]
@@ -191,6 +312,72 @@ impl XeEnginesPmu
 
         Ok(engs_ut)
     }
+
+    fn from(pci_dev: &str, dev_path: &PathBuf,
+        dn_fd: RawFd, src: &str) -> Result<XeEnginesPmu>
+    {
+        let sriov_fn = xe_sriov_fn_from(pci_dev, dev_path);
+        if let Err(err) = sriov_fn {
+            bail!("ERR: failed getting SR-IOV fn from {:?}: {}",
+                pci_dev, err);
+        }
+        let sriov_fn = sriov_fn.unwrap();
+
+        let mut pf_evt = PerfEvent::from_pmu(src)?;
+        let mut pf_attr = perf_event_attr::new();
+        pf_attr.type_ = pf_evt.source_type()?;
+        pf_attr.size = mem::size_of::<perf_event_attr>() as u32;
+        pf_attr.read_format = PERF_FORMAT_GROUP;
+
+        let cpu: i32 = unsafe { libc::sched_getcpu() };
+        let act_cfg = pf_evt.event_config("engine-active-ticks")?;
+        let tot_cfg = pf_evt.event_config("engine-total-ticks")?;
+        let has_sriov = pf_evt.has_format_param("function");
+
+        let (nr_engs, engs_info) = XeEngine::engines_from(dn_fd)?;
+        let mut engs_data = Vec::new();
+        for _ in 0..nr_engs {
+            let nvec: Vec<XeEnginePmuData> = Vec::new();
+            engs_data.push(nvec);
+        }
+        let mut idx = 0;
+
+        for eng in engs_info.iter() {
+            let mut params = vec![
+                ("gt", eng.gt_id),
+                ("engine_class", eng.class),
+                ("engine_instance", eng.instance),
+            ];
+            if has_sriov {
+                params.push(("function", sriov_fn));
+            }
+
+            pf_attr.config = pf_evt.format_config(&params, act_cfg)?;
+            pf_evt.group_open(&pf_attr, -1, cpu, 0)?;
+
+            pf_attr.config = pf_evt.format_config(&params, tot_cfg)?;
+            pf_evt.group_open(&pf_attr, -1, cpu, 0)?;
+
+            engs_data[eng.class as usize].push(
+                XeEnginePmuData {
+                    base_idx: idx,
+                    last_active: 0,
+                    last_total: 0,
+                }
+            );
+            idx += 2;
+        }
+
+        Ok(
+            XeEnginesPmu {
+                pf_evt,
+                nr_evts: idx,
+                nr_engs,
+                engs_data,
+                nr_updates: 0,
+            }
+        )
+    }
 }
 
 #[derive(Debug)]
@@ -241,6 +428,222 @@ impl XeFreqsPmu
 
         Ok(data)
     }
+
+    fn from(base_gts_dir: &PathBuf, src: &str) -> Result<XeFreqsPmu>
+    {
+        let mut pf_evt = PerfEvent::from_pmu(src)?;
+        let mut gts_data = Vec::new();
+
+        let mut pf_attr = perf_event_attr::new();
+        pf_attr.type_ = pf_evt.source_type()?;
+        pf_attr.size = mem::size_of::<perf_event_attr>() as u32;
+        pf_attr.read_format = PERF_FORMAT_GROUP;
+
+        let cpu: i32 = unsafe { libc::sched_getcpu() };
+        let cur_cfg = pf_evt.event_config("gt-requested-frequency")?;
+        let act_cfg = pf_evt.event_config("gt-actual-frequency")?;
+
+        let cur_unit = pf_evt.event_unit("gt-requested-frequency")?;
+        let act_unit = pf_evt.event_unit("gt-actual-frequency")?;
+        if cur_unit != "MHz" || act_unit != "MHz" {
+            bail!("Requested and actual freqs not in MHz, got {:?} and {:?}.",
+                cur_unit, act_unit);
+        }
+
+        for nr in 0.. {
+            let gt_dir = base_gts_dir.join(format!("gt{}", nr));
+            if !gt_dir.is_dir() {
+                break;
+            }
+
+            let params = vec![("gt", nr),];
+
+            pf_attr.config = pf_evt.format_config(&params, cur_cfg)?;
+            pf_evt.group_open(&pf_attr, -1, cpu, 0)?;
+
+            pf_attr.config = pf_evt.format_config(&params, act_cfg)?;
+            pf_evt.group_open(&pf_attr, -1, cpu, 0)?;
+
+            gts_data.push(
+                XeGTFreqsPmuData {
+                    last_cur: 0,
+                    last_act: 0,
+                }
+            );
+         }
+
+        Ok(
+            XeFreqsPmu {
+                pf_evt,
+                gts_data,
+                nr_updates: 0,
+            }
+        )
+    }
+}
+
+fn xe_dev_type_from(dn_fd: RawFd, dev_path: &PathBuf) -> Result<DrmDeviceType>
+{
+    // find virtualization fn, if any
+    let is_vfio = dev_path.join("vfio-dev").is_dir();
+
+    let virt_fn = if is_vfio {
+        VirtFn::VFIO
+    } else if dev_path.join("physfn").is_symlink() {
+        VirtFn::SriovVF
+    } else if dev_path.join("virtfn0").is_symlink() {
+        VirtFn::SriovPF
+    } else {
+        VirtFn::NoVirt
+    };
+
+    // find discrete vs integrated type
+    let mut dq = drm_xe_device_query {
+        extensions: 0,
+        query: DRM_XE_DEVICE_QUERY_CONFIG,
+        size: 0,
+        data: 0,
+        reserved: [0, 0],
+    };
+
+    let res = drm_ioctl!(dn_fd, DRM_IOCTL_XE_DEVICE_QUERY, &mut dq);
+    if res < 0 {
+        return Err(io::Error::last_os_error().into());
+    }
+
+    if dq.size as usize == 0 {
+        warn!("Xe config query ioctl() returned 0 size, skipping.");
+        return Ok(DrmDeviceType::Unknown);
+    }
+
+    let layout = alloc::Layout::from_size_align(dq.size as usize,
+        mem::align_of::<u64>())?;
+    let qcfg = unsafe {
+        let ptr = alloc::alloc(layout) as *mut drm_xe_query_config;
+        if ptr.is_null() {
+            panic!("Can't allocate memory for Xe query config ioctl()");
+        }
+
+        ptr
+    };
+    dq.data = qcfg as u64;
+
+    let res = drm_ioctl!(dn_fd, DRM_IOCTL_XE_DEVICE_QUERY, &mut dq);
+    if res < 0 {
+        unsafe { alloc::dealloc(qcfg as *mut u8, layout); }
+        return Err(io::Error::last_os_error().into());
+    }
+    let cfg = unsafe { (*qcfg).info.as_slice((*qcfg).num_params as usize) };
+    let flags = cfg[DRM_XE_QUERY_CONFIG_FLAGS];
+
+    let qmdt = if flags & DRM_XE_QUERY_CONFIG_FLAG_HAS_VRAM > 0 {
+        DrmDeviceType::Discrete(virt_fn)
+    } else {
+        DrmDeviceType::Integrated(virt_fn)
+    };
+
+    unsafe { alloc::dealloc(qcfg as *mut u8, layout); }
+
+    Ok(qmdt)
+}
+
+#[derive(Debug)]
+pub struct DrmDriverXeVfio
+{
+    dev_type: DrmDeviceType,
+    engs_pmu: Option<XeEnginesPmu>,
+}
+
+impl DrmDriver for DrmDriverXeVfio
+{
+    fn name(&self) -> &str
+    {
+        "xe-vfio-pci"
+    }
+
+    fn dev_type(&mut self) -> Result<DrmDeviceType>
+    {
+        Ok(self.dev_type.clone())
+    }
+
+    fn engs_utilization(&mut self) -> Result<HashMap<String, f64>>
+    {
+        if self.engs_pmu.is_none() {
+            return Ok(HashMap::new());
+        }
+
+        self.engs_pmu.as_mut().unwrap().engs_utilization()
+    }
+}
+
+impl DrmDriverXeVfio
+{
+    fn find_card_dir(path: &PathBuf) -> Option<String>
+    {
+        for entry in fs::read_dir(path).ok()? {
+            let entry = entry.ok()?;
+            let epath = entry.path();
+
+            if epath.is_dir() {
+                if let Some(nm) = epath.file_name().and_then(|n| n.to_str()) {
+                    if nm.starts_with("card") {
+                        return Some(nm.to_string());
+                    }
+                }
+            }
+        }
+
+        None
+    }
+
+    pub fn new(qmd: &DrmDeviceInfo,
+        _opts: Option<&Vec<&str>>) -> Result<Rc<RefCell<dyn DrmDriver>>>
+    {
+        let mut vpath = String::from("/sys/class/vfio-dev/");
+        let vfio = Path::new(&qmd.dev_nodes[0].devnode)
+            .file_name().unwrap().to_str().unwrap();
+        vpath.push_str(vfio);
+        let dev_path = Path::new(&vpath).join("device");
+
+        let cname_res = DrmDriverXeVfio::find_card_dir(
+            &dev_path.join("physfn").join("drm"));
+        if cname_res.is_none() {
+            bail!("{}: no DRM card for VFIO physfn, aborting.", &qmd.pci_dev);
+        }
+        let cname = cname_res.unwrap();
+
+        let file = File::open(Path::new("/dev/dri").join(&cname))?;
+        let fd = file.as_raw_fd();
+
+        let dev_type = xe_dev_type_from(fd, &dev_path)?;
+        let mut engs_pmu = None;
+
+        let pmu_src_res = xe_pmu_source_from(&qmd.pci_dev, &dev_path);
+        if pmu_src_res.is_err() {
+            debug!("{}: ERR: failed to find PMU source: {:?}",
+                &qmd.pci_dev, pmu_src_res);
+        } else {
+            let pmu_src = pmu_src_res.unwrap();
+
+            let res = XeEnginesPmu::from(
+                &qmd.pci_dev, &dev_path, fd, &pmu_src);
+            info!("{}: engines PMU init: {}",
+                &qmd.pci_dev, if res.is_ok() { "OK" } else { "FAILED" });
+            if res.is_err() {
+                debug!("{}: ERR: failed to enable engines PMU: {:?}",
+                    &qmd.pci_dev, res);
+            } else {
+                engs_pmu = Some(res.unwrap());
+            }
+        }
+
+        let xe_vfio = DrmDriverXeVfio {
+            dev_type,
+            engs_pmu,
+        };
+
+        Ok(Rc::new(RefCell::new(xe_vfio)))
+    }
 }
 
 #[derive(Debug)]
@@ -249,7 +652,7 @@ pub struct DrmDriverXe
     _dn_file: File,
     dn_fd: RawFd,
     base_gts_dir: PathBuf,
-    dev_type: Option<DrmDeviceType>,
+    dev_type: DrmDeviceType,
     freq_limits: Option<Vec<DrmDeviceFreqLimits>>,
     power: Option<Box<dyn GpuPowerIntel>>,
     hwmon: Option<Hwmon>,
@@ -266,58 +669,7 @@ impl DrmDriver for DrmDriverXe
 
     fn dev_type(&mut self) -> Result<DrmDeviceType>
     {
-        if let Some(dt) = &self.dev_type {
-            return Ok(dt.clone());
-        }
-
-        let mut dq = drm_xe_device_query {
-            extensions: 0,
-            query: DRM_XE_DEVICE_QUERY_CONFIG,
-            size: 0,
-            data: 0,
-            reserved: [0, 0],
-        };
-
-        let res = drm_ioctl!(self.dn_fd, DRM_IOCTL_XE_DEVICE_QUERY, &mut dq);
-        if res < 0 {
-            return Err(io::Error::last_os_error().into());
-        }
-
-        if dq.size as usize == 0 {
-            warn!("Xe config query ioctl() returned 0 size, skipping.");
-            return Ok(DrmDeviceType::Unknown);
-        }
-
-        let layout = alloc::Layout::from_size_align(dq.size as usize,
-            mem::align_of::<u64>())?;
-        let qcfg = unsafe {
-            let ptr = alloc::alloc(layout) as *mut drm_xe_query_config;
-            if ptr.is_null() {
-                panic!("Can't allocate memory for Xe query config ioctl()");
-            }
-
-            ptr
-        };
-        dq.data = qcfg as u64;
-
-        let res = drm_ioctl!(self.dn_fd, DRM_IOCTL_XE_DEVICE_QUERY, &mut dq);
-        if res < 0 {
-            unsafe { alloc::dealloc(qcfg as *mut u8, layout); }
-            return Err(io::Error::last_os_error().into());
-        }
-        let cfg = unsafe { (*qcfg).info.as_slice((*qcfg).num_params as usize) };
-        let flags = cfg[DRM_XE_QUERY_CONFIG_FLAGS];
-
-        let qmdt = if flags & DRM_XE_QUERY_CONFIG_FLAG_HAS_VRAM > 0 {
-            DrmDeviceType::Discrete(VirtFn::NoVirt)
-        } else {
-            DrmDeviceType::Integrated(VirtFn::NoVirt)
-        };
-
-        unsafe { alloc::dealloc(qcfg as *mut u8, layout); }
-
-        self.dev_type = Some(qmdt.clone());
-        Ok(qmdt)
+        Ok(self.dev_type.clone())
     }
 
     fn mem_info(&mut self) -> Result<DrmDeviceMemInfo>
@@ -579,245 +931,8 @@ impl DrmDriver for DrmDriverXe
 
 impl DrmDriverXe
 {
-    fn engines_info(&self) -> Result<(usize, Vec<XeEngine>)>
+    fn parse_pmu_opts(pci_dev: &str, opts_vec: &Vec<&str>) -> (bool, bool)
     {
-        let mut dq = drm_xe_device_query {
-            extensions: 0,
-            query: DRM_XE_DEVICE_QUERY_ENGINES,
-            size: 0,
-            data: 0,
-            reserved: [0, 0],
-        };
-
-        let res = drm_ioctl!(self.dn_fd, DRM_IOCTL_XE_DEVICE_QUERY, &mut dq);
-        if res < 0 {
-            return Err(io::Error::last_os_error().into());
-        }
-
-        if dq.size as usize == 0 {
-            warn!("Xe query engines ioctl returned 0 size, aborting.");
-            bail!("Xe query engines ioctl returned 0 size");
-        }
-
-        let layout = alloc::Layout::from_size_align(dq.size as usize,
-            mem::align_of::<u64>())?;
-        let qengs = unsafe {
-            let ptr = alloc::alloc(layout) as *mut drm_xe_query_engines;
-            if ptr.is_null() {
-                panic!("Can't allocate memory for Xe query engines ioctl()");
-            }
-
-            ptr
-        };
-        dq.data = qengs as u64;
-
-        let res = drm_ioctl!(self.dn_fd, DRM_IOCTL_XE_DEVICE_QUERY, &mut dq);
-        if res < 0 {
-            unsafe { alloc::dealloc(qengs as *mut u8, layout); }
-            return Err(io::Error::last_os_error().into());
-        }
-        let engs = unsafe {
-            (*qengs).engines.as_slice((*qengs).num_engines as usize) };
-
-        let mut ret = Vec::new();
-        let mut nr_engs = 0;
-        for e in engs {
-            nr_engs = max(nr_engs, e.instance.engine_class as usize + 1);
-            let ne = XeEngine {
-                gt_id: e.instance.gt_id as u64,
-                class: e.instance.engine_class as u64,
-                instance: e.instance.engine_instance as u64,
-            };
-            ret.push(ne);
-        }
-
-        unsafe { alloc::dealloc(qengs as *mut u8, layout); }
-
-        Ok((nr_engs, ret))
-    }
-
-    fn init_engines_pmu(&mut self, src: &str, sriov_fn: u64) -> Result<()>
-    {
-        let mut pf_evt = PerfEvent::from_pmu(src)?;
-        let mut pf_attr = perf_event_attr::new();
-        pf_attr.type_ = pf_evt.source_type()?;
-        pf_attr.size = mem::size_of::<perf_event_attr>() as u32;
-        pf_attr.read_format = PERF_FORMAT_GROUP;
-
-        let cpu: i32 = unsafe { libc::sched_getcpu() };
-        let act_cfg = pf_evt.event_config("engine-active-ticks")?;
-        let tot_cfg = pf_evt.event_config("engine-total-ticks")?;
-        let has_sriov = pf_evt.has_format_param("function");
-
-        let (nr_engs, engs_info) = self.engines_info()?;
-        let mut engs_data = Vec::new();
-        for _ in 0..nr_engs {
-            let nvec: Vec<XeEnginePmuData> = Vec::new();
-            engs_data.push(nvec);
-        }
-        let mut idx = 0;
-
-        for eng in engs_info.iter() {
-            let mut params = vec![
-                ("gt", eng.gt_id),
-                ("engine_class", eng.class),
-                ("engine_instance", eng.instance),
-            ];
-            if has_sriov {
-                params.push(("function", sriov_fn));
-            }
-
-            pf_attr.config = pf_evt.format_config(&params, act_cfg)?;
-            pf_evt.group_open(&pf_attr, -1, cpu, 0)?;
-
-            pf_attr.config = pf_evt.format_config(&params, tot_cfg)?;
-            pf_evt.group_open(&pf_attr, -1, cpu, 0)?;
-
-            engs_data[eng.class as usize].push(
-                XeEnginePmuData {
-                    base_idx: idx,
-                    last_active: 0,
-                    last_total: 0,
-                }
-            );
-            idx += 2;
-        }
-
-        self.engs_pmu = Some(
-            XeEnginesPmu {
-                pf_evt,
-                nr_evts: idx,
-                nr_engs,
-                engs_data,
-                nr_updates: 0,
-            }
-        );
-
-        Ok(())
-    }
-
-    fn init_freqs_pmu(&mut self, src: &str) -> Result<()>
-    {
-        let mut pf_evt = PerfEvent::from_pmu(src)?;
-        let mut gts_data = Vec::new();
-
-        let mut pf_attr = perf_event_attr::new();
-        pf_attr.type_ = pf_evt.source_type()?;
-        pf_attr.size = mem::size_of::<perf_event_attr>() as u32;
-        pf_attr.read_format = PERF_FORMAT_GROUP;
-
-        let cpu: i32 = unsafe { libc::sched_getcpu() };
-        let cur_cfg = pf_evt.event_config("gt-requested-frequency")?;
-        let act_cfg = pf_evt.event_config("gt-actual-frequency")?;
-
-        let cur_unit = pf_evt.event_unit("gt-requested-frequency")?;
-        let act_unit = pf_evt.event_unit("gt-actual-frequency")?;
-        if cur_unit != "MHz" || act_unit != "MHz" {
-            bail!("Requested and actual freqs not in MHz, got {:?} and {:?}.",
-                cur_unit, act_unit);
-        }
-
-        for nr in 0.. {
-            let gt_dir = self.base_gts_dir.join(format!("gt{}", nr));
-            if !gt_dir.is_dir() {
-                break;
-            }
-
-            let params = vec![("gt", nr),];
-
-            pf_attr.config = pf_evt.format_config(&params, cur_cfg)?;
-            pf_evt.group_open(&pf_attr, -1, cpu, 0)?;
-
-            pf_attr.config = pf_evt.format_config(&params, act_cfg)?;
-            pf_evt.group_open(&pf_attr, -1, cpu, 0)?;
-
-            gts_data.push(
-                XeGTFreqsPmuData {
-                    last_cur: 0,
-                    last_act: 0,
-                }
-            );
-         }
-
-        self.freqs_pmu = Some(
-            XeFreqsPmu {
-                pf_evt,
-                gts_data,
-                nr_updates: 0,
-            }
-        );
-
-        Ok(())
-    }
-
-    fn sriov_pf_dev_from(pci_dev: &str, dev_path: &PathBuf) -> Result<String>
-    {
-        let pf_path = dev_path.join("physfn");
-        if !pf_path.is_symlink() {
-            return Ok(pci_dev.to_string());
-        }
-
-        Ok(fs::read_link(pf_path)?
-            .file_name().unwrap()
-            .to_str().unwrap()
-            .to_string())
-    }
-
-    fn pmu_evt_source(pci_dev: &str, dev_path: &PathBuf) -> Result<String>
-    {
-        if !PerfEvent::is_capable() {
-            bail!("No PMU support");
-        }
-
-        let mut src = String::from("xe_");
-        src.push_str(&DrmDriverXe::sriov_pf_dev_from(pci_dev, dev_path)?);
-        let src = src.replace(":", "_");
-
-        if !PerfEvent::has_source(&src) {
-            bail!("No PMU source {:?}", &src);
-        }
-
-        Ok(src)
-    }
-
-    fn sriov_fn_from(pci_dev: &str, dev_path: &PathBuf) -> Result<u64>
-    {
-        let pf_path = dev_path.join("physfn");
-        if !pf_path.is_symlink() {
-            // PF fn is 0
-            return Ok(0);
-        }
-
-        // find VF fn number > 0
-        for nr in 0.. {
-            let virt_path = pf_path.join(format!("virtfn{}", nr));
-            if !virt_path.is_symlink() {
-                bail!("Couldn't find SR-IOV VF fn for {:?}", pci_dev);
-            }
-
-            let dpath = fs::read_link(virt_path)?
-                .file_name().unwrap()
-                .to_str().unwrap()
-                .to_string();
-            if dpath == pci_dev {
-                return Ok(nr as u64 + 1);
-            }
-        }
-
-        bail!("Couldn't find SR-IOV fn for {:?}", pci_dev);
-    }
-
-    fn parse_pmu_opts(pci_dev: &str, dev_path: &PathBuf,
-        opts_vec: &Vec<&str>) -> (bool, bool, u64)
-    {
-        let sriov_fn = DrmDriverXe::sriov_fn_from(pci_dev, dev_path);
-        if let Err(err) = sriov_fn {
-            debug!("ERR: failed getting SR-IOV fn from {:?}: {}",
-                pci_dev, err);
-            return (false, false, 0);
-        }
-
-        let sriov_fn = sriov_fn.unwrap();
         let mut use_eng_pmu = false;
         let mut use_freq_pmu = false;
 
@@ -843,7 +958,7 @@ impl DrmDriverXe
             }
         }
 
-        (use_eng_pmu, use_freq_pmu, sriov_fn)
+        (use_eng_pmu, use_freq_pmu)
     }
 
     pub fn new(qmd: &DrmDeviceInfo,
@@ -858,12 +973,14 @@ impl DrmDriverXe
         cpath.push_str(card);
         let dev_path = Path::new(&cpath).join("device");
 
+        let dev_type = xe_dev_type_from(fd, &dev_path)?;
+
         // TODO: handle more than one tile
         let mut xe = DrmDriverXe {
             _dn_file: file,
             dn_fd: fd,
             base_gts_dir: dev_path.join("tile0"),
-            dev_type: None,
+            dev_type,
             freq_limits: None,
             power: None,
             hwmon: None,
@@ -896,11 +1013,10 @@ impl DrmDriverXe
         }
 
         if let Some(opts_vec) = opts {
-            let (mut use_eng_pmu, mut use_freq_pmu, sriov_fn) =
-                DrmDriverXe::parse_pmu_opts(&qmd.pci_dev, &dev_path, opts_vec);
+            let (mut use_eng_pmu, mut use_freq_pmu) =
+                DrmDriverXe::parse_pmu_opts(&qmd.pci_dev, opts_vec);
 
-            let pmu_src_res =
-                DrmDriverXe::pmu_evt_source(&qmd.pci_dev, &dev_path);
+            let pmu_src_res = xe_pmu_source_from(&qmd.pci_dev, &dev_path);
             if (use_eng_pmu || use_freq_pmu) && pmu_src_res.is_err() {
                 use_eng_pmu = false;
                 use_freq_pmu = false;
@@ -910,21 +1026,26 @@ impl DrmDriverXe
             let pmu_src = pmu_src_res.unwrap_or(String::new());
 
             if use_eng_pmu {
-                let res = xe.init_engines_pmu(&pmu_src, sriov_fn);
+                let res = XeEnginesPmu::from(
+                    &qmd.pci_dev, &dev_path, xe.dn_fd, &pmu_src);
                 info!("{}: engines PMU init: {}",
                     &qmd.pci_dev, if res.is_ok() { "OK" } else { "FAILED" });
                 if res.is_err() {
                     debug!("{}: ERR: failed to enable engines PMU: {:?}",
                         &qmd.pci_dev, res);
+                } else {
+                    xe.engs_pmu = Some(res.unwrap());
                 }
             }
             if use_freq_pmu {
-                let res = xe.init_freqs_pmu(&pmu_src);
+                let res = XeFreqsPmu::from(&xe.base_gts_dir, &pmu_src);
                 info!("{}: freqs PMU init: {}",
                     &qmd.pci_dev, if res.is_ok() { "OK" } else { "FAILED" });
                 if res.is_err() {
                     debug!("{}: ERR: failed to enable freqs PMU: {:?}",
                         &qmd.pci_dev, res);
+                } else {
+                    xe.freqs_pmu = Some(res.unwrap());
                 }
             }
         }
