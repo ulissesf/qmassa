@@ -991,7 +991,7 @@ impl MainScreen
         let widths = vec![
             Constraint::Fill(1),
             Constraint::Fill(1),
-            Constraint::Fill(2),
+            Constraint::Fill(1),
         ];
         let rows = [Row::new([
             Line::from(vec![
@@ -1003,7 +1003,7 @@ impl MainScreen
                 dinfo.dev_type.to_string().into()])
             .alignment(Alignment::Center),
             Line::from(vec![
-                "DEVICE NODES: ".white().bold(),
+                "NODES: ".white().bold(),
                 dinfo.dev_nodes.clone().into()])
             .alignment(Alignment::Center),
         ])];
