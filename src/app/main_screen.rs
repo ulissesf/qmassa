@@ -348,9 +348,9 @@ impl Screen for MainScreen
     fn status_bar_text(&mut self) -> Vec<Span<'_>>
     {
         vec![
-            " (Tab) Next dev".magenta().bold(),
+            " (Tab) Next dev (S) PCI ID".magenta().bold(),
             " (>) Next chart".light_yellow().bold(),
-            " ↑↓←→, Enter, (G)roup by PID, (A)ll clients".white().bold(),
+            " ↑↓←→, Enter, (G)roup, (A)ll".white().bold(),
         ]
     }
 }
