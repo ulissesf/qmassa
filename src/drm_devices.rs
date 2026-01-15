@@ -24,6 +24,18 @@ pub enum VirtFn
     VFIO,
 }
 
+impl VirtFn
+{
+    fn is_virtual_fn(&self) -> bool
+    {
+        match self {
+            VirtFn::SriovVF => true,
+            VirtFn::VFIO => true,
+            _ => false
+        }
+    }
+}
+
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum DrmDeviceType
 {
@@ -46,6 +58,23 @@ impl DrmDeviceType
     {
         match self {
             DrmDeviceType::Integrated(_) => true,
+            _ => false
+        }
+    }
+
+    pub fn is_unknown(&self) -> bool
+    {
+        match self {
+            DrmDeviceType::Unknown => true,
+            _ => false
+        }
+    }
+
+    pub fn is_virtual_fn(&self) -> bool
+    {
+        match self {
+            DrmDeviceType::Discrete(sfn) => sfn.is_virtual_fn(),
+            DrmDeviceType::Integrated(sfn) => sfn.is_virtual_fn(),
             _ => false
         }
     }
