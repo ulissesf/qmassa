@@ -91,17 +91,17 @@ impl Debug for dyn DrmDriver
     }
 }
 
+const ALL_DRIVERS: &[(&str, fn(&DrmDeviceInfo, Option<&Vec<&str>>) -> Result<Rc<RefCell<dyn DrmDriver>>>)] = &[
+    ("xe", DrmDriverXe::new),
+    ("i915", DrmDriveri915::new),
+    ("amdgpu", DrmDriverAmdgpu::new),
+    ("xe-vfio-pci", DrmDriverXeVfio::new),
+];
+
 pub fn driver_from(qmd: &DrmDeviceInfo,
     opts: Option<&Vec<&str>>) -> Result<Option<Rc<RefCell<dyn DrmDriver>>>>
 {
-    let drvs: &[(&str, fn(&DrmDeviceInfo, Option<&Vec<&str>>) -> Result<Rc<RefCell<dyn DrmDriver>>>)] = &[
-        ("xe", DrmDriverXe::new),
-        ("i915", DrmDriveri915::new),
-        ("amdgpu", DrmDriverAmdgpu::new),
-        ("xe-vfio-pci", DrmDriverXeVfio::new),
-    ];
-
-    for (dn, drv_newfunc) in drvs {
+    for (dn, drv_newfunc) in ALL_DRIVERS.iter() {
         if *dn == qmd.drv_name {
             let drv = drv_newfunc(qmd, opts)?;
             return Ok(Some(drv));
