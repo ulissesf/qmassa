@@ -19,7 +19,7 @@ Most of the information is gathered through a GPU vendor and driver agnostic
 interface such as standard files in /proc and /sys or by using udev. For some
 of the stats, though, a driver-specific way is needed, and qmassa then
 leverages what the kernel drivers expose in their uAPI (e.g. specific query
-ioctls), specific sysfs files/directories or through perf events.
+ioctls), specific sysfs files/directories or through perf PMU events.
 
 ## Requirements
 
@@ -199,6 +199,7 @@ to get device information.
 | xe     | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: (only dGPUs, Linux kernel 6.15+) | :white_check_mark: (only dGPUs, Linux kernel 6.16+) |
 | i915   | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: (only dGPUs) | :white_check_mark: (only dGPUs) |
 | amdgpu | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: (only dGPUs) | :white_check_mark: (Linux kernel 6.13+) | :white_check_mark: (only dGPUs) | :white_check_mark: (only dGPUs) |
+| xe-vfio-pci | :white_check_mark: |  | :white_check_mark: (via perf PMU) |  |  |  |  |  |
 | *      |  |  | :white_check_mark: (via DRM fdinfo) |  |  | :white_check_mark: (only "memory" region in DRM fdinfo) |  |  |
 
 qmassa is tested on some Intel and AMD GPUs but it relies heavily on kernel
@@ -209,24 +210,32 @@ please file an issue so we can debug it.
 
 The tables in this section outline which drivers in qmassa can be passed
 extra options to control how or from where they report their stats. Options
-are passed to drivers in qmassa's command line as it's shown in the example
+are passed to drivers in qmassa's command line as it's shown in the examples
 below.
+
+General format to pass options to drivers.
 
 ```shell
 sudo qmassa --drv-options xe=<opt1>,<opt2> --drv-options i915=<opt1>
 ```
 
+Use PMU to report device engine usage only for 0000:03:00.0 and use PMU to report freqs for all GPUs using the xe driver.
+
+```shell
+sudo qmassa --drv-options xe=devslot=0000:03:00.0,engines=pmu --drv-options xe=freqs=pmu
+```
+
 | Options for i915               | Description                                |
 | ------------------------------ | ------------------------------------------ |
 | devslot=<PCI slot or sysname\> | Applies other options to a specific device |
-| engines=pmu                    | Engines usage reporting from PMU           |
-| freqs=pmu                      | Frequencies reporting from PMU             |
+| engines=pmu                    | Engines usage reporting from perf PMU      |
+| freqs=pmu                      | Frequencies reporting from perf PMU        |
 
 | Options for xe                 | Description                                |
 | ------------------------------ | ------------------------------------------ |
 | devslot=<PCI slot or sysname\> | Applies other options to a specific device |
-| engines=pmu                    | Engines usage reporting from PMU. Gets the SR-IOV function (PF or VF) from the PCI slot name (Linux kernel 6.15+). |
-| freqs=pmu                      | Frequencies reporting from PMU             |
+| engines=pmu                    | Engines usage reporting from perf PMU. Supports SR-IOV functions (PF, VF) on Linux kernel 6.15+ and VFIO on 6.19+. |
+| freqs=pmu                      | Frequencies reporting from perf PMU        |
 
 #### Driver limitations
 
