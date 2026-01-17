@@ -43,7 +43,7 @@ pub trait DrmDriver
 
     fn freqs(&mut self) -> Result<Vec<DrmDeviceFreqs>>
     {
-        Ok(vec![DrmDeviceFreqs::new(),])
+        Ok(Vec::new())
     }
 
     fn power(&mut self) -> Result<DrmDevicePower>

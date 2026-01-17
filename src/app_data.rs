@@ -48,7 +48,9 @@ impl AppDataDeviceStats
         eng_names: &Vec<String>, dinfo: &DrmDeviceInfo)
     {
         if dinfo.has_driver() {
-            limited_vec_push(&mut self.freqs, dinfo.freqs.clone());
+            if !dinfo.freqs.is_empty() {
+                limited_vec_push(&mut self.freqs, dinfo.freqs.clone());
+            }
             limited_vec_push(&mut self.power, dinfo.power.clone());
             limited_vec_push(&mut self.mem_info, dinfo.mem_info.clone());
         }
