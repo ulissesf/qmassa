@@ -74,7 +74,8 @@ is specified by its PCI device slot name.
 sudo qmassa -d 0000:03:00.0
 ```
 
-Only show DRM clients from the process tree starting at a specific PID.
+Only show DRM clients from the process tree starting at a specific PID. When
+that process ends, qmassa will also exit.
 
 ```shell
 sudo qmassa -p 2876
@@ -165,9 +166,11 @@ letter). The values are rounded to be easily displayed in a small space,
 but if you save the stats to a JSON file you can get them all in bytes.
 VRAM data is only displayed for discrete GPUs.
 
-The overall engines usage depends on the DRM clients that the user has
-access to. They're calculated by adding up the usage from all the visible
-DRM clients. Thus, in order to have a system view, please run qmassa as root.
+The device engines usage is calculated by adding up the usage from all
+DRM clients being monitored. The group of processes (and their DRM clients)
+can be restricted to a PID and their children with the ```-p, --pid```
+command-line option. In order to display the device engines usage for the whole
+system, qmassa needs to be run as root.
 
 The frequency graphs range from min to max values and plot the instant
 driver-requested (if supported) and actual device/engines frequency for
