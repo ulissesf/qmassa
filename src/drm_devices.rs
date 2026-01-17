@@ -302,7 +302,6 @@ impl DeviceNodeInfo
 }
 
 #[derive(Debug)]
-#[allow(dead_code)]
 pub struct DrmDeviceInfo
 {
     pub pci_dev: String,                // sysname or PCI_SLOT_NAME in udev

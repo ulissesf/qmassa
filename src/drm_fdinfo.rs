@@ -12,7 +12,6 @@ use crate::drm_devices::DRM_DEVNODE_MAJOR;
 
 
 #[derive(Debug)]
-#[allow(dead_code)]
 pub struct DrmEngine
 {
     pub name: String,
