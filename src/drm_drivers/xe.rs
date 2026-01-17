@@ -21,6 +21,7 @@ use crate::perf_event::{perf_event_attr, PERF_FORMAT_GROUP, PerfEvent};
 use crate::hwmon::Hwmon;
 use crate::drm_drivers::{
     DrmDriver, helpers::{drm_iowr, drm_ioctl, __IncompleteArrayField},
+    intel_common::IntelDriverOpts,
     intel_power::{GpuPowerIntel, IGpuPowerIntel, DGpuPowerIntel},
 };
 use crate::drm_devices::{
@@ -931,38 +932,8 @@ impl DrmDriver for DrmDriverXe
 
 impl DrmDriverXe
 {
-    fn parse_pmu_opts(pci_dev: &str, opts_vec: &Vec<&str>) -> (bool, bool)
-    {
-        let mut use_eng_pmu = false;
-        let mut use_freq_pmu = false;
-
-        for &opts_str in opts_vec.iter() {
-            let sep_opts: Vec<&str> = opts_str.split(',').collect();
-            let mut want_eng_pmu = false;
-            let mut want_freq_pmu = false;
-            let mut devslot = "all";
-
-            for opt in sep_opts.iter() {
-                if opt.starts_with("devslot=") {
-                    devslot = &opt["devslot=".len()..];
-                } else if opt == &"engines=pmu" {
-                    want_eng_pmu = true;
-                } else if opt == &"freqs=pmu" {
-                    want_freq_pmu = true;
-                }
-            }
-
-            if devslot == "all" || devslot == pci_dev {
-                use_eng_pmu = use_eng_pmu || want_eng_pmu;
-                use_freq_pmu = use_freq_pmu || want_freq_pmu;
-            }
-        }
-
-        (use_eng_pmu, use_freq_pmu)
-    }
-
     pub fn new(qmd: &DrmDeviceInfo,
-        opts: Option<&Vec<&str>>) -> Result<Rc<RefCell<dyn DrmDriver>>>
+        opts_vec: Option<&Vec<&str>>) -> Result<Rc<RefCell<dyn DrmDriver>>>
     {
         let file = File::open(&qmd.dev_nodes[0].devnode)?;
         let fd = file.as_raw_fd();
@@ -991,6 +962,8 @@ impl DrmDriverXe
         let dtype = xe.dev_type()?;
         xe.freq_limits()?;
 
+        let drv_opts = IntelDriverOpts::from(&qmd.pci_dev, opts_vec);
+
         if dtype.is_integrated() {
             xe.power = IGpuPowerIntel::new()?;
             if let Some(po) = &xe.power {
@@ -1012,20 +985,15 @@ impl DrmDriverXe
                 if xe.power.is_some() { "OK" } else { "FAILED" });
         }
 
-        if let Some(opts_vec) = opts {
-            let (mut use_eng_pmu, mut use_freq_pmu) =
-                DrmDriverXe::parse_pmu_opts(&qmd.pci_dev, opts_vec);
+        let pmu_src_res = xe_pmu_source_from(&qmd.pci_dev, &dev_path);
+        if pmu_src_res.is_err() {
+            debug!("{}: ERR: failed to find PMU source: {:?}",
+                &qmd.pci_dev, pmu_src_res);
+        }
+        let pmu_src = pmu_src_res.unwrap_or(String::new());
 
-            let pmu_src_res = xe_pmu_source_from(&qmd.pci_dev, &dev_path);
-            if (use_eng_pmu || use_freq_pmu) && pmu_src_res.is_err() {
-                use_eng_pmu = false;
-                use_freq_pmu = false;
-                debug!("{}: ERR: failed to find PMU source: {:?}",
-                    &qmd.pci_dev, pmu_src_res);
-            }
-            let pmu_src = pmu_src_res.unwrap_or(String::new());
-
-            if use_eng_pmu {
+        if !pmu_src.is_empty() {
+            if drv_opts.has_engs_pmu() {
                 let res = XeEnginesPmu::from(
                     &qmd.pci_dev, &dev_path, xe.dn_fd, &pmu_src);
                 info!("{}: engines PMU init: {}",
@@ -1037,7 +1005,7 @@ impl DrmDriverXe
                     xe.engs_pmu = Some(res.unwrap());
                 }
             }
-            if use_freq_pmu {
+            if drv_opts.has_freqs_pmu() {
                 let res = XeFreqsPmu::from(&xe.base_gts_dir, &pmu_src);
                 info!("{}: freqs PMU init: {}",
                     &qmd.pci_dev, if res.is_ok() { "OK" } else { "FAILED" });

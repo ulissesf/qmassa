@@ -13,6 +13,7 @@ use crate::drm_fdinfo::DrmMemRegion;
 use crate::drm_clients::DrmClientMemInfo;
 
 mod helpers;
+mod intel_common;
 mod intel_power;
 mod xe;
 use xe::DrmDriverXe;
