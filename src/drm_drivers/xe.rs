@@ -654,7 +654,6 @@ pub struct DrmDriverXe
     dn_fd: RawFd,
     base_gts_dir: PathBuf,
     dev_type: DrmDeviceType,
-    freq_limits: Option<Vec<DrmDeviceFreqLimits>>,
     power: Option<Box<dyn GpuPowerIntel>>,
     hwmon: Option<Hwmon>,
     engs_pmu: Option<XeEnginesPmu>,
@@ -739,10 +738,6 @@ impl DrmDriver for DrmDriverXe
 
     fn freq_limits(&mut self) -> Result<Vec<DrmDeviceFreqLimits>>
     {
-        if let Some(fls) = &self.freq_limits {
-            return Ok(fls.clone());
-        }
-
         let mut fls = Vec::new();
         for nr in 0.. {
             let freqs_dir = self.base_gts_dir.join(format!("gt{}/freq0", nr));
@@ -770,7 +765,6 @@ impl DrmDriver for DrmDriverXe
             });
         }
 
-        self.freq_limits = Some(fls.clone());
         Ok(fls)
     }
 
@@ -952,19 +946,15 @@ impl DrmDriverXe
             dn_fd: fd,
             base_gts_dir: dev_path.join("tile0"),
             dev_type,
-            freq_limits: None,
             power: None,
             hwmon: None,
             engs_pmu: None,
             freqs_pmu: None,
         };
 
-        let dtype = xe.dev_type()?;
-        xe.freq_limits()?;
-
         let drv_opts = IntelDriverOpts::from(&qmd.pci_dev, opts_vec);
 
-        if dtype.is_integrated() {
+        if xe.dev_type.is_integrated() {
             xe.power = IGpuPowerIntel::new(drv_opts.has_power_msr())?;
             if let Some(po) = &xe.power {
                 info!("{}: rapl power reporting from: {}",
@@ -972,7 +962,7 @@ impl DrmDriverXe
             } else {
                 info!("{}: no rapl power reporting", &qmd.pci_dev);
             }
-        } else if dtype.is_discrete() {
+        } else if xe.dev_type.is_discrete() {
             let hwmon_res = Hwmon::from(dev_path.join("hwmon"));
             if let Ok(hwmon) = hwmon_res {
                 xe.power = DGpuPowerIntel::from(hwmon.as_ref().unwrap())?;

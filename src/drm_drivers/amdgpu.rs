@@ -1,4 +1,3 @@
-#![allow(dead_code)]
 #![allow(non_camel_case_types)]
 #![allow(non_upper_case_globals)]
 
@@ -312,8 +311,7 @@ pub struct DrmDriverAmdgpu
     _dn_file: File,
     dn_fd: RawFd,
     freqs_dir: PathBuf,
-    dev_type: Option<DrmDeviceType>,
-    freq_limits: Option<DrmDeviceFreqLimits>,
+    dev_type: DrmDeviceType,
     hwmon: Option<Hwmon>,
     sensor: String,
 }
@@ -327,24 +325,7 @@ impl DrmDriver for DrmDriverAmdgpu
 
     fn dev_type(&mut self) -> Result<DrmDeviceType>
     {
-        if let Some(dt) = &self.dev_type {
-            return Ok(dt.clone());
-        }
-
-        let mut qid = drm_amdgpu_info_device::new();
-        let qid_ptr: *mut drm_amdgpu_info_device = &mut qid;
-
-        self.amdgpu_info_ioctl(AMDGPU_INFO_DEV_INFO,
-            qid_ptr as u64, mem::size_of::<drm_amdgpu_info_device>() as u32)?;
-
-        let qmdt = if qid.ids_flags & AMDGPU_IDS_FLAGS_FUSION > 0 {
-            DrmDeviceType::Integrated(VirtFn::NoVirt)
-        } else {
-            DrmDeviceType::Discrete(VirtFn::NoVirt)
-        };
-
-        self.dev_type = Some(qmdt.clone());
-        Ok(qmdt)
+        Ok(self.dev_type.clone())
     }
 
     fn mem_info(&mut self) -> Result<DrmDeviceMemInfo>
@@ -367,10 +348,6 @@ impl DrmDriver for DrmDriverAmdgpu
 
     fn freq_limits(&mut self) -> Result<Vec<DrmDeviceFreqLimits>>
     {
-        if let Some(fls) = &self.freq_limits {
-            return Ok(vec![fls.clone(),]);
-        }
-
         // TODO: get non-gfx freq limits
         let fpath = self.freqs_dir.join("pp_dpm_sclk");
         let sclk_str = fs::read_to_string(&fpath)?;
@@ -380,7 +357,7 @@ impl DrmDriver for DrmDriverAmdgpu
             let kv: Vec<_> = line.split(':').map(|it| it.trim()).collect();
             if kv.len() < 2 {
                 warn!("Wrong line [{:?}] from {:?}, aborting.", line, fpath);
-                return Ok(vec![fls,]);
+                return Ok(Vec::new());
             }
             let k: u32 = kv[0].parse()?;
             if k == 1 {
@@ -393,7 +370,7 @@ impl DrmDriver for DrmDriverAmdgpu
             }
             if !v.ends_with("Mhz") {
                 warn!("Wrong line [{:?}] from {:?}, aborting.", line, fpath);
-                return Ok(vec![fls,]);
+                return Ok(Vec::new());
             }
             v = &v[..v.len() - 3];
 
@@ -408,11 +385,10 @@ impl DrmDriver for DrmDriverAmdgpu
                 fls.minimum = 0;
                 fls.maximum = 0;
                 warn!("Wrong line [{:?}] from {:?}, aborting.", line, fpath);
-                return Ok(vec![fls,]);
+                return Ok(Vec::new());
             }
         }
 
-        self.freq_limits = Some(fls.clone());
         Ok(vec![fls,])
     }
 
@@ -496,7 +472,7 @@ impl DrmDriver for DrmDriverAmdgpu
 
 impl DrmDriverAmdgpu
 {
-    fn amdgpu_info_ioctl(&self,
+    fn info_ioctl(dn_fd: RawFd,
         query_id: u32, data: u64, size: u32) -> Result<()>
     {
         let mut qi = drm_amdgpu_info::new();
@@ -505,12 +481,35 @@ impl DrmDriverAmdgpu
         qi.return_pointer = data;
         qi.return_size = size;
 
-        let res = drm_ioctl!(self.dn_fd, DRM_IOCTL_AMDGPU_INFO, &mut qi);
+        let res = drm_ioctl!(dn_fd, DRM_IOCTL_AMDGPU_INFO, &mut qi);
         if res < 0 {
             return Err(io::Error::last_os_error().into());
         }
 
         Ok(())
+    }
+
+    fn amdgpu_info_ioctl(&self,
+        query_id: u32, data: u64, size: u32) -> Result<()>
+    {
+        DrmDriverAmdgpu::info_ioctl(self.dn_fd, query_id, data, size)
+    }
+
+    fn query_dev_type(dn_fd: RawFd) -> Result<DrmDeviceType>
+    {
+        let mut qid = drm_amdgpu_info_device::new();
+        let qid_ptr: *mut drm_amdgpu_info_device = &mut qid;
+
+        DrmDriverAmdgpu::info_ioctl(dn_fd, AMDGPU_INFO_DEV_INFO,
+            qid_ptr as u64, mem::size_of::<drm_amdgpu_info_device>() as u32)?;
+
+        let qmdt = if qid.ids_flags & AMDGPU_IDS_FLAGS_FUSION > 0 {
+            DrmDeviceType::Integrated(VirtFn::NoVirt)
+        } else {
+            DrmDeviceType::Discrete(VirtFn::NoVirt)
+        };
+
+        Ok(qmdt)
     }
 
     pub fn new(qmd: &DrmDeviceInfo,
@@ -531,20 +530,18 @@ impl DrmDriverAmdgpu
         let card = Path::new(dn).file_name().unwrap().to_str().unwrap();
         cpath.push_str(card);
 
+        let dev_type = DrmDriverAmdgpu::query_dev_type(fd)?;
+
         let mut amdgpu = DrmDriverAmdgpu {
             _dn_file: file,
             dn_fd: fd,
             freqs_dir: Path::new(&cpath).join("device"),
-            dev_type: None,
-            freq_limits: None,
+            dev_type,
             hwmon: None,
             sensor: String::new(),
         };
 
-        let dtype = amdgpu.dev_type()?;
-        amdgpu.freq_limits()?;
-
-        if dtype.is_discrete() {
+        if amdgpu.dev_type.is_discrete() {
             let hwmon_res = Hwmon::from(
                 Path::new(&cpath).join("device/hwmon"));
             if let Ok(hwmon) = hwmon_res {

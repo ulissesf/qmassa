@@ -379,7 +379,7 @@ impl Default for DrmDeviceInfo
             drv_name: String::new(),
             dev_nodes: Vec::new(),
             dev_type: DrmDeviceType::Unknown,
-            freq_limits: vec![DrmDeviceFreqLimits::new(),],
+            freq_limits: Vec::new(),
             freqs: vec![DrmDeviceFreqs::new(),],
             power: DrmDevicePower::new(),
             mem_info: DrmDeviceMemInfo::new(),

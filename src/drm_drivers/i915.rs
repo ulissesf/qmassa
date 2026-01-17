@@ -249,8 +249,7 @@ pub struct DrmDriveri915
     _dn_file: File,
     dn_fd: RawFd,
     base_gts_dir: PathBuf,
-    dev_type: Option<DrmDeviceType>,
-    freq_limits: Option<Vec<DrmDeviceFreqLimits>>,
+    dev_type: DrmDeviceType,
     power: Option<Box<dyn GpuPowerIntel>>,
     hwmon: Option<Hwmon>,
     engs_pmu: Option<I915EnginesPmu>,
@@ -266,103 +265,16 @@ impl DrmDriver for DrmDriveri915
 
     fn dev_type(&mut self) -> Result<DrmDeviceType>
     {
-        if let Some(dt) = &self.dev_type {
-            return Ok(dt.clone());
-        }
-
-        let dmi = self.mem_info()?;
-        let qmdt = if dmi.vram_total > 0 {
-            DrmDeviceType::Discrete(VirtFn::NoVirt)
-        } else {
-            DrmDeviceType::Integrated(VirtFn::NoVirt)
-        };
-
-        self.dev_type = Some(qmdt.clone());
-        Ok(qmdt)
+        Ok(self.dev_type.clone())
     }
 
     fn mem_info(&mut self) -> Result<DrmDeviceMemInfo>
     {
-        let mut dqi = drm_i915_query_item {
-            query_id: DRM_I915_QUERY_MEMORY_REGIONS,
-            length: 0,
-            flags: 0,
-            data_ptr: 0,
-        };
-        let dqi_ptr: *mut drm_i915_query_item = &mut dqi;
-
-        let mut dq = drm_i915_query {
-            num_items: 1,
-            flags: 0,
-            items_ptr: dqi_ptr as u64,
-        };
-
-        let res = drm_ioctl!(self.dn_fd, DRM_IOCTL_I915_QUERY, &mut dq);
-        if res < 0 {
-            return Err(io::Error::last_os_error().into());
-        }
-
-        if dqi.length as usize <= 0 {
-            warn!("i915 memregions query ioctl() with {:?} length, skipping.",
-                dqi.length as usize);
-            return Ok(DrmDeviceMemInfo::new());
-        }
-
-        let layout = alloc::Layout::from_size_align(dqi.length as usize,
-            mem::align_of::<u64>()).unwrap();
-        let qmrg = unsafe {
-            let ptr = alloc::alloc_zeroed(layout) as *mut drm_i915_query_memory_regions;
-            if ptr.is_null() {
-                panic!("Can't allocate memory for i915 memregions query ioctl()");
-            }
-
-            ptr
-        };
-        dqi.data_ptr = qmrg as u64;
-
-        let res = drm_ioctl!(self.dn_fd, DRM_IOCTL_I915_QUERY, &mut dq);
-        if res < 0 {
-            unsafe { alloc::dealloc(qmrg as *mut u8, layout); }
-            return Err(io::Error::last_os_error().into());
-        }
-        if dqi.length <= 0 {
-            warn!("i915 memregions query ioctl() error: {:?}", dqi.length);
-            unsafe { alloc::dealloc(qmrg as *mut u8, layout); }
-            return Ok(DrmDeviceMemInfo::new());
-        }
-        let mrgs = unsafe {
-            (*qmrg).regions.as_slice((*qmrg).num_regions as usize) };
-
-        let mut qmdmi = DrmDeviceMemInfo::new();
-        for mr in mrgs {
-            match mr.region.memory_class {
-                I915_MEMORY_CLASS_SYSTEM => {
-                    qmdmi.smem_total += mr.probed_size;
-                    qmdmi.smem_used += mr.probed_size - mr.unallocated_size;
-                },
-                I915_MEMORY_CLASS_DEVICE => {
-                    qmdmi.vram_total += mr.probed_size;
-                    qmdmi.vram_used += mr.probed_size - mr.unallocated_size;
-                },
-                _ => {
-                    warn!("Unknown i915 memory class: {:?}, skipping mem region.",
-                        mr.region.memory_class);
-                    continue;
-                }
-            }
-        }
-
-        unsafe { alloc::dealloc(qmrg as *mut u8, layout); }
-
-        Ok(qmdmi)
+        DrmDriveri915::mem_info_ioctl(self.dn_fd)
     }
 
     fn freq_limits(&mut self) -> Result<Vec<DrmDeviceFreqLimits>>
     {
-        if let Some(fls) = &self.freq_limits {
-            return Ok(fls.clone());
-        }
-
         let mut fls = Vec::new();
         for nr in 0.. {
             let freqs_dir = self.base_gts_dir.join(format!("gt{}", nr));
@@ -390,7 +302,6 @@ impl DrmDriver for DrmDriveri915
             });
         }
 
-        self.freq_limits = Some(fls.clone());
         Ok(fls)
     }
 
@@ -719,6 +630,94 @@ impl DrmDriveri915
         Ok(src)
     }
 
+    fn mem_info_ioctl(dn_fd: RawFd) -> Result<DrmDeviceMemInfo>
+    {
+        let mut dqi = drm_i915_query_item {
+            query_id: DRM_I915_QUERY_MEMORY_REGIONS,
+            length: 0,
+            flags: 0,
+            data_ptr: 0,
+        };
+        let dqi_ptr: *mut drm_i915_query_item = &mut dqi;
+
+        let mut dq = drm_i915_query {
+            num_items: 1,
+            flags: 0,
+            items_ptr: dqi_ptr as u64,
+        };
+
+        let res = drm_ioctl!(dn_fd, DRM_IOCTL_I915_QUERY, &mut dq);
+        if res < 0 {
+            return Err(io::Error::last_os_error().into());
+        }
+
+        if dqi.length as usize <= 0 {
+            warn!("i915 memregions query ioctl() with {:?} length, skipping.",
+                dqi.length as usize);
+            return Ok(DrmDeviceMemInfo::new());
+        }
+
+        let layout = alloc::Layout::from_size_align(dqi.length as usize,
+            mem::align_of::<u64>()).unwrap();
+        let qmrg = unsafe {
+            let ptr = alloc::alloc_zeroed(layout) as *mut drm_i915_query_memory_regions;
+            if ptr.is_null() {
+                panic!("Can't allocate memory for i915 memregions query ioctl()");
+            }
+
+            ptr
+        };
+        dqi.data_ptr = qmrg as u64;
+
+        let res = drm_ioctl!(dn_fd, DRM_IOCTL_I915_QUERY, &mut dq);
+        if res < 0 {
+            unsafe { alloc::dealloc(qmrg as *mut u8, layout); }
+            return Err(io::Error::last_os_error().into());
+        }
+        if dqi.length <= 0 {
+            warn!("i915 memregions query ioctl() error: {:?}", dqi.length);
+            unsafe { alloc::dealloc(qmrg as *mut u8, layout); }
+            return Ok(DrmDeviceMemInfo::new());
+        }
+        let mrgs = unsafe {
+            (*qmrg).regions.as_slice((*qmrg).num_regions as usize) };
+
+        let mut qmdmi = DrmDeviceMemInfo::new();
+        for mr in mrgs {
+            match mr.region.memory_class {
+                I915_MEMORY_CLASS_SYSTEM => {
+                    qmdmi.smem_total += mr.probed_size;
+                    qmdmi.smem_used += mr.probed_size - mr.unallocated_size;
+                },
+                I915_MEMORY_CLASS_DEVICE => {
+                    qmdmi.vram_total += mr.probed_size;
+                    qmdmi.vram_used += mr.probed_size - mr.unallocated_size;
+                },
+                _ => {
+                    warn!("Unknown i915 memory class: {:?}, skipping mem region.",
+                        mr.region.memory_class);
+                    continue;
+                }
+            }
+        }
+
+        unsafe { alloc::dealloc(qmrg as *mut u8, layout); }
+
+        Ok(qmdmi)
+    }
+
+    fn query_dev_type(dn_fd: RawFd) -> Result<DrmDeviceType>
+    {
+        let dmi = DrmDriveri915::mem_info_ioctl(dn_fd)?;
+        let qmdt = if dmi.vram_total > 0 {
+            DrmDeviceType::Discrete(VirtFn::NoVirt)
+        } else {
+            DrmDeviceType::Integrated(VirtFn::NoVirt)
+        };
+
+        Ok(qmdt)
+    }
+
     pub fn new(qmd: &DrmDeviceInfo,
         opts_vec: Option<&Vec<&str>>) -> Result<Rc<RefCell<dyn DrmDriver>>>
     {
@@ -730,25 +729,23 @@ impl DrmDriveri915
             .file_name().unwrap().to_str().unwrap();
         cpath.push_str(card);
 
+        let dev_type = DrmDriveri915::query_dev_type(fd)?;
+
         // TODO: handle more than one tile
         let mut i915 = DrmDriveri915 {
             _dn_file: file,
             dn_fd: fd,
             base_gts_dir: Path::new(&cpath).join("gt"),
-            dev_type: None,
-            freq_limits: None,
+            dev_type,
             power: None,
             hwmon: None,
             engs_pmu: None,
             freqs_pmu: None,
         };
 
-        let dtype = i915.dev_type()?;
-        i915.freq_limits()?;
-
         let drv_opts = IntelDriverOpts::from(&qmd.pci_dev, opts_vec);
 
-        if dtype.is_integrated() {
+        if i915.dev_type.is_integrated() {
             i915.power = IGpuPowerIntel::new(drv_opts.has_power_msr())?;
             if let Some(po) = &i915.power {
                 info!("{}: rapl power reporting from: {}",
@@ -756,7 +753,7 @@ impl DrmDriveri915
             } else {
                 info!("{}: no rapl power reporting", &qmd.pci_dev);
             }
-        } else if dtype.is_discrete() {
+        } else if i915.dev_type.is_discrete() {
             let hwmon_res = Hwmon::from(
                 Path::new(&cpath).join("device/hwmon"));
             if let Ok(hwmon) = hwmon_res {
@@ -771,7 +768,7 @@ impl DrmDriveri915
         }
 
         let pmu_src_res =
-            DrmDriveri915::pmu_evt_source(&qmd.pci_dev, &dtype);
+            DrmDriveri915::pmu_evt_source(&qmd.pci_dev, &i915.dev_type);
         if pmu_src_res.is_err() {
             debug!("{}: ERR: failed to find PMU source: {:?}",
                 &qmd.pci_dev, pmu_src_res);

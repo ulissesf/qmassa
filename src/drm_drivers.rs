@@ -38,7 +38,7 @@ pub trait DrmDriver
 
     fn freq_limits(&mut self) -> Result<Vec<DrmDeviceFreqLimits>>
     {
-        Ok(vec![DrmDeviceFreqLimits::new(),])
+        Ok(Vec::new())
     }
 
     fn freqs(&mut self) -> Result<Vec<DrmDeviceFreqs>>
