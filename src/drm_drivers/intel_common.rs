@@ -8,10 +8,12 @@ pub struct IntelDriverOpts
 
 const INTEL_DRV_OPT_ENGS_PMU: u32 = 1 << 0;
 const INTEL_DRV_OPT_FREQS_PMU: u32 = 1 << 1;
+const INTEL_DRV_OPT_POWER_MSR: u32 = 1 << 2;
 
 const INTEL_DRV_OPTS: &[(&str, u32)] = &[
     ("engines=pmu", INTEL_DRV_OPT_ENGS_PMU),
     ("freqs=pmu", INTEL_DRV_OPT_FREQS_PMU),
+    ("power=msr", INTEL_DRV_OPT_POWER_MSR),
 ];
 
 impl IntelDriverOpts
@@ -24,6 +26,11 @@ impl IntelDriverOpts
     pub fn has_freqs_pmu(&self) -> bool
     {
         self.opts & INTEL_DRV_OPT_FREQS_PMU != 0
+    }
+
+    pub fn has_power_msr(&self) -> bool
+    {
+        self.opts & INTEL_DRV_OPT_POWER_MSR != 0
     }
 
     fn set_bit_for(&mut self, opt: &str)

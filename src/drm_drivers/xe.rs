@@ -965,7 +965,7 @@ impl DrmDriverXe
         let drv_opts = IntelDriverOpts::from(&qmd.pci_dev, opts_vec);
 
         if dtype.is_integrated() {
-            xe.power = IGpuPowerIntel::new()?;
+            xe.power = IGpuPowerIntel::new(drv_opts.has_power_msr())?;
             if let Some(po) = &xe.power {
                 info!("{}: rapl power reporting from: {}",
                     &qmd.pci_dev, po.name());

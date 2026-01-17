@@ -466,22 +466,27 @@ impl IGpuPowerIntel
         Ok((msr, scale, scale))
     }
 
-    pub fn new() -> Result<Option<Box<dyn GpuPowerIntel>>>
+    pub fn new(mut use_msr: bool) -> Result<Option<Box<dyn GpuPowerIntel>>>
     {
         let mut pf_evt: Option<PerfEvent> = None;
         let mut msr: Option<MsrIntel> = None;
-        let gpu_scale: f64;
-        let pkg_scale: f64;
+        let mut gpu_scale: f64 = 0.0;
+        let mut pkg_scale: f64 = 0.0;
 
-        let pf_res = IGpuPowerIntel::new_rapl_perf_event();
-        if let Ok(tup_res) = pf_res {
-            let pf_evt_obj: PerfEvent;
-            (pf_evt_obj, gpu_scale, pkg_scale) = tup_res;
-            pf_evt = Some(pf_evt_obj);
-        } else {
-            debug!("ERR: couldn't get rapl power from perf: {:?}", pf_res);
+        if !use_msr {
+            let pf_res = IGpuPowerIntel::new_rapl_perf_event();
+            if let Ok(tup_res) = pf_res {
+                let pf_evt_obj: PerfEvent;
+                (pf_evt_obj, gpu_scale, pkg_scale) = tup_res;
+                pf_evt = Some(pf_evt_obj);
+            } else {
+                debug!("ERR: couldn't get rapl power from perf: {:?}", pf_res);
+                // fallback to MSR, if possible
+                use_msr = true;
+            }
+        }
 
-            // fallback to MSR, if possible
+        if use_msr {
             let msr_res = IGpuPowerIntel::new_rapl_msr();
             if msr_res.is_err() {
                 debug!("ERR: couldn't get rapl power from MSR: {:?}", msr_res);
