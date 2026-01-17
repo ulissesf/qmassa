@@ -46,14 +46,14 @@ pub trait DrmDriver
         Ok(Vec::new())
     }
 
-    fn power(&mut self) -> Result<DrmDevicePower>
+    fn power(&mut self) -> Result<Option<DrmDevicePower>>
     {
-        Ok(DrmDevicePower::new())
+        Ok(None)
     }
 
-    fn mem_info(&mut self) -> Result<DrmDeviceMemInfo>
+    fn mem_info(&mut self) -> Result<Option<DrmDeviceMemInfo>>
     {
-        Ok(DrmDeviceMemInfo::new())
+        Ok(None)
     }
 
     fn client_mem_info(&mut self,

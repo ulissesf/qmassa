@@ -41,24 +41,10 @@ struct SensorSet
     pkg_item: String,
 }
 
-impl SensorSet
-{
-    fn new() -> SensorSet
-    {
-        SensorSet {
-            gpu_sensor: String::new(),
-            pkg_sensor: String::new(),
-            gpu_item: String::new(),
-            pkg_item: String::new(),
-        }
-    }
-}
-
 #[derive(Debug)]
 pub struct DGpuPowerIntel
 {
-    pwr_func: Option<fn(&mut DGpuPowerIntel,
-            hwmon: &Hwmon) -> Result<DrmDevicePower>>,
+    pwr_func: fn(&mut DGpuPowerIntel, hwmon: &Hwmon) -> Result<DrmDevicePower>,
     pwr_sensors: SensorSet,
     last_gpu_val: u64,
     last_pkg_val: u64,
@@ -77,12 +63,7 @@ impl GpuPowerIntel for DGpuPowerIntel
 
     fn power_usage(&mut self, hwmon: &Option<Hwmon>) -> Result<DrmDevicePower>
     {
-        if self.pwr_func.is_none() {
-            return Ok(DrmDevicePower::new());
-        }
-        let func = self.pwr_func.as_ref().unwrap();
-
-        func(self, hwmon.as_ref().unwrap())
+        (self.pwr_func)(self, hwmon.as_ref().unwrap())
     }
 }
 
@@ -148,7 +129,12 @@ impl DGpuPowerIntel
         })
     }
 
-    fn set_power_method(&mut self, hwmon: &Hwmon) -> bool
+    fn find_power_method(
+        hwmon: &Hwmon
+    ) -> Option<(
+        fn(&mut DGpuPowerIntel, hwmon: &Hwmon) -> Result<DrmDevicePower>,
+        SensorSet
+    )>
     {
         let mut gpu_sensor = "";
         let mut pkg_sensor = "";
@@ -172,13 +158,14 @@ impl DGpuPowerIntel
         }
 
         if !gpu_sensor.is_empty() || !pkg_sensor.is_empty() {
-            self.pwr_func = Some(DGpuPowerIntel::read_from_power);
-            self.pwr_sensors.gpu_sensor = gpu_sensor.to_string();
-            self.pwr_sensors.pkg_sensor = pkg_sensor.to_string();
-            self.pwr_sensors.gpu_item = gpu_item.to_string();
-            self.pwr_sensors.pkg_item = pkg_item.to_string();
+            let ss = SensorSet {
+                gpu_sensor: gpu_sensor.to_string(),
+                pkg_sensor: pkg_sensor.to_string(),
+                gpu_item: gpu_item.to_string(),
+                pkg_item: pkg_item.to_string(),
+            };
 
-            return true;
+            return Some((DGpuPowerIntel::read_from_power, ss));
         }
 
         // try energy*_input
@@ -196,23 +183,31 @@ impl DGpuPowerIntel
         }
 
         if !gpu_sensor.is_empty() || !pkg_sensor.is_empty() {
-            self.pwr_func = Some(DGpuPowerIntel::read_from_energy);
-            self.pwr_sensors.gpu_sensor = gpu_sensor.to_string();
-            self.pwr_sensors.pkg_sensor = pkg_sensor.to_string();
-            self.pwr_sensors.gpu_item = gpu_item.to_string();
-            self.pwr_sensors.pkg_item = pkg_item.to_string();
+            let ss = SensorSet {
+                gpu_sensor: gpu_sensor.to_string(),
+                pkg_sensor: pkg_sensor.to_string(),
+                gpu_item: gpu_item.to_string(),
+                pkg_item: pkg_item.to_string(),
+            };
 
-            return true;
+            return Some((DGpuPowerIntel::read_from_energy, ss));
         }
 
-        false
+        None
     }
 
     pub fn from(hwmon: &Hwmon) -> Result<Option<Box<dyn GpuPowerIntel>>>
     {
-        let mut pwr = DGpuPowerIntel {
-            pwr_func: None,
-            pwr_sensors: SensorSet::new(),
+        let res = DGpuPowerIntel::find_power_method(hwmon);
+        if res.is_none() {
+            debug!("No method to get power via Hwmon, aborting.");
+            return Ok(None);
+        }
+        let (pwr_func, pwr_sensors) = res.unwrap();
+
+        let pwr = DGpuPowerIntel {
+            pwr_func,
+            pwr_sensors,
             last_gpu_val: 0,
             last_pkg_val: 0,
             delta_gpu_val: 0,
@@ -220,11 +215,6 @@ impl DGpuPowerIntel
             nr_updates: 0,
             last_update: time::Instant::now(),
         };
-
-        if !pwr.set_power_method(hwmon) {
-            debug!("No method to get power via Hwmon, aborting.");
-            return Ok(None);
-        }
 
         return Ok(Some(Box::new(pwr)));
     }

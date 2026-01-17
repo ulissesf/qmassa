@@ -194,17 +194,6 @@ pub struct DrmDevicePower
     pub pkg_cur_power: f64,
 }
 
-impl DrmDevicePower
-{
-    pub fn new() -> DrmDevicePower
-    {
-        DrmDevicePower {
-            gpu_cur_power: 0.0,
-            pkg_cur_power: 0.0,
-        }
-    }
-}
-
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DrmDeviceMemInfo
 {
@@ -356,8 +345,8 @@ pub struct DrmDeviceInfo
     pub dev_type: DrmDeviceType,
     pub freq_limits: Vec<DrmDeviceFreqLimits>,
     pub freqs: Vec<DrmDeviceFreqs>,
-    pub power: DrmDevicePower,
-    pub mem_info: DrmDeviceMemInfo,
+    pub power: Option<DrmDevicePower>,
+    pub mem_info: Option<DrmDeviceMemInfo>,
     engs_utilization: HashMap<String, f64>,
     pub temps: Vec<DrmDeviceTemperature>,
     pub fans: Vec<DrmDeviceFan>,
@@ -381,8 +370,8 @@ impl Default for DrmDeviceInfo
             dev_type: DrmDeviceType::Unknown,
             freq_limits: Vec::new(),
             freqs: Vec::new(),
-            power: DrmDevicePower::new(),
-            mem_info: DrmDeviceMemInfo::new(),
+            power: None,
+            mem_info: None,
             engs_utilization: HashMap::new(),
             temps: Vec::new(),
             fans: Vec::new(),

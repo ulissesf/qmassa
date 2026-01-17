@@ -328,7 +328,7 @@ impl DrmDriver for DrmDriverAmdgpu
         Ok(self.dev_type.clone())
     }
 
-    fn mem_info(&mut self) -> Result<DrmDeviceMemInfo>
+    fn mem_info(&mut self) -> Result<Option<DrmDeviceMemInfo>>
     {
         let mut qim = drm_amdgpu_memory_info::new();
         let qim_ptr: *mut drm_amdgpu_memory_info = &mut qim;
@@ -338,12 +338,14 @@ impl DrmDriver for DrmDriverAmdgpu
             qim_ptr as u64,
             mem::size_of::<drm_amdgpu_memory_info>() as u32)?;
 
-        Ok(DrmDeviceMemInfo {
-            smem_total: qim.gtt.total_heap_size,
-            smem_used: qim.gtt.heap_usage,
-            vram_total: qim.vram.total_heap_size,
-            vram_used: qim.vram.heap_usage,
-        })
+        Ok(Some(
+            DrmDeviceMemInfo {
+                smem_total: qim.gtt.total_heap_size,
+                smem_used: qim.gtt.heap_usage,
+                vram_total: qim.vram.total_heap_size,
+                vram_used: qim.vram.heap_usage,
+            }
+        ))
     }
 
     fn freq_limits(&mut self) -> Result<Vec<DrmDeviceFreqLimits>>
@@ -413,20 +415,22 @@ impl DrmDriver for DrmDriverAmdgpu
         Ok(vec![freqs,])
     }
 
-    fn power(&mut self) -> Result<DrmDevicePower>
+    fn power(&mut self) -> Result<Option<DrmDevicePower>>
     {
         if self.hwmon.is_none() || self.sensor.is_empty() {
             // TODO: need to add integrated support, only hwmon/discrete now
-            return Ok(DrmDevicePower::new());
+            return Ok(None);
         }
         let hwmon = self.hwmon.as_ref().unwrap();
 
         let val = hwmon.read_sensor(&self.sensor, "average")?;
 
-        Ok(DrmDevicePower {
-            gpu_cur_power: val as f64 / 1000000.0,
-            pkg_cur_power: 0.0,
-        })
+        Ok(Some(
+            DrmDevicePower {
+                gpu_cur_power: val as f64 / 1000000.0,
+                pkg_cur_power: 0.0,
+            }
+        ))
     }
 
     fn client_mem_info(&mut self,

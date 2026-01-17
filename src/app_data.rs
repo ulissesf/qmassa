@@ -51,8 +51,14 @@ impl AppDataDeviceStats
             if !dinfo.freqs.is_empty() {
                 limited_vec_push(&mut self.freqs, dinfo.freqs.clone());
             }
-            limited_vec_push(&mut self.power, dinfo.power.clone());
-            limited_vec_push(&mut self.mem_info, dinfo.mem_info.clone());
+            if !dinfo.power.is_none() {
+                let np = dinfo.power.as_ref().unwrap().clone();
+                limited_vec_push(&mut self.power, np);
+            }
+            if !dinfo.mem_info.is_none() {
+                let nmi = dinfo.mem_info.as_ref().unwrap().clone();
+                limited_vec_push(&mut self.mem_info, nmi);
+            }
         }
 
         for en in eng_names.iter() {

@@ -268,9 +268,9 @@ impl DrmDriver for DrmDriveri915
         Ok(self.dev_type.clone())
     }
 
-    fn mem_info(&mut self) -> Result<DrmDeviceMemInfo>
+    fn mem_info(&mut self) -> Result<Option<DrmDeviceMemInfo>>
     {
-        DrmDriveri915::mem_info_ioctl(self.dn_fd)
+        Ok(Some(DrmDriveri915::mem_info_ioctl(self.dn_fd)?))
     }
 
     fn freq_limits(&mut self) -> Result<Vec<DrmDeviceFreqLimits>>
@@ -403,13 +403,13 @@ impl DrmDriver for DrmDriveri915
         Ok(fqs)
     }
 
-    fn power(&mut self) -> Result<DrmDevicePower>
+    fn power(&mut self) -> Result<Option<DrmDevicePower>>
     {
         if self.power.is_none() {
-            return Ok(DrmDevicePower::new());
+            return Ok(None)
         }
 
-        self.power.as_mut().unwrap().power_usage(&self.hwmon)
+        Ok(Some(self.power.as_mut().unwrap().power_usage(&self.hwmon)?))
     }
 
     fn client_mem_info(&mut self,

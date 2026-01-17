@@ -672,7 +672,7 @@ impl DrmDriver for DrmDriverXe
         Ok(self.dev_type.clone())
     }
 
-    fn mem_info(&mut self) -> Result<DrmDeviceMemInfo>
+    fn mem_info(&mut self) -> Result<Option<DrmDeviceMemInfo>>
     {
         let mut dq = drm_xe_device_query {
             extensions: 0,
@@ -689,7 +689,7 @@ impl DrmDriver for DrmDriverXe
 
         if dq.size as usize == 0 {
             warn!("Xe mem regions query ioctl() returned 0 size, skipping.");
-            return Ok(DrmDeviceMemInfo::new());
+            return Ok(None);
         }
 
         let layout = alloc::Layout::from_size_align(dq.size as usize,
@@ -733,7 +733,7 @@ impl DrmDriver for DrmDriverXe
 
         unsafe { alloc::dealloc(qmrg as *mut u8, layout); }
 
-        Ok(qmdmi)
+        Ok(Some(qmdmi))
     }
 
     fn freq_limits(&mut self) -> Result<Vec<DrmDeviceFreqLimits>>
@@ -858,13 +858,13 @@ impl DrmDriver for DrmDriverXe
         Ok(fqs)
     }
 
-    fn power(&mut self) -> Result<DrmDevicePower>
+    fn power(&mut self) -> Result<Option<DrmDevicePower>>
     {
         if self.power.is_none() {
-            return Ok(DrmDevicePower::new());
+            return Ok(None);
         }
 
-        self.power.as_mut().unwrap().power_usage(&self.hwmon)
+        Ok(Some(self.power.as_mut().unwrap().power_usage(&self.hwmon)?))
     }
 
     fn client_mem_info(&mut self,
