@@ -963,31 +963,12 @@ impl MainScreen
         tstamps: &VecDeque<u128>, frame: &mut Frame, area: Rect)
     {
         let is_dgfx = dinfo.dev_type.is_discrete();
-        let mut nr_mem = !dinfo.dev_stats.mem_info.is_empty() as usize;
+        let nr_mem = !dinfo.dev_stats.mem_info.is_empty() as usize;
         let nr_engines = dinfo.eng_names.len();
-        let mut nr_freqs = dinfo.dev_stats.freqs.back()
-            .unwrap_or(&vec![]).len();
-        let mut nr_pwr = !dinfo.dev_stats.power.is_empty() as usize;
-        let mut nr_temps = dinfo.dev_stats.temps.back()
-            .unwrap_or(&vec![]).len();
-        let mut nr_fans = dinfo.dev_stats.fans.back()
-            .unwrap_or(&vec![]).len();
-
-        // Adjust nr of stats to save screen real state
-        //  - if unknown type, only engines usage *might* work
-        //  - if any virtual function, leave only mem and engines
-        let is_unkn = dinfo.dev_type.is_unknown();
-        let is_virt = dinfo.dev_type.is_virtual_fn();
-
-        if is_unkn || is_virt {
-            nr_freqs = 0;
-            nr_pwr = 0;
-            nr_temps = 0;
-            nr_fans = 0;
-        }
-        if is_unkn {
-            nr_mem = 0;
-        }
+        let nr_freqs = dinfo.dev_stats.freqs.back().unwrap_or(&vec![]).len();
+        let nr_pwr = !dinfo.dev_stats.power.is_empty() as usize;
+        let nr_temps = dinfo.dev_stats.temps.back().unwrap_or(&vec![]).len();
+        let nr_fans = dinfo.dev_stats.fans.back().unwrap_or(&vec![]).len();
 
         // # stats = smem + vram(if dgfx) + # engines +
         //               # freqs + power + # temps + # fans
