@@ -90,12 +90,12 @@ impl Plotter
     // TODO: figure out plotting DRM client stats charts
     pub fn plot(&self) -> Result<()>
     {
-        let plot_meminfo = self.sel_charts[CHART_MEMINFO];
-        let plot_engines = self.sel_charts[CHART_ENGINES];
-        let plot_freqs = self.sel_charts[CHART_FREQS];
-        let plot_power = self.sel_charts[CHART_POWER];
-        let plot_temps = self.sel_charts[CHART_TEMPS];
-        let plot_fans = self.sel_charts[CHART_FANS];
+        let want_meminfo = self.sel_charts[CHART_MEMINFO];
+        let want_engines = self.sel_charts[CHART_ENGINES];
+        let want_freqs = self.sel_charts[CHART_FREQS];
+        let want_power = self.sel_charts[CHART_POWER];
+        let want_temps = self.sel_charts[CHART_TEMPS];
+        let want_fans = self.sel_charts[CHART_FANS];
         let nr_devices = self.jsondata
             .states().front().unwrap().devs_state.len();
 
@@ -118,8 +118,19 @@ impl Plotter
             let mut max_temp = 0.0;
             let mut max_fan = 0.0;
 
+            let has_meminfo = di.dev_stats.mem_info.back().is_some();
+            let has_engines = !di.eng_names.is_empty();
+            let has_freqs = di.dev_stats.freqs.back().is_some();
+            let has_power = di.dev_stats.power.back().is_some();
             let has_temps = di.dev_stats.temps.back().is_some();
             let has_fans = di.dev_stats.fans.back().is_some();
+
+            let plot_meminfo = want_meminfo && has_meminfo;
+            let plot_engines = want_engines && has_engines;
+            let plot_freqs = want_freqs && has_freqs;
+            let plot_power = want_power && has_power;
+            let plot_temps = want_temps && has_temps;
+            let plot_fans = want_fans && has_fans;
 
             if plot_meminfo {
                 meminfo.push(StatData::new("SMEM"));
@@ -149,13 +160,13 @@ impl Plotter
                     "CARD" } else { "PKG" };
                 power.push(StatData::new(pkg_str));
             }
-            if plot_temps && has_temps {
+            if plot_temps {
                 let tmps_st = di.dev_stats.temps.back().unwrap();
                 for tmp in tmps_st.iter() {
                     temps.push(StatData::new(&tmp.name.to_uppercase()));
                 }
             }
-            if plot_fans && has_fans {
+            if plot_fans {
                 let fans_st = di.dev_stats.fans.back().unwrap();
                 for fan in fans_st.iter() {
                     fans.push(StatData::new(&fan.name.to_uppercase()));
@@ -206,7 +217,7 @@ impl Plotter
                     power[0].add_point((tstamp, pwr.gpu_cur_power));
                     power[1].add_point((tstamp, pwr.pkg_cur_power));
                 }
-                if plot_temps && has_temps {
+                if plot_temps {
                     let tmps_st = dinfo.dev_stats.temps.back().unwrap();
                     for (nr, tmp) in tmps_st.iter().enumerate() {
                         let tv = tmp.temp;
@@ -214,7 +225,7 @@ impl Plotter
                         temps[nr].add_point((tstamp, tv));
                     }
                 }
-                if plot_fans && has_fans {
+                if plot_fans {
                     let fans_st = dinfo.dev_stats.fans.back().unwrap();
                     for (nr, fan) in fans_st.iter().enumerate() {
                         let sv = fan.speed as f64;
@@ -266,7 +277,7 @@ impl Plotter
                     "Time (s)", "Power (W)",
                     x_max, max_power, &power)?;
             }
-            if plot_temps && has_temps {
+            if plot_temps {
                 let out_file = format!("{}-{}-temps.svg",
                     &self.out_prefix, &di.pci_dev);
                 self.plot_chart(
@@ -274,7 +285,7 @@ impl Plotter
                     "Time (s)", "Temperature (C)",
                     x_max, max_temp, &temps)?;
             }
-            if plot_fans && has_fans {
+            if plot_fans {
                 let out_file = format!("{}-{}-fans.svg",
                     &self.out_prefix, &di.pci_dev);
                 self.plot_chart(
