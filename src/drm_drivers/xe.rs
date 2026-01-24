@@ -162,6 +162,11 @@ fn xe_pmu_source_from(pci_dev: &str, dev_path: &PathBuf) -> Result<String>
 
 fn xe_sriov_fn_from(pci_dev: &str, dev_path: &PathBuf) -> Result<u64>
 {
+    if dev_path.join("sriov_admin").is_dir() {
+        // PF fn is 0
+        return Ok(0);
+    }
+
     let pf_path = dev_path.join("physfn");
     if !pf_path.is_symlink() {
         // PF fn is 0
@@ -486,13 +491,12 @@ impl XeFreqsPmu
 fn xe_dev_type_from(dn_fd: RawFd, dev_path: &PathBuf) -> Result<DrmDeviceType>
 {
     // find virtualization fn, if any
-    let is_vfio = dev_path.join("vfio-dev").is_dir();
-
-    let virt_fn = if is_vfio {
+    let virt_fn = if dev_path.join("vfio-dev").is_dir() {
         VirtFn::VFIO
     } else if dev_path.join("physfn").is_symlink() {
         VirtFn::SriovVF
-    } else if dev_path.join("virtfn0").is_symlink() {
+    } else if dev_path.join("sriov_admin").is_dir() ||
+            dev_path.join("virtfn0").is_symlink() {
         VirtFn::SriovPF
     } else {
         VirtFn::NoVirt

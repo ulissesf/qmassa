@@ -238,7 +238,7 @@ sudo qmassa --drv-options xe=devslot=0000:03:00.0,engines=pmu --drv-options xe=f
 | Options for xe                 | Description                                |
 | ------------------------------ | ------------------------------------------ |
 | devslot=<PCI slot or sysname\> | Applies other options to a specific device |
-| engines=pmu                    | Engines usage reporting from perf PMU. Supports SR-IOV functions (PF, VF) on Linux kernel 6.15+ and VFIO on 6.19+. |
+| engines=pmu                    | Engines usage reporting from perf PMU. Supports SR-IOV functions (PF, VF) and VFIO on Linux kernel 6.19+. |
 | freqs=pmu                      | Frequencies reporting from perf PMU        |
 | power=msr                      | iGPU only: use MSR to report power instead of perf PMU |
 
