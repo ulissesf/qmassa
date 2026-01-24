@@ -315,6 +315,11 @@ impl Screen for MainScreen
                 let show_pciid = model.args().show_pciid;
                 model.args_mut().show_pciid = !show_pciid;
             },
+            KeyCode::Char('W') | KeyCode::Char('w') => {
+                let mut model = self.model.borrow_mut();
+                let all_sensors = model.args().all_sensors;
+                model.args_mut().all_sensors = !all_sensors;
+            },
             KeyCode::Right => {
                 let mut st = self.clis_state.borrow_mut();
                 st.scroll_right();
@@ -967,9 +972,23 @@ impl MainScreen
         let nr_engines = dinfo.eng_names.len();
         let nr_freqs = dinfo.dev_stats.freqs.back().unwrap_or(&vec![]).len();
         let nr_pwr = !dinfo.dev_stats.power.is_empty() as usize;
-        let nr_temps = dinfo.dev_stats.temps.back().unwrap_or(&vec![]).len();
-        let nr_fans = dinfo.dev_stats.fans.back().unwrap_or(&vec![]).len();
+        let mut nr_temps = dinfo.dev_stats.temps.back()
+            .unwrap_or(&vec![]).len();
+        let mut nr_fans = dinfo.dev_stats.fans.back()
+            .unwrap_or(&vec![]).len();
 
+        // if too many temps or fans, limit it to improve visibility
+        if !self.model.borrow().args().all_sensors {
+            if nr_temps > 4 {
+                nr_temps = 4;
+            }
+            if nr_fans > 3 {
+                nr_fans = 3;
+            }
+        }
+
+        // Stats order: meminfo (smem, vram), engines, freqs, power, temps, fans
+        //
         // # stats = smem + vram(if dgfx) + # engines +
         //               # freqs + power + # temps + # fans
         let nr_stats =
@@ -977,7 +996,7 @@ impl MainScreen
             nr_freqs + nr_pwr + nr_temps + nr_fans;
 
         // Can stats fit in just a single table row or not?
-        // If not, split meminfo + engines and freqs + power + temps + fans
+        // If not, split meminfo + engines + freqs, and power + temps + fans
         let one_row = nr_stats * 10 <= area.width as usize;
 
         let [inf_area, dstats_area, sep, chart_area] = Layout::vertical([
@@ -1059,13 +1078,13 @@ impl MainScreen
         for _ in 0..nr_engines {
             dstats_widths.push(Constraint::Fill(1));  // ENGINES
         }
+        for _ in 0..nr_freqs {
+            dstats_widths.push(Constraint::Min(10));      // FREQS
+        }
         let ds_widths_ref: &mut Vec<Constraint> =
             if one_row { &mut dstats_widths } else { &mut dstats2_widths };
-        for _ in 0..nr_freqs {
-            ds_widths_ref.push(Constraint::Min(10));      // FREQS
-        }
         if nr_pwr > 0 {
-            ds_widths_ref.push(Constraint::Min(12));      // POWER
+            ds_widths_ref.push(Constraint::Length(12));      // POWER
         }
         for _ in 0..nr_temps {
             ds_widths_ref.push(Constraint::Min(9));       // TEMPS
@@ -1074,14 +1093,27 @@ impl MainScreen
             ds_widths_ref.push(Constraint::Min(9));       // FANS
         }
 
-        // split area for gauges early to calculate max engine name length
+        // split area for gauges early to calc max eng name & temp name lengths
         let gs_areas = Layout::horizontal(&dstats_widths).split(gauges_area);
         let en_width = if nr_engines > 0 {
-            gs_areas[if is_dgfx { 2 } else { 1 }].width as usize } else { 0 };
+            gs_areas[nr_mem + (nr_mem * is_dgfx as usize)].width as usize
+        } else {
+            0
+        };
         let gs2_areas = if one_row {
             Rc::new([])
         } else {
             Layout::horizontal(&dstats2_widths).split(gauges2_area)
+        };
+        let tp_width = if nr_temps > 0 {
+            if one_row {
+                gs_areas[nr_mem + (nr_mem * is_dgfx as usize) +
+                        nr_engines + nr_freqs + nr_pwr].width as usize
+            } else {
+                gs2_areas[nr_pwr].width as usize
+            }
+        } else {
+            0
         };
 
         let mut hdrs_lst: Vec<Line> = Vec::new();
@@ -1108,38 +1140,45 @@ impl MainScreen
                 .style(if ds_st.sel == DEVICE_STATS_ENGINES {
                     ly_bold } else { wh_bold }));
         }
-        let hdrs_lst_ref: &mut Vec<Line> =
-            if one_row { &mut hdrs_lst } else { &mut hdrs2_lst };
-        for fq_nr in 0..nr_freqs {
+       for fq_nr in 0..nr_freqs {
             let fql = &dinfo.freq_limits[fq_nr];
             let label = if fql.name.is_empty() {
                 format!("FRQ-{}", fq_nr)
             } else {
                 format!("FRQ-{}", &fql.name.to_uppercase())
             };
-            hdrs_lst_ref.push(Line::from(label)
+            hdrs_lst.push(Line::from(label)
                 .alignment(Alignment::Center)
                 .style(if ds_st.sel == DEVICE_STATS_FREQS &&
                     ds_st.sub_sel == fq_nr as u8 { ly_bold } else { wh_bold }));
         }
-        if nr_pwr > 0 {
+        let hdrs_lst_ref: &mut Vec<Line> =
+            if one_row { &mut hdrs_lst } else { &mut hdrs2_lst };
+         if nr_pwr > 0 {
             hdrs_lst_ref.push(Line::from("POWER")
                 .alignment(Alignment::Center)
                 .style(if ds_st.sel == DEVICE_STATS_POWER {
                     ly_bold } else { wh_bold }));
         }
         if nr_temps > 0 {
-            for tmp in dinfo.dev_stats.temps.back().unwrap().iter() {
-                let label = format!("TP-{}",
-                    &tmp.name.to_uppercase()[..min(4, tmp.name.len())]);
+            for (nr, tmp) in dinfo.dev_stats.temps.back().unwrap().iter().enumerate() {
+                if nr == nr_temps {
+                    break;
+                }
+                let label = format!("TP-{}", &tmp.name.to_uppercase());
+                let tp_len = label.len();
                 hdrs_lst_ref.push(Line::from(label)
-                    .alignment(Alignment::Center)
+                    .alignment(if tp_len > tp_width {
+                        Alignment::Left } else { Alignment::Center })
                     .style(if ds_st.sel == DEVICE_STATS_TEMPS {
                         ly_bold } else { wh_bold }));
             }
         }
         if nr_fans > 0 {
-            for fan in dinfo.dev_stats.fans.back().unwrap().iter() {
+            for (nr, fan) in dinfo.dev_stats.fans.back().unwrap().iter().enumerate() {
+                if nr == nr_fans {
+                    break;
+                }
                 let label = format!("FAN-{}",
                     &fan.name.to_uppercase()[..min(4, fan.name.len())]);
                 hdrs_lst_ref.push(Line::from(label)
@@ -1193,9 +1232,6 @@ impl MainScreen
             dstats_gs.push(App::gauge_colored_from(label, eut/100.0));
         }
 
-        let ds_gs_ref: &mut Vec<Gauge> =
-            if one_row { &mut dstats_gs } else { &mut dstats2_gs };
-
         if nr_freqs > 0 {
             for (nr, fq) in dinfo.dev_stats.freqs.back().unwrap().iter().enumerate() {
                 let maximum = dinfo.freq_limits[nr].maximum;
@@ -1204,9 +1240,12 @@ impl MainScreen
                     Style::new().white());
                 let fq_ratio = if maximum > 0 {
                     fq.act_freq as f64 / maximum as f64 } else { 0.0 };
-                ds_gs_ref.push(App::gauge_colored_from(fq_label, fq_ratio));
+                dstats_gs.push(App::gauge_colored_from(fq_label, fq_ratio));
             }
         }
+
+        let ds_gs_ref: &mut Vec<Gauge> =
+            if one_row { &mut dstats_gs } else { &mut dstats2_gs };
 
         if nr_pwr > 0 {
             let pwr = dinfo.dev_stats.power.back().unwrap();
@@ -1219,7 +1258,10 @@ impl MainScreen
         }
 
         if nr_temps > 0 {
-            for tmp in dinfo.dev_stats.temps.back().unwrap().iter() {
+            for (nr, tmp) in dinfo.dev_stats.temps.back().unwrap().iter().enumerate() {
+                if nr == nr_temps {
+                    break;
+                }
                 let tmp_label = Span::styled(
                     format!("{:.1}", tmp.temp), Style::new().white());
                 ds_gs_ref.push(App::gauge_colored_from(tmp_label, 0.0));
@@ -1227,7 +1269,10 @@ impl MainScreen
         }
 
         if nr_fans > 0 {
-            for fan in dinfo.dev_stats.fans.back().unwrap().iter() {
+            for (nr, fan) in dinfo.dev_stats.fans.back().unwrap().iter().enumerate() {
+                if nr == nr_fans {
+                    break;
+                }
                 let fan_label = Span::styled(
                     format!("{}", fan.speed), Style::new().white());
                 ds_gs_ref.push(App::gauge_colored_from(fan_label, 0.0));

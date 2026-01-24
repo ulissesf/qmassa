@@ -40,7 +40,7 @@ pub struct CliArgs {
     #[arg(short, long)]
     dev_slots: Option<String>,
 
-    /// Base for process tree [default: all accessible pids' info]
+    /// Base for process tree [default: all accessible PIDs' info]
     #[arg(short, long)]
     pid: Option<String>,
 
@@ -63,6 +63,10 @@ pub struct CliArgs {
     /// Show PCI ID numbers instead of names [default: show names]
     #[arg(short, long, action = ArgAction::SetTrue)]
     show_pciid: bool,
+
+    /// Show all temperature and fan sensors [default: limit to fit UI chart]
+    #[arg(short = 'w', long, action = ArgAction::SetTrue)]
+    all_sensors: bool,
 
     /// Save stats to a JSON file
     #[arg(short, long)]
