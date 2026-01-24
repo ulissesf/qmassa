@@ -1048,6 +1048,7 @@ impl MainScreen
         let mut ds_st = self.dstats_state.borrow_mut();
         ds_st.exec_req(&nr_charts);
 
+        // init areas and table column/field widths
         let hdr_area: Rect;
         let mut hdr2_area = Rect::ZERO;
         let gauges_area: Rect;
@@ -1095,15 +1096,15 @@ impl MainScreen
 
         // split area for gauges early to calc max eng name & temp name lengths
         let gs_areas = Layout::horizontal(&dstats_widths).split(gauges_area);
-        let en_width = if nr_engines > 0 {
-            gs_areas[nr_mem + (nr_mem * is_dgfx as usize)].width as usize
-        } else {
-            0
-        };
         let gs2_areas = if one_row {
             Rc::new([])
         } else {
             Layout::horizontal(&dstats2_widths).split(gauges2_area)
+        };
+        let en_width = if nr_engines > 0 {
+            gs_areas[nr_mem + (nr_mem * is_dgfx as usize)].width as usize
+        } else {
+            0
         };
         let tp_width = if nr_temps > 0 {
             if one_row {
@@ -1116,95 +1117,21 @@ impl MainScreen
             0
         };
 
-        let mut hdrs_lst: Vec<Line> = Vec::new();
-        let mut hdrs2_lst: Vec<Line> = Vec::new();
+        // prep headers and gauges
         let wh_bold = Style::new().white().bold();
         let ly_bold = Style::new().light_yellow().bold();
-
-        if nr_mem > 0 {
-            hdrs_lst.push(Line::from("SMEM")
-                .alignment(Alignment::Center)
-                .style(if ds_st.sel == DEVICE_STATS_MEMINFO {
-                    ly_bold } else { wh_bold }));
-            if is_dgfx {
-                hdrs_lst.push(Line::from("VRAM")
-                    .alignment(Alignment::Center)
-                    .style(if ds_st.sel == DEVICE_STATS_MEMINFO {
-                        ly_bold } else { wh_bold }));
-            }
-        }
-        for en in dinfo.eng_names.iter() {
-            hdrs_lst.push(Line::from(en.to_uppercase())
-                .alignment(if en.len() > en_width {
-                    Alignment::Left } else { Alignment::Center })
-                .style(if ds_st.sel == DEVICE_STATS_ENGINES {
-                    ly_bold } else { wh_bold }));
-        }
-       for fq_nr in 0..nr_freqs {
-            let fql = &dinfo.freq_limits[fq_nr];
-            let label = if fql.name.is_empty() {
-                format!("FRQ-{}", fq_nr)
-            } else {
-                format!("FRQ-{}", &fql.name.to_uppercase())
-            };
-            hdrs_lst.push(Line::from(label)
-                .alignment(Alignment::Center)
-                .style(if ds_st.sel == DEVICE_STATS_FREQS &&
-                    ds_st.sub_sel == fq_nr as u8 { ly_bold } else { wh_bold }));
-        }
-        let hdrs_lst_ref: &mut Vec<Line> =
-            if one_row { &mut hdrs_lst } else { &mut hdrs2_lst };
-         if nr_pwr > 0 {
-            hdrs_lst_ref.push(Line::from("POWER")
-                .alignment(Alignment::Center)
-                .style(if ds_st.sel == DEVICE_STATS_POWER {
-                    ly_bold } else { wh_bold }));
-        }
-        if nr_temps > 0 {
-            for (nr, tmp) in dinfo.dev_stats.temps.back().unwrap().iter().enumerate() {
-                if nr == nr_temps {
-                    break;
-                }
-                let label = format!("TP-{}", &tmp.name.to_uppercase());
-                let tp_len = label.len();
-                hdrs_lst_ref.push(Line::from(label)
-                    .alignment(if tp_len > tp_width {
-                        Alignment::Left } else { Alignment::Center })
-                    .style(if ds_st.sel == DEVICE_STATS_TEMPS {
-                        ly_bold } else { wh_bold }));
-            }
-        }
-        if nr_fans > 0 {
-            for (nr, fan) in dinfo.dev_stats.fans.back().unwrap().iter().enumerate() {
-                if nr == nr_fans {
-                    break;
-                }
-                let label = format!("FAN-{}",
-                    &fan.name.to_uppercase()[..min(4, fan.name.len())]);
-                hdrs_lst_ref.push(Line::from(label)
-                    .alignment(Alignment::Center)
-                    .style(if ds_st.sel == DEVICE_STATS_FANS {
-                        ly_bold } else { wh_bold }));
-            }
-        }
-
-        let dstats_hdr = [Row::new(hdrs_lst)];
-        frame.render_widget(Table::new(dstats_hdr, &dstats_widths)
-            .style(Style::new().on_dark_gray())
-            .column_spacing(1),
-            hdr_area);
-        if !one_row {
-            let dstats2_hdr = [Row::new(hdrs2_lst)];
-            frame.render_widget(Table::new(dstats2_hdr, &dstats2_widths)
-                .style(Style::new().on_dark_gray())
-                .column_spacing(1),
-                hdr2_area);
-        }
-
+        let mut hdrs_lst: Vec<Line> = Vec::new();
+        let mut hdrs2_lst: Vec<Line> = Vec::new();
         let mut dstats_gs: Vec<Gauge> = Vec::new();
         let mut dstats2_gs: Vec<Gauge> = Vec::new();
 
         if nr_mem > 0 {
+            // header
+            hdrs_lst.push(Line::from("SMEM")
+                .alignment(Alignment::Center)
+                .style(if ds_st.sel == DEVICE_STATS_MEMINFO {
+                    ly_bold } else { wh_bold }));
+            // gauge
             let mi = dinfo.dev_stats.mem_info.back().unwrap();
             let smem_label = Span::styled(format!("{}/{}",
                 App::short_mem_string(mi.smem_used),
@@ -1213,7 +1140,14 @@ impl MainScreen
             let smem_ratio = if mi.smem_total > 0 {
                 mi.smem_used as f64 / mi.smem_total as f64 } else { 0.0 };
             dstats_gs.push(App::gauge_colored_from(smem_label, smem_ratio));
+
             if is_dgfx {
+                // header
+                hdrs_lst.push(Line::from("VRAM")
+                    .alignment(Alignment::Center)
+                    .style(if ds_st.sel == DEVICE_STATS_MEMINFO {
+                        ly_bold } else { wh_bold }));
+                // gauge
                 let vram_label = Span::styled(format!("{}/{}",
                     App::short_mem_string(mi.vram_used),
                     App::short_mem_string(mi.vram_total)),
@@ -1225,29 +1159,56 @@ impl MainScreen
         }
 
         for en in dinfo.eng_names.iter() {
+            // headers
+            hdrs_lst.push(Line::from(en.to_uppercase())
+                .alignment(if en.len() > en_width {
+                    Alignment::Left } else { Alignment::Center })
+                .style(if ds_st.sel == DEVICE_STATS_ENGINES {
+                    ly_bold } else { wh_bold }));
+            // gauges
             let eut = dinfo.dev_stats.eng_usage[en].back().unwrap();
             let label = Span::styled(
                 format!("{:.1}%", eut), Style::new().white());
-
             dstats_gs.push(App::gauge_colored_from(label, eut/100.0));
         }
 
         if nr_freqs > 0 {
-            for (nr, fq) in dinfo.dev_stats.freqs.back().unwrap().iter().enumerate() {
-                let maximum = dinfo.freq_limits[nr].maximum;
+            for (fq_nr, fq) in dinfo.dev_stats.freqs
+                    .back().unwrap().iter().enumerate() {
+                let fql = &dinfo.freq_limits[fq_nr];
+                // headers
+                let label = if fql.name.is_empty() {
+                    format!("FRQ-{}", fq_nr)
+                } else {
+                    format!("FRQ-{}", &fql.name.to_uppercase())
+                };
+                hdrs_lst.push(Line::from(label)
+                    .alignment(Alignment::Center)
+                    .style(if ds_st.sel == DEVICE_STATS_FREQS &&
+                        ds_st.sub_sel == fq_nr as u8 { ly_bold }
+                        else { wh_bold }));
+                // gauges
                 let fq_label = Span::styled(
-                    format!("{}/{}", fq.act_freq, maximum),
+                    format!("{}/{}", fq.act_freq, fql.maximum),
                     Style::new().white());
-                let fq_ratio = if maximum > 0 {
-                    fq.act_freq as f64 / maximum as f64 } else { 0.0 };
+                let fq_ratio = if fql.maximum > 0 {
+                    fq.act_freq as f64 / fql.maximum as f64 } else { 0.0 };
                 dstats_gs.push(App::gauge_colored_from(fq_label, fq_ratio));
             }
         }
 
+        let hdrs_lst_ref: &mut Vec<Line> =
+            if one_row { &mut hdrs_lst } else { &mut hdrs2_lst };
         let ds_gs_ref: &mut Vec<Gauge> =
             if one_row { &mut dstats_gs } else { &mut dstats2_gs };
 
         if nr_pwr > 0 {
+            // header
+            hdrs_lst_ref.push(Line::from("POWER")
+                .alignment(Alignment::Center)
+                .style(if ds_st.sel == DEVICE_STATS_POWER {
+                    ly_bold } else { wh_bold }));
+            // gauge
             let pwr = dinfo.dev_stats.power.back().unwrap();
             let pwr_label = Span::styled(
                 format!("{:.1}/{:.1}", pwr.gpu_cur_power, pwr.pkg_cur_power),
@@ -1258,10 +1219,20 @@ impl MainScreen
         }
 
         if nr_temps > 0 {
-            for (nr, tmp) in dinfo.dev_stats.temps.back().unwrap().iter().enumerate() {
+            for (nr, tmp) in dinfo.dev_stats.temps
+                    .back().unwrap().iter().enumerate() {
                 if nr == nr_temps {
                     break;
                 }
+                // headers
+                let label = format!("TP-{}", &tmp.name.to_uppercase());
+                let tp_len = label.len();
+                hdrs_lst_ref.push(Line::from(label)
+                    .alignment(if tp_len > tp_width {
+                        Alignment::Left } else { Alignment::Center })
+                    .style(if ds_st.sel == DEVICE_STATS_TEMPS {
+                        ly_bold } else { wh_bold }));
+                // gauges
                 let tmp_label = Span::styled(
                     format!("{:.1}", tmp.temp), Style::new().white());
                 ds_gs_ref.push(App::gauge_colored_from(tmp_label, 0.0));
@@ -1269,20 +1240,43 @@ impl MainScreen
         }
 
         if nr_fans > 0 {
-            for (nr, fan) in dinfo.dev_stats.fans.back().unwrap().iter().enumerate() {
+            for (nr, fan) in dinfo.dev_stats.fans
+                    .back().unwrap().iter().enumerate() {
                 if nr == nr_fans {
                     break;
                 }
+                // headers
+                let label = format!("FAN-{}",
+                    &fan.name.to_uppercase()[..min(4, fan.name.len())]);
+                hdrs_lst_ref.push(Line::from(label)
+                    .alignment(Alignment::Center)
+                    .style(if ds_st.sel == DEVICE_STATS_FANS {
+                        ly_bold } else { wh_bold }));
+                // gauges
                 let fan_label = Span::styled(
                     format!("{}", fan.speed), Style::new().white());
                 ds_gs_ref.push(App::gauge_colored_from(fan_label, 0.0));
             }
         }
 
+        // render headers and gauges per row
+        let dstats_hdr = [Row::new(hdrs_lst)];
+        frame.render_widget(Table::new(dstats_hdr, &dstats_widths)
+            .style(Style::new().on_dark_gray())
+            .column_spacing(1),
+            hdr_area);
+
         for (ds_g, ds_a) in dstats_gs.iter().zip(gs_areas.iter()) {
             frame.render_widget(ds_g, *ds_a);
         }
+
         if !one_row {
+            let dstats2_hdr = [Row::new(hdrs2_lst)];
+            frame.render_widget(Table::new(dstats2_hdr, &dstats2_widths)
+                .style(Style::new().on_dark_gray())
+                .column_spacing(1),
+                hdr2_area);
+
             for (ds2_g, ds2_a) in dstats2_gs.iter().zip(gs2_areas.iter()) {
                 frame.render_widget(ds2_g, *ds2_a);
             }
