@@ -113,6 +113,12 @@ Show PCI IDs (when available) instead of names. Toggle by pressing 'S'/'s' in th
 sudo qmassa -s
 ```
 
+Show all temperature and fan sensors data (instead of limiting to fit UI table and charts). Toggle by pressing 'W'/'w' in the TUI.
+
+```shell
+sudo qmassa -w
+```
+
 Run qmassa's TUI and save stats to a JSON file.
 
 ```shell
