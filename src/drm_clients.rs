@@ -250,23 +250,24 @@ impl DrmClientInfo
             let deng = self.engs_delta.get_mut(nm).unwrap();
             let neng = fdi.engines.get(nm).unwrap();
 
-            if neng.time >= oeng.time {
+            deng.delta_time = neng.time.saturating_sub(oeng.time);
+            if deng.delta_time > 0 {
                 self.engs_acum.acum_time += neng.time;
-                deng.delta_time = neng.time - oeng.time;
-                oeng.time = neng.time;
             }
+            oeng.time = neng.time;
 
-            if neng.cycles >= oeng.cycles {
+            deng.delta_cycles = neng.cycles.saturating_sub(oeng.cycles);
+            if deng.delta_cycles > 0 {
                 self.engs_acum.acum_cycles += neng.cycles;
-                deng.delta_cycles = neng.cycles - oeng.cycles;
-                oeng.cycles = neng.cycles;
             }
+            oeng.cycles = neng.cycles;
 
-            if neng.total_cycles >= oeng.total_cycles {
+            deng.delta_total_cycles = neng.total_cycles
+                .saturating_sub(oeng.total_cycles);
+            if deng.delta_total_cycles > 0 {
                 self.engs_acum.acum_total_cycles += neng.total_cycles;
-                deng.delta_total_cycles = neng.total_cycles - oeng.total_cycles;
-                oeng.total_cycles = neng.total_cycles;
             }
+            oeng.total_cycles = neng.total_cycles;
 
             self.engs_updates.entry(nm.clone()).and_modify(|nr| *nr += 1);
         }
