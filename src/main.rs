@@ -261,12 +261,12 @@ fn main() -> Result<()>
     // set up logging for all subcommands (if needed)
     if env::var_os(env_logger::DEFAULT_FILTER_ENV).is_some() {
         let mut logger = env_logger::Builder::from_default_env();
-        let fname: &Path;
 
         if args.log_file.is_none() && !io::stderr().is_terminal() {
             logger.init();
         } else {
             let mut fnstr: String;
+            let fname: &Path;
 
             if let Some(log_file) = &args.log_file {
                 fname = Path::new(log_file);
