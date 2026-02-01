@@ -159,7 +159,7 @@ impl I915EnginesPmu
                 let curr_active = data[1 + epd.idx];
 
                 if self.nr_updates >= 2  {
-                    acum_active += curr_active - epd.last_active;
+                    acum_active += curr_active.saturating_sub(epd.last_active);
                     acum_total += elapsed;
                 }
                 epd.last_active = curr_active;

@@ -296,8 +296,8 @@ impl XeEnginesPmu
                 let curr_total = data[1 + epd.base_idx + 1];
 
                 if self.nr_updates >= 2  {
-                    acum_active += curr_active - epd.last_active;
-                    acum_total += curr_total - epd.last_total;
+                    acum_active += curr_active.saturating_sub(epd.last_active);
+                    acum_total += curr_total.saturating_sub(epd.last_total);
                 }
                 epd.last_active = curr_active;
                 epd.last_total = curr_total;
