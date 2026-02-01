@@ -48,8 +48,6 @@ pub struct DGpuPowerIntel
     pwr_sensors: SensorSet,
     last_gpu_val: u64,
     last_pkg_val: u64,
-    delta_gpu_val: u64,
-    delta_pkg_val: u64,
     nr_updates: u64,
     last_update: time::Instant,
 }
@@ -109,19 +107,18 @@ impl DGpuPowerIntel
         let delta_time = self.last_update.elapsed().as_secs_f64();
         self.last_update = time::Instant::now();
 
+        let mut delta_gpu_val: u64 = 0;
+        let mut delta_pkg_val: u64 = 0;
+
         if self.nr_updates >= 2 {
-            if gpu_val > 0 {
-                self.delta_gpu_val = gpu_val - self.last_gpu_val;
-            }
-            if pkg_val > 0 {
-                self.delta_pkg_val = pkg_val - self.last_pkg_val;
-            }
+            delta_gpu_val = gpu_val.saturating_sub(self.last_gpu_val);
+            delta_pkg_val = pkg_val.saturating_sub(self.last_pkg_val);
         }
         self.last_gpu_val = gpu_val;
         self.last_pkg_val = pkg_val;
 
-        let gpu_pwr = (self.delta_gpu_val as f64 / 1000000.0) / delta_time;
-        let pkg_pwr = (self.delta_pkg_val as f64 / 1000000.0) / delta_time;
+        let gpu_pwr = (delta_gpu_val as f64 / 1000000.0) / delta_time;
+        let pkg_pwr = (delta_pkg_val as f64 / 1000000.0) / delta_time;
 
         Ok(DrmDevicePower {
             gpu_cur_power: gpu_pwr,
@@ -210,8 +207,6 @@ impl DGpuPowerIntel
             pwr_sensors,
             last_gpu_val: 0,
             last_pkg_val: 0,
-            delta_gpu_val: 0,
-            delta_pkg_val: 0,
             nr_updates: 0,
             last_update: time::Instant::now(),
         };
@@ -324,8 +319,6 @@ pub struct IGpuPowerIntel
     msr: Option<MsrIntel>,
     last_gpu_val: u64,
     last_pkg_val: u64,
-    delta_gpu_val: u64,
-    delta_pkg_val: u64,
     gpu_scale: f64,
     pkg_scale: f64,
     nr_updates: u64,
@@ -353,22 +346,23 @@ impl GpuPowerIntel for IGpuPowerIntel
             gpu_val = msr.read_sum(MSR_PP1_ENERGY_STATUS)?;
             pkg_val = msr.read_sum(MSR_PKG_ENERGY_STATUS)?;
         }
-        self.nr_updates += 1;
 
+        self.nr_updates += 1;
         let delta_time = self.last_update.elapsed().as_secs_f64();
         self.last_update = time::Instant::now();
 
+        let mut delta_gpu_val: u64 = 0;
+        let mut delta_pkg_val: u64 = 0;
+
         if self.nr_updates >= 2 {
-            self.delta_gpu_val = gpu_val - self.last_gpu_val;
-            self.delta_pkg_val = pkg_val - self.last_pkg_val;
+            delta_gpu_val = gpu_val.saturating_sub(self.last_gpu_val);
+            delta_pkg_val = pkg_val.saturating_sub(self.last_pkg_val);
         }
         self.last_gpu_val = gpu_val;
         self.last_pkg_val = pkg_val;
 
-        let gpu_pwr = (self.delta_gpu_val as f64 * self.gpu_scale) /
-            delta_time;
-        let pkg_pwr = (self.delta_pkg_val as f64 * self.pkg_scale) /
-            delta_time;
+        let gpu_pwr = (delta_gpu_val as f64 * self.gpu_scale) / delta_time;
+        let pkg_pwr = (delta_pkg_val as f64 * self.pkg_scale) / delta_time;
 
         Ok(DrmDevicePower {
             gpu_cur_power: gpu_pwr,
@@ -479,8 +473,6 @@ impl IGpuPowerIntel
             msr,
             last_gpu_val: 0,
             last_pkg_val: 0,
-            delta_gpu_val: 0,
-            delta_pkg_val: 0,
             gpu_scale,
             pkg_scale,
             nr_updates: 0,
