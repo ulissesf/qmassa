@@ -9,7 +9,7 @@ use std::io;
 
 use anyhow::{bail, Result};
 use libc;
-use log::{debug, error};
+use log::debug;
 
 use crate::perf_event::{
     perf_event_attr, PERF_SAMPLE_IDENTIFIER, PERF_FORMAT_GROUP, PerfEvent
@@ -242,7 +242,7 @@ struct MsrIntel
 
 impl MsrIntel
 {
-    fn t_read(&self, offset: i64) -> Result<(isize, u64)>
+    fn read(&self, offset: i64) -> Result<u64>
     {
         let mut val: u64 = 0;
         let val_ptr: *mut u64 = &mut val;
@@ -254,16 +254,9 @@ impl MsrIntel
         if ret < 0 {
             return Err(io::Error::last_os_error().into());
         }
-
-        Ok((ret, val))
-    }
-
-    fn read(&self, offset: i64) -> Result<u64>
-    {
-        let (ret, val) = self.t_read(offset)?;
         if ret as usize != mem::size_of::<u64>() {
-            error!("Read wrong # of bytes {:?} (expected {:?}) from MSR {:?}.",
-                offset, mem::size_of::<u64>(), ret);
+            bail!("Read wrong # bytes {:?} (expected {:?}) from MSR {:?}.",
+                ret, mem::size_of::<u64>(), offset);
         }
 
         Ok(val)
@@ -287,19 +280,12 @@ impl MsrIntel
         Ok(msrsum.sum)
     }
 
-    fn probe(&self, offset: i64) -> Result<bool>
+    fn probe(&self, offset: i64) -> bool
     {
-        let res = self.t_read(offset);
-        if res.is_err() {
-            return Ok(false);
+        match self.read(offset) {
+            Err(_) => false,
+            _ => true
         }
-
-        let (ret, _) = res.unwrap();
-        if ret as usize != mem::size_of::<u64>() {
-            return Ok(false);
-        }
-
-        Ok(true)
     }
 
     fn from(cpu: i32) -> Result<MsrIntel>
@@ -444,9 +430,9 @@ impl IGpuPowerIntel
         let cpu = unsafe { libc::sched_getcpu() };
         let msr = MsrIntel::from(cpu)?;
 
-        if !msr.probe(MSR_RAPL_POWER_UNIT)? ||
-            !msr.probe(MSR_PKG_ENERGY_STATUS)? ||
-            !msr.probe(MSR_PP1_ENERGY_STATUS)? {
+        if !msr.probe(MSR_RAPL_POWER_UNIT) ||
+            !msr.probe(MSR_PKG_ENERGY_STATUS) ||
+            !msr.probe(MSR_PP1_ENERGY_STATUS) {
             bail!("Can't read power unit, pkg and gpu MSRs");
         }
 
