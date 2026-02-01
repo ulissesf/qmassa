@@ -233,7 +233,7 @@ impl ProcInfo
         self.nr_threads = stv[17].parse()?;
 
         let cputime = utime + stime;
-        self.cputime_delta = cputime - self.cputime_last;
+        self.cputime_delta = cputime.saturating_sub(self.cputime_last);
         self.cputime_last = cputime;
 
         self.ms_elapsed = self.last_update.elapsed().as_millis() as u64;
