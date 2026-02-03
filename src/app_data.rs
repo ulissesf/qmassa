@@ -615,6 +615,17 @@ impl AppDataJson
         }
     }
 
+    // returns only major.minor as version since the
+    // JSON format won't change across patch versions
+    fn qmassa_version() -> &'static str
+    {
+        concat!(
+            env!("CARGO_PKG_VERSION_MAJOR"),
+            ".",
+            env!("CARGO_PKG_VERSION_MINOR")
+        )
+    }
+
     pub fn from(json_fname: &str) -> Result<AppDataJson>
     {
         let file = File::open(json_fname)?;
@@ -626,7 +637,7 @@ impl AppDataJson
         }
         let version: String = serde_json::from_str(&buf)?;
 
-        let wanted = env!("CARGO_PKG_VERSION");
+        let wanted = AppDataJson::qmassa_version();
         if version != wanted {
             bail!("Incompatible version in JSON {:?}: expected {}, got {}.",
                 json_fname, wanted, version);
@@ -671,7 +682,7 @@ impl AppData for AppDataLive
 
             // create file and write initial JSON
             let mut jf = File::create(fname)?;
-            serde_json::to_writer(&mut jf, env!("CARGO_PKG_VERSION"))?;
+            serde_json::to_writer(&mut jf, AppDataJson::qmassa_version())?;
             writeln!(jf)?;
             serde_json::to_writer(&mut jf, &args)?;
             writeln!(jf)?;
