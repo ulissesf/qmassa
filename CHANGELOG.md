@@ -1,5 +1,22 @@
 # Changelog
 
+## [v1.3.0](https://github.com/ulissesf/qmassa/releases/tag/v1.3.0) - 2026-02-07
+
+### Features
+
+- Version JSON files with only major.minor. (@ulissesf)
+- CLI option and TUI toggle to show all temps & fans (default is limited to save TUI space). (@ulissesf)
+- Add Xe driver option to force reading iGPU power from MSR. (@ulissesf)
+- Add xe-vfio-pci driver with engine usage reporting via perf PMU. (@ulissesf)
+- Find VFIO devices with DRM physical functions. (@ulissesf)
+- Extend device type with PF, VF or VFIO functions when applicable. (@ulissesf)
+- Option to read frequencies from perf PMU on i915 and Xe drivers. (@ulissesf)
+
+### Fixes
+
+- Avoid wrap-around in power, CPU and engine usage calculation. (@ulissesf)
+- Infer SR-IOV function from sysfs links (not from BDF). (@ulissesf)
+
 ## [v1.2.0](https://github.com/ulissesf/qmassa/releases/tag/v1.2.0) - 2025-12-13
 
 ### Features

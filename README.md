@@ -6,7 +6,7 @@
 
 </div>
 
-![qmassa](https://github.com/ulissesf/qmassa/blob/assets/assets/qmassa-v1.0.0.gif?raw=true)
+![qmassa](https://github.com/ulissesf/qmassa/blob/assets/assets/qmassa.gif?raw=true)
 
 ## General description
 
