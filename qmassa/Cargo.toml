@@ -1,0 +1,26 @@
+[package]
+name = "qmassa"
+version = "2.0.0"
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Terminal-based tool for displaying GPUs usage stats on Linux."
+keywords = ["gpu", "graphics", "statistics", "usage"]
+categories = ["command-line-utilities", "graphics"]
+readme = "README.md"
+
+[dependencies]
+qmlib = { version = "2.0.0", path = "../qmlib" }
+anyhow = "1.0.100"
+clap = { version = "4.5.53", features = ["derive"] }
+crossterm = "0.28.1"
+env_logger = "0.11.8"
+itertools = "0.13.0"
+libc = "0.2.178"
+log = "0.4.29"
+plotters = { version = "0.3.7", default-features = false, features = ["line_series", "svg_backend"] }
+ratatui = "0.29.0"
+serde = { version = "1.0.228", features = ["derive"] }
+serde_json = "1.0.145"
+tui-scrollview = "0.5.1"

@@ -15,18 +15,11 @@ use clap::{ArgAction, Args, Parser, Subcommand};
 use libc;
 use serde::{Deserialize, Serialize};
 
-mod perf_event;
-mod hwmon;
-mod drm_devices;
-mod drm_drivers;
-mod drm_fdinfo;
-mod proc_info;
-mod drm_clients;
 mod app_data;
 mod app;
 mod plotter;
 
-use drm_devices::DrmDevices;
+use qmlib::drm_devices::DrmDevices;
 use app_data::{AppData, AppDataLive, AppDataJson};
 use app::App;
 use plotter::Plotter;

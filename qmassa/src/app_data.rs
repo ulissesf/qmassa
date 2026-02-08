@@ -13,12 +13,12 @@ use serde::{Deserialize, Serialize};
 use serde_json;
 
 use crate::CliArgs;
-use crate::drm_devices::{
+use qmlib::drm_devices::{
     DrmDeviceFreqLimits, DrmDeviceFreqs, DrmDevicePower,
     DrmDeviceMemInfo, DrmDeviceType, DrmDeviceTemperature, DrmDeviceFan,
     DrmDeviceInfo, DrmDevices};
-use crate::drm_clients::{DrmClientMemInfo, DrmClientInfo};
-use crate::proc_info::ProcInfo;
+use qmlib::drm_clients::{DrmClientMemInfo, DrmClientInfo};
+use qmlib::proc_info::ProcInfo;
 
 
 const APP_DATA_MAX_NR_STATS: usize = 40;
