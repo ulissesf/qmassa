@@ -1,4 +1,4 @@
-# Changelog
+# qmassa Changelog
 
 ## [v1.3.0](https://github.com/ulissesf/qmassa/releases/tag/v1.3.0) - 2026-02-07
 

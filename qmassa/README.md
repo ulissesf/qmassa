@@ -1,9 +1,7 @@
 # qmassa!
 
 <div align="center">
-
-[![Crate Badge]][Crate]
-
+  <a title="qmassa" target="_blank" href="https://crates.io/crates/qmassa"><img alt="qmassa" src="https://img.shields.io/crates/v/qmassa"></a>
 </div>
 
 ![qmassa](https://github.com/ulissesf/qmassa/blob/assets/assets/qmassa.gif?raw=true)
@@ -40,7 +38,7 @@ cargo install --locked qmassa
 If you want to install the latest development version using qmassa's lock file:
 
 ```shell
-cargo install --locked --git https://github.com/ulissesf/qmassa
+cargo install --locked --git https://github.com/ulissesf/qmassa qmassa
 ```
 
 ## How to use it
@@ -68,7 +66,7 @@ sudo qmassa
 ```
 
 Only show a specific GPU device and DRM clients using it. The GPU device
-is specified by its PCI device slot name.
+is specified by its PCI device slot name or its sysname (for non-PCI devices).
 
 ```shell
 sudo qmassa -d 0000:03:00.0
@@ -131,6 +129,12 @@ Run qmassa without the TUI and save stats to a JSON file.
 sudo qmassa -x -t data.json
 ```
 
+Use perf PMU to report device engine usage only for 0000:03:00.0 and perf PMU to report freqs for all GPUs using the xe driver.
+
+```shell
+sudo qmassa -o xe=devslot=0000:03:00.0,engines=pmu -o xe=freqs=pmu
+```
+
 Run qmassa's TUI to replay data from a JSON file.
 
 ```shell
@@ -156,8 +160,8 @@ sudo qmassa plot -j data.json -o chart
 | Field        | Description                                    |
 | ------------ | ---------------------------------------------- |
 | DRIVER       | Kernel driver being used                       |
-| TYPE         | Integrated, Discrete or Unknown                |
-| DEVICE NODES | Character device nodes in /dev/dri             |
+| TYPE         | Integrated, Discrete or Unknown. Virtualization function (PF, VF, or VFIO) when applicable. |
+| NODES        | Character device nodes (DRI or VFIO)           |
 | SMEM         | System memory used / Total system memory       |
 | VRAM         | Device memory used / Total device memory       |
 | [Engines]    | Overall engine usage in the last iteration     |
@@ -198,62 +202,10 @@ them through the hwmon kernel infrastructure (Intel and AMD, for now). The
 temperature values are all in Celsius (C), and the fan speeds are all in
 revolutions per minute (RPM).
 
-#### Driver support
-
-The table below shows the current drivers and features supported in qmassa
-to get device information.
-
-| Driver | Dev Type | Mem Info | Engines | Freqs   | Power   | Client Mem Info | Temperatures | Fans |
-| ------ | :------: | :------: | :-----: | :-----: | :-----: | :-------------: | :----------: | :--: |
-| xe     | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: (only dGPUs, Linux kernel 6.15+) | :white_check_mark: (only dGPUs, Linux kernel 6.16+) |
-| i915   | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: (only dGPUs) | :white_check_mark: (only dGPUs) |
-| amdgpu | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: (only dGPUs) | :white_check_mark: (Linux kernel 6.13+) | :white_check_mark: (only dGPUs) | :white_check_mark: (only dGPUs) |
-| xe-vfio-pci | :white_check_mark: |  | :white_check_mark: (via perf PMU) |  |  |  |  |  |
-| *      |  |  | :white_check_mark: (via DRM fdinfo) |  |  | :white_check_mark: (only "memory" region in DRM fdinfo) |  |  |
-
-qmassa is tested on some Intel and AMD GPUs but it relies heavily on kernel
-drivers exposing consistent support across GPUs. If you have a problem,
-please file an issue so we can debug it.
-
-#### Driver options
-
-The tables in this section outline which drivers in qmassa can be passed
-extra options to control how or from where they report their stats. Options
-are passed to drivers in qmassa's command line as it's shown in the examples
-below.
-
-General format to pass options to drivers.
-
-```shell
-sudo qmassa --drv-options xe=<opt1>,<opt2> --drv-options i915=<opt1>
-```
-
-Use PMU to report device engine usage only for 0000:03:00.0 and use PMU to report freqs for all GPUs using the xe driver.
-
-```shell
-sudo qmassa --drv-options xe=devslot=0000:03:00.0,engines=pmu --drv-options xe=freqs=pmu
-```
-
-| Options for i915               | Description                                |
-| ------------------------------ | ------------------------------------------ |
-| devslot=<PCI slot or sysname\> | Applies other options to a specific device |
-| engines=pmu                    | Engines usage reporting from perf PMU      |
-| freqs=pmu                      | Frequencies reporting from perf PMU        |
-| power=msr                      | iGPU only: use MSR to report power instead of perf PMU |
-
-| Options for xe                 | Description                                |
-| ------------------------------ | ------------------------------------------ |
-| devslot=<PCI slot or sysname\> | Applies other options to a specific device |
-| engines=pmu                    | Engines usage reporting from perf PMU. Supports SR-IOV functions (PF, VF) and VFIO on Linux kernel 6.19+. |
-| freqs=pmu                      | Frequencies reporting from perf PMU        |
-| power=msr                      | iGPU only: use MSR to report power instead of perf PMU |
-
-#### Kernel driver limitations/gaps
-
-| Kernel driver | Limitations/gaps                                           |
-| ------------- | ---------------------------------------------------------- |
-| i915          | Doesn't track/report system memory used.                   |
-| amdgpu        | Processes using kfd don't report engines and memory usage through any DRM client fdinfo. |
+For supported drivers and features, available driver options as well as
+kernel driver limitations/gaps, please check the
+[qmlib drivers](https://github.com/ulissesf/qmassa/blob/main/qmlib/DRIVERS.md)
+information.
 
 ### Per DRM client (on main screen)
 
@@ -310,15 +262,11 @@ The VRAM data is only displayed for DRM clients on discrete GPUs.
 ## Acknowledgements
 
 qmassa uses <a href="https://ratatui.rs/">Ratatui</a> for displaying a nice
-terminal-based UI and leverages [many](Cargo.toml) other Rust crates.
+terminal-based UI and leverages many other Rust crates.
 
 ## License
 
 Copyright © 2024-2026 Ulisses Furquim
 
 This project is distributed under the terms of the Apache License (Version 2.0).
-See [LICENSE](LICENSE) for details.
-
-
-[Crate Badge]: https://img.shields.io/crates/v/qmassa?logo=rust&style=flat-square&logoColor=E05D44&color=E05D44
-[Crate]: https://crates.io/crates/qmassa
+See [LICENSE](https://github.com/ulissesf/qmassa/blob/main/LICENSE) for details.
