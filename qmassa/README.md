@@ -23,7 +23,7 @@ ioctls), specific sysfs files/directories or through perf PMU events.
 
 The minimum requirements to compile & run qmassa are:
 
-* Compile-time: Rust v1.75 or later, pkg-config and libudev development packages
+* Compile-time: Rust v1.88 or later, pkg-config and libudev development packages
 * Runtime: Linux kernel v6.8 or later to report most usage stats
 
 ## How to install it
