@@ -3,9 +3,11 @@ resolver = "2"
 members = [
     "qmlib",
     "qmassa",
+    "qmd",
 ]
 default-members = [
     "qmassa",
+    "qmd",
 ]
 
 [workspace.package]
