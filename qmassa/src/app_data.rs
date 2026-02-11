@@ -34,10 +34,10 @@ fn limited_vec_push<T>(vlst: &mut VecDeque<T>, vitem: T)
 #[derive(Debug, Serialize, Deserialize)]
 pub struct AppDataDeviceStats
 {
-    pub freqs: VecDeque<Vec<DrmDeviceFreqs>>,
-    pub power: VecDeque<DrmDevicePower>,
     pub mem_info: VecDeque<DrmDeviceMemInfo>,
     pub eng_usage: HashMap<String, VecDeque<f64>>,
+    pub freqs: VecDeque<Vec<DrmDeviceFreqs>>,
+    pub power: VecDeque<DrmDevicePower>,
     pub temps: VecDeque<Vec<DrmDeviceTemperature>>,
     pub fans: VecDeque<Vec<DrmDeviceFan>>,
 }
@@ -48,16 +48,22 @@ impl AppDataDeviceStats
         eng_names: &Vec<String>, dinfo: &DrmDeviceInfo)
     {
         if dinfo.has_driver() {
+            if dinfo.mem_info.is_some() {
+                let nmi = dinfo.mem_info.as_ref().unwrap().clone();
+                limited_vec_push(&mut self.mem_info, nmi);
+            }
             if !dinfo.freqs.is_empty() {
                 limited_vec_push(&mut self.freqs, dinfo.freqs.clone());
             }
-            if !dinfo.power.is_none() {
+            if dinfo.power.is_some() {
                 let np = dinfo.power.as_ref().unwrap().clone();
                 limited_vec_push(&mut self.power, np);
             }
-            if !dinfo.mem_info.is_none() {
-                let nmi = dinfo.mem_info.as_ref().unwrap().clone();
-                limited_vec_push(&mut self.mem_info, nmi);
+            if !dinfo.temps.is_empty() {
+                limited_vec_push(&mut self.temps, dinfo.temps.clone());
+            }
+            if !dinfo.fans.is_empty() {
+                limited_vec_push(&mut self.fans, dinfo.fans.clone());
             }
         }
 
@@ -67,13 +73,6 @@ impl AppDataDeviceStats
             }
             let mut est = self.eng_usage.get_mut(en).unwrap();
             limited_vec_push(&mut est, dinfo.eng_utilization(en));
-        }
-
-        if !dinfo.temps.is_empty() {
-            limited_vec_push(&mut self.temps, dinfo.temps.clone());
-        }
-        if !dinfo.fans.is_empty() {
-            limited_vec_push(&mut self.fans, dinfo.fans.clone());
         }
     }
 
