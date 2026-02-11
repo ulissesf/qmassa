@@ -25,7 +25,7 @@ ioctls), specific sysfs files/directories or through perf PMU events.
 
 The minimum requirements to compile & run qmassa are:
 
-* Compile-time: Rust v1.74 or later, pkg-config and libudev development packages
+* Compile-time: Rust v1.75 or later, pkg-config and libudev development packages
 * Runtime: Linux kernel v6.8 or later to report most usage stats
 
 ## How to install it
@@ -248,11 +248,12 @@ sudo qmassa --drv-options xe=devslot=0000:03:00.0,engines=pmu --drv-options xe=f
 | freqs=pmu                      | Frequencies reporting from perf PMU        |
 | power=msr                      | iGPU only: use MSR to report power instead of perf PMU |
 
-#### Driver limitations
+#### Kernel driver limitations/gaps
 
-* i915: the kernel driver doesn't track/report system memory used.
-* amdgpu: processes using kfd don't report engines and memory usage through
-any DRM client fdinfo.
+| Kernel driver | Limitations/gaps                                           |
+| ------------- | ---------------------------------------------------------- |
+| i915          | Doesn't track/report system memory used.                   |
+| amdgpu        | Processes using kfd don't report engines and memory usage through any DRM client fdinfo. |
 
 ### Per DRM client (on main screen)
 
