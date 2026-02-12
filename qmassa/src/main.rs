@@ -255,9 +255,7 @@ fn main() -> Result<()>
     if env::var_os(env_logger::DEFAULT_FILTER_ENV).is_some() {
         let mut logger = env_logger::Builder::from_default_env();
 
-        if args.log_file.is_none() && !io::stderr().is_terminal() {
-            logger.init();
-        } else {
+        if args.log_file.is_some() || io::stderr().is_terminal() {
             let mut fnstr: String;
             let fname: &Path;
 
@@ -278,8 +276,9 @@ fn main() -> Result<()>
             let logtarget = Box::new(File::create(fname)
                 .expect("Can't create log file"));
             logger.target(env_logger::Target::Pipe(logtarget));
-            logger.init();
         }
+
+        logger.init();
     }
 
     if let Some(cmd) = args.command {
