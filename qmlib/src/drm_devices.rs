@@ -455,11 +455,12 @@ impl DrmDeviceInfo
         let dev_path = Path::new("/sys/class/vfio-dev")
             .join(dn)
             .join("device");
-        let physfn_path = Path::new(&dev_path)
+        let physfn_path = dev_path
             .join("physfn");
+        let drm_path = physfn_path
+            .join("drm");
 
-        dev_path.is_symlink() && physfn_path.is_symlink() &&
-            Path::new(&physfn_path).join("drm").is_dir()
+        dev_path.is_symlink() && physfn_path.is_symlink() && drm_path.is_dir()
     }
 }
 
