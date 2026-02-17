@@ -1502,6 +1502,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "qmmd"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "clap",
+ "env_logger",
+ "log",
+ "metrics",
+ "metrics-exporter-prometheus",
+ "qmlib",
+]
+
+[[package]]
 name = "quanta"
 version = "0.12.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"

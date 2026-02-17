@@ -1,0 +1,14 @@
+[Unit]
+Description=qmassa metrics daemon
+After=network.target
+
+[Service]
+Type=simple
+Environment="RUST_LOG=info"
+ExecStart=/usr/sbin/qmmd
+Restart=always
+User=root
+
+[Install]
+WantedBy=multi-user.target
+
