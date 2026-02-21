@@ -102,6 +102,8 @@ fn main() -> Result<()>
         logger.init();
     }
 
+    info!("Starting: v{}, {:?}", env!("CARGO_PKG_VERSION"), &args);
+
     // process devslots and driver options
     let slots_str: &str;
     let mut slots_lst: Vec<&str> = Vec::new();

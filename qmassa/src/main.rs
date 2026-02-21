@@ -13,6 +13,7 @@ use anyhow::{bail, Context, Result};
 use env_logger;
 use clap::{ArgAction, Args, Parser, Subcommand};
 use libc;
+use log::info;
 use serde::{Deserialize, Serialize};
 
 mod app_data;
@@ -280,6 +281,8 @@ fn main() -> Result<()>
 
         logger.init();
     }
+
+    info!("Starting: v{}, {:?}", env!("CARGO_PKG_VERSION"), &args);
 
     if let Some(cmd) = args.command {
         match cmd {
