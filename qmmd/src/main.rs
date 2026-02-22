@@ -42,7 +42,7 @@ struct CliArgs {
     #[arg(short, long, default_value = "9000")]
     port: u16,
 
-    /// Use DRM fdinfo for engines and memory usage [default: no fdinfo]
+    /// Use system's DRM fdinfo for getting engines usage [default: no fdinfo]
     #[arg(short = 'f', long, action = ArgAction::SetTrue)]
     use_fdinfo: bool,
 
