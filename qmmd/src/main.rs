@@ -7,7 +7,7 @@ use std::thread;
 use std::time;
 
 use anyhow::{bail, Context, Result};
-use clap::Parser;
+use clap::{ArgAction, Parser};
 use env_logger;
 use log::info;
 use metrics_exporter_prometheus::PrometheusBuilder;
@@ -41,6 +41,10 @@ struct CliArgs {
     /// Port to register endpoint's HTTP listener
     #[arg(short, long, default_value = "9000")]
     port: u16,
+
+    /// Use DRM fdinfo for engines and memory usage [default: no fdinfo]
+    #[arg(short = 'f', long, action = ArgAction::SetTrue)]
+    use_fdinfo: bool,
 
     /// File to log to when RUST_LOG is used [default: stderr]
     #[arg(short, long)]
@@ -113,9 +117,13 @@ fn main() -> Result<()>
     }
 
     let mut drv_opts: HashMap<&str, Vec<&str>> = HashMap::new();
-    // xe and i915 need to get engines usage from perf PMU
-    drv_opts.insert("i915", vec!["engines=pmu",]);
-    drv_opts.insert("xe", vec!["engines=pmu",]);
+    if !args.use_fdinfo {
+        // xe and i915 need to get engines usage from perf PMU
+        drv_opts.insert("xe", vec!["engines=pmu",]);
+        drv_opts.insert("i915", vec!["engines=pmu",]);
+        // amdgpu needs to get engines usage from sysfs
+        drv_opts.insert("amdgpu", vec!["engines=sysfs",]);
+    }
 
     if args.drv_options.is_some() {
         for dopt in args.drv_options.as_ref().unwrap().iter() {
@@ -128,10 +136,16 @@ fn main() -> Result<()>
     }
 
     // find all DRM subsystem devices
-    let qmds = DrmDevices::find_devices(&slots_lst, &drv_opts)
+    let mut qmds = DrmDevices::find_devices(&slots_lst, &drv_opts)
         .context("Failed finding DRM devices")?;
     if qmds.is_empty() {
         bail!("No DRM devices found");
+    }
+
+    // if use_fdinfo get DRM clients from whole system
+    if args.use_fdinfo {
+        qmds.set_clients_pid_tree("1")
+            .context("Failed to set DRM clients pid tree (base pid: 1)")?;
     }
 
     // export stats!

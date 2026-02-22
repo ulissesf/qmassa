@@ -8,9 +8,9 @@
 
 qmmd is the "qmassa metrics daemon" that provides a Prometheus endpoint over
 HTTP to export GPU usage metrics. It uses the same internal library as the
-qmassa TUI application. However, qmmd doesn't scan the /proc filesystem and
-process DRM fdinfo files for reporting GPU engine or memory usage, and thus
-it relies on qmlib implementations for each kernel driver.
+qmassa TUI application. By default, qmmd doesn't scan the /proc filesystem and
+process DRM fdinfo files for reporting GPU engines usage and relies on qmlib
+implementations for each kernel driver.
 
 ## Requirements
 
@@ -69,6 +69,12 @@ Changing the port to register the HTTP endpoint listener to 9090.
 
 ```shell
 sudo qmmd -p 9090
+```
+
+Attempt to use all DRM fdinfo files in the system to calculate GPU engines usage. This option will use more CPU than relying on default qmlib drivers.
+
+```shell
+sudo qmmd -f
 ```
 
 Using perf PMU to report freqs only for 0000:03:00.0 with the xe driver.
