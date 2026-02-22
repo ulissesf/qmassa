@@ -34,6 +34,11 @@ extra options to control how or from where they report their stats.
 | freqs=pmu                      | Frequencies reporting from perf PMU        |
 | power=msr                      | iGPU only: use MSR to report power instead of perf PMU |
 
+| Options for amdgpu             | Description                                |
+| ------------------------------ | ------------------------------------------ |
+| devslot=<PCI slot or sysname\> | Applies other options to a specific device |
+| engines=sysfs                  | Engines usage reporting from sysfs (*_busy_percent files) |
+
 ## Kernel driver limitations/gaps
 
 | Kernel driver | Limitations/gaps                                           |

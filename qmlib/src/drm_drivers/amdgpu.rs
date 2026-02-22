@@ -310,10 +310,11 @@ pub struct DrmDriverAmdgpu
 {
     _dn_file: File,
     dn_fd: RawFd,
-    freqs_dir: PathBuf,
+    dev_dir: PathBuf,
     dev_type: DrmDeviceType,
     hwmon: Option<Hwmon>,
     sensor: String,
+    engs_sysfs: bool,
 }
 
 impl DrmDriver for DrmDriverAmdgpu
@@ -351,7 +352,7 @@ impl DrmDriver for DrmDriverAmdgpu
     fn freq_limits(&mut self) -> Result<Vec<DrmDeviceFreqLimits>>
     {
         // TODO: get non-gfx freq limits
-        let fpath = self.freqs_dir.join("pp_dpm_sclk");
+        let fpath = self.dev_dir.join("pp_dpm_sclk");
         let sclk_str = fs::read_to_string(&fpath)?;
 
         let mut fls = DrmDeviceFreqLimits::new();
@@ -397,7 +398,7 @@ impl DrmDriver for DrmDriverAmdgpu
     fn freqs(&mut self) -> Result<Vec<DrmDeviceFreqs>>
     {
         // TODO: get non-gfx freqs
-        let fpath = self.freqs_dir.join("pp_dpm_sclk");
+        let fpath = self.dev_dir.join("pp_dpm_sclk");
         let sclk_str = fs::read_to_string(&fpath)?;
 
         let mut freqs = DrmDeviceFreqs::new();
@@ -453,6 +454,31 @@ impl DrmDriver for DrmDriverAmdgpu
         }
 
         Ok(cmi)
+    }
+
+    fn engs_utilization(&mut self) -> Result<HashMap<String, f64>>
+    {
+        if !self.engs_sysfs {
+            return Ok(HashMap::new());
+        }
+
+        let fpath = self.dev_dir.join("gpu_busy_percent");
+        let sval = fs::read_to_string(&fpath)?;
+        let gpu_val: f64 = sval.trim().parse()?;
+
+        let fpath = self.dev_dir.join("vcn_busy_percent");
+        let sval = fs::read_to_string(&fpath)?;
+        let vcn_val: f64 = sval.trim().parse()?;
+
+        let fpath = self.dev_dir.join("mem_busy_percent");
+        let sval = fs::read_to_string(&fpath)?;
+        let mem_val: f64 = sval.trim().parse()?;
+
+        Ok(HashMap::from([
+            (String::from("gpu"), gpu_val),
+            (String::from("vcn"), vcn_val),
+            (String::from("mem"), mem_val),
+        ]))
     }
 
     fn temps(&mut self) -> Result<Vec<DrmDeviceTemperature>>
@@ -517,7 +543,7 @@ impl DrmDriverAmdgpu
     }
 
     pub fn new(qmd: &DrmDeviceInfo,
-        _opts: Option<&Vec<&str>>) -> Result<Rc<RefCell<dyn DrmDriver>>>
+        opts: Option<&Vec<&str>>) -> Result<Rc<RefCell<dyn DrmDriver>>>
     {
         let mut dn: &str = "";
         for c in qmd.dev_nodes.iter() {
@@ -539,11 +565,21 @@ impl DrmDriverAmdgpu
         let mut amdgpu = DrmDriverAmdgpu {
             _dn_file: file,
             dn_fd: fd,
-            freqs_dir: Path::new(&cpath).join("device"),
+            dev_dir: Path::new(&cpath).join("device"),
             dev_type,
             hwmon: None,
             sensor: String::new(),
+            engs_sysfs: false,
         };
+
+        if let Some(opts_vec) = opts {
+            let devslot_str =
+                format!("devslot={},engines=sysfs", qmd.pci_dev);
+            if opts_vec.iter()
+                .any(|opt| *opt == &devslot_str || *opt == "engines=sysfs") {
+                amdgpu.engs_sysfs = true;
+            }
+        }
 
         if amdgpu.dev_type.is_discrete() {
             let hwmon_res = Hwmon::from(
