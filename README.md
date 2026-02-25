@@ -14,53 +14,52 @@ Below is an example of the metrics exported by qmmd.
 
 ```shell
 # TYPE qmmd_gpu_info counter
-qmmd_gpu_info{device="0000:03:00.0",pci_id="8086:E212",vendor_name="Intel Corporation",device_name="Battlemage G21 [Arc Pro B50]",revision="00",driver_name="xe",dev_type="Discrete (PF)",dev_nodes="/dev/dri/card1,/dev/dri/renderD128"} 1
+qmmd_gpu_info{device="0000:03:00.0",pci_id="8086:E212",vendor_name="Intel Corporation",device_name="Battlemage G21 [Arc Pro B50]",revision="00",driver_name="xe",dev_type="Discrete (PF)",dev_node="/dev/dri/card1"} 1
+qmmd_gpu_info{device="0000:03:00.0",pci_id="8086:E212",vendor_name="Intel Corporation",device_name="Battlemage G21 [Arc Pro B50]",revision="00",driver_name="xe",dev_type="Discrete (PF)",dev_node="/dev/dri/renderD128"} 1
 
-# TYPE qmmd_gpu_smem_used_bytes gauge
-qmmd_gpu_smem_used_bytes{device="0000:03:00.0"} 11489280
+# TYPE qmmd_gpu_memory_used_bytes gauge
+qmmd_gpu_memory_used_bytes{device="0000:03:00.0",mem_type="smem"} 11472896
+qmmd_gpu_memory_used_bytes{device="0000:03:00.0",mem_type="vram"} 722874368
 
-# TYPE qmmd_gpu_smem_total_bytes gauge
-qmmd_gpu_smem_total_bytes{device="0000:03:00.0"} 67253104640
+# TYPE qmmd_gpu_memory_total_bytes gauge
+qmmd_gpu_memory_total_bytes{device="0000:03:00.0",mem_type="smem"} 67253100544
+qmmd_gpu_memory_total_bytes{device="0000:03:00.0",mem_type="vram"} 17095983104
 
-# TYPE qmmd_gpu_vram_used_bytes gauge
-qmmd_gpu_vram_used_bytes{device="0000:03:00.0"} 853356544
+# TYPE qmmd_gpu_engine_utilization_ratio gauge
+qmmd_gpu_engine_utilization_ratio{device="0000:03:00.0",engine="bcs"} 0
+qmmd_gpu_engine_utilization_ratio{device="0000:03:00.0",engine="ccs"} 0.9698813172214144
+qmmd_gpu_engine_utilization_ratio{device="0000:03:00.0",engine="rcs"} 0.021016510095973474
+qmmd_gpu_engine_utilization_ratio{device="0000:03:00.0",engine="vcs"} 0
+qmmd_gpu_engine_utilization_ratio{device="0000:03:00.0",engine="vecs"} 0
 
-# TYPE qmmd_gpu_vram_total_bytes gauge
-qmmd_gpu_vram_total_bytes{device="0000:03:00.0"} 17095983104
+# TYPE qmmd_gpu_actual_frequency_hertz gauge
+qmmd_gpu_actual_frequency_hertz{device="0000:03:00.0",freq_id="gt0"} 2500000000
+qmmd_gpu_actual_frequency_hertz{device="0000:03:00.0",freq_id="gt1"} 1100000000
 
-# TYPE qmmd_gpu_engine_utilization_pct gauge
-qmmd_gpu_engine_utilization_pct{device="0000:03:00.0",name="bcs"} 0
-qmmd_gpu_engine_utilization_pct{device="0000:03:00.0",name="ccs"} 96.34436390193495
-qmmd_gpu_engine_utilization_pct{device="0000:03:00.0",name="rcs"} 2.4435453317647053
-qmmd_gpu_engine_utilization_pct{device="0000:03:00.0",name="vcs"} 0
-qmmd_gpu_engine_utilization_pct{device="0000:03:00.0",name="vecs"} 0
-
-# TYPE qmmd_gpu_frequency_mhz gauge
-qmmd_gpu_frequency_mhz{device="0000:03:00.0",name="gt0"} 1700
-qmmd_gpu_frequency_mhz{device="0000:03:00.0",name="gt1"} 750
+# TYPE qmmd_gpu_maximum_frequency_hertz gauge
+qmmd_gpu_maximum_frequency_hertz{device="0000:03:00.0",freq_id="gt0"} 2600000000
+qmmd_gpu_maximum_frequency_hertz{device="0000:03:00.0",freq_id="gt1"} 1500000000
 
 # TYPE qmmd_gpu_power_watts gauge
-qmmd_gpu_power_watts{device="0000:03:00.0"} 51.71729378231119
-
-# TYPE qmmd_gpu_package_power_watts gauge
-qmmd_gpu_package_power_watts{device="0000:03:00.0"} 70.05370146692682
+qmmd_gpu_power_watts{device="0000:03:00.0",domain="gpu"} 33.96474249418945
+qmmd_gpu_power_watts{device="0000:03:00.0",domain="package"} 47.56483612825638
 
 # TYPE qmmd_gpu_temperature_celsius gauge
-qmmd_gpu_temperature_celsius{device="0000:03:00.0",name="mctrl"} 64
-qmmd_gpu_temperature_celsius{device="0000:03:00.0",name="pcie"} 61
-qmmd_gpu_temperature_celsius{device="0000:03:00.0",name="pkg"} 64
-qmmd_gpu_temperature_celsius{device="0000:03:00.0",name="vram"} 54
-qmmd_gpu_temperature_celsius{device="0000:03:00.0",name="vram_ch_0"} 54
-qmmd_gpu_temperature_celsius{device="0000:03:00.0",name="vram_ch_1"} 52
-qmmd_gpu_temperature_celsius{device="0000:03:00.0",name="vram_ch_2"} 54
-qmmd_gpu_temperature_celsius{device="0000:03:00.0",name="vram_ch_3"} 54
-qmmd_gpu_temperature_celsius{device="0000:03:00.0",name="vram_ch_4"} 52
-qmmd_gpu_temperature_celsius{device="0000:03:00.0",name="vram_ch_5"} 52
-qmmd_gpu_temperature_celsius{device="0000:03:00.0",name="vram_ch_6"} 54
-qmmd_gpu_temperature_celsius{device="0000:03:00.0",name="vram_ch_7"} 52
+qmmd_gpu_temperature_celsius{device="0000:03:00.0",sensor="mctrl"} 60
+qmmd_gpu_temperature_celsius{device="0000:03:00.0",sensor="pcie"} 58
+qmmd_gpu_temperature_celsius{device="0000:03:00.0",sensor="pkg"} 59
+qmmd_gpu_temperature_celsius{device="0000:03:00.0",sensor="vram"} 52
+qmmd_gpu_temperature_celsius{device="0000:03:00.0",sensor="vram_ch_0"} 52
+qmmd_gpu_temperature_celsius{device="0000:03:00.0",sensor="vram_ch_1"} 52
+qmmd_gpu_temperature_celsius{device="0000:03:00.0",sensor="vram_ch_2"} 52
+qmmd_gpu_temperature_celsius{device="0000:03:00.0",sensor="vram_ch_3"} 52
+qmmd_gpu_temperature_celsius{device="0000:03:00.0",sensor="vram_ch_4"} 52
+qmmd_gpu_temperature_celsius{device="0000:03:00.0",sensor="vram_ch_5"} 50
+qmmd_gpu_temperature_celsius{device="0000:03:00.0",sensor="vram_ch_6"} 52
+qmmd_gpu_temperature_celsius{device="0000:03:00.0",sensor="vram_ch_7"} 52
 
 # TYPE qmmd_gpu_fan_speed_rpm gauge
-qmmd_gpu_fan_speed_rpm{device="0000:03:00.0",name="1"} 2319
+qmmd_gpu_fan_speed_rpm{device="0000:03:00.0",fan_id="1"} 2119
 ```
 
 ## License
