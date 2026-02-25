@@ -25,11 +25,12 @@ impl StatsCtrl
         if !gs.contains_key(&smem_used) {
             let labels = vec![
                 ("device", dn.clone()),
+                ("mem_type", String::from("smem")),
             ];
             gs.insert(smem_used.clone(),
-                gauge!("qmmd_gpu_smem_used_bytes", &labels));
+                gauge!("qmmd_gpu_memory_used_bytes", &labels));
             gs.insert(smem_tot.clone(),
-                gauge!("qmmd_gpu_smem_total_bytes", &labels));
+                gauge!("qmmd_gpu_memory_total_bytes", &labels));
         }
 
         let gg = gs.get_mut(&smem_used).unwrap();
@@ -43,11 +44,12 @@ impl StatsCtrl
             if !gs.contains_key(&vram_used) {
                 let labels = vec![
                     ("device", dn.clone()),
+                    ("mem_type", String::from("vram")),
                 ];
                 gs.insert(vram_used.clone(),
-                    gauge!("qmmd_gpu_vram_used_bytes", &labels));
+                    gauge!("qmmd_gpu_memory_used_bytes", &labels));
                 gs.insert(vram_tot.clone(),
-                    gauge!("qmmd_gpu_vram_total_bytes", &labels));
+                    gauge!("qmmd_gpu_memory_total_bytes", &labels));
             }
 
             let gg = gs.get_mut(&vram_used).unwrap();
@@ -65,14 +67,14 @@ impl StatsCtrl
             if !gs.contains_key(&eng_key) {
                 let labels = vec![
                     ("device", dn.clone()),
-                    ("name", en.clone())
+                    ("engine", en.clone())
                 ];
                 gs.insert(eng_key.clone(),
-                    gauge!("qmmd_gpu_engine_utilization_pct", &labels));
+                    gauge!("qmmd_gpu_engine_utilization_ratio", &labels));
             }
 
             let gg = gs.get_mut(&eng_key).unwrap();
-            gg.set(di.eng_utilization(en));
+            gg.set(di.eng_utilization(en) / 100.0);
         }
     }
 
@@ -80,18 +82,23 @@ impl StatsCtrl
         di: &DrmDeviceInfo, gs: &mut HashMap<String, Gauge>)
     {
         for (fql, freq) in di.freq_limits.iter().zip(di.freqs.iter()) {
-            let freq_key = format!("freq-{}", fql.name);
-            if !gs.contains_key(&freq_key) {
+            let act_key = format!("act-freq-{}", fql.name);
+            let max_key = format!("max-freq-{}", fql.name);
+            if !gs.contains_key(&act_key) {
                 let labels = vec![
                     ("device", dn.clone()),
-                    ("name", fql.name.clone())
+                    ("freq_id", fql.name.clone())
                 ];
-                gs.insert(freq_key.clone(),
-                    gauge!("qmmd_gpu_frequency_mhz", &labels));
+                gs.insert(act_key.clone(),
+                    gauge!("qmmd_gpu_actual_frequency_hertz", &labels));
+                gs.insert(max_key.clone(),
+                    gauge!("qmmd_gpu_maximum_frequency_hertz", &labels));
             }
 
-            let gg = gs.get_mut(&freq_key).unwrap();
-            gg.set(freq.act_freq as f64);
+            let gg = gs.get_mut(&act_key).unwrap();
+            gg.set(freq.act_freq as f64 * 1000000.0);
+            let gg = gs.get_mut(&max_key).unwrap();
+            gg.set(freq.max_freq as f64 * 1000000.0);
         }
     }
 
@@ -104,6 +111,7 @@ impl StatsCtrl
         if !gs.contains_key(&gpu_key) {
             let labels = vec![
                 ("device", dn.clone()),
+                ("domain", String::from("gpu")),
             ];
             gs.insert(gpu_key.clone(),
                 gauge!("qmmd_gpu_power_watts", &labels));
@@ -116,9 +124,10 @@ impl StatsCtrl
         if !gs.contains_key(&pkg_key) {
             let labels = vec![
                 ("device", dn.clone()),
+                ("domain", String::from("package")),
             ];
             gs.insert(pkg_key.clone(),
-                gauge!("qmmd_gpu_package_power_watts", &labels));
+                gauge!("qmmd_gpu_power_watts", &labels));
         }
 
         let gg = gs.get_mut(&pkg_key).unwrap();
@@ -133,7 +142,7 @@ impl StatsCtrl
             if !gs.contains_key(&tmp_key) {
                 let labels = vec![
                     ("device", dn.clone()),
-                    ("name", tmp.name.clone())
+                    ("sensor", tmp.name.clone())
                 ];
                 gs.insert(tmp_key.clone(),
                     gauge!("qmmd_gpu_temperature_celsius", &labels));
@@ -152,7 +161,7 @@ impl StatsCtrl
             if !gs.contains_key(&fan_key) {
                 let labels = vec![
                     ("device", dn.clone()),
-                    ("name", fan.name.clone())
+                    ("fan_id", fan.name.clone())
                 ];
                 gs.insert(fan_key.clone(),
                     gauge!("qmmd_gpu_fan_speed_rpm", &labels));
@@ -205,26 +214,21 @@ impl StatsCtrl
         for dn in qmds.devices().iter() {
             let di = qmds.device_info(dn).unwrap();
 
-            let mut devnodes = String::new();
             for node in di.dev_nodes.iter() {
-                if !devnodes.is_empty() {
-                    devnodes.push_str(",");
-                }
-                devnodes.push_str(&node.devnode);
+                let labels = vec![
+                    ("device", di.pci_dev.clone()),
+                    ("pci_id",
+                        format!("{}:{}", &di.vendor_id, &di.device_id)),
+                    ("vendor_name", di.vendor.clone()),
+                    ("device_name", di.device.clone()),
+                    ("revision", di.revision.clone()),
+                    ("driver_name", di.drv_name.clone()),
+                    ("dev_type", di.dev_type.to_string()),
+                    ("dev_node", node.devnode.clone()),
+                ];
+                let cnt = counter!("qmmd_gpu_info", &labels);
+                cnt.absolute(1);
             }
-
-            let labels = vec![
-                ("device", di.pci_dev.clone()),
-                ("pci_id", format!("{}:{}", &di.vendor_id, &di.device_id)),
-                ("vendor_name", di.vendor.clone()),
-                ("device_name", di.device.clone()),
-                ("revision", di.revision.clone()),
-                ("driver_name", di.drv_name.clone()),
-                ("dev_type", di.dev_type.to_string()),
-                ("dev_nodes", devnodes),
-            ];
-            let cnt = counter!("qmmd_gpu_info", &labels);
-            cnt.absolute(1);
 
             gauges.insert(dn.to_string(), HashMap::new());
         }
