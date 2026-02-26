@@ -5,6 +5,10 @@ edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
 repository.workspace = true
+description = "qmassa metrics daemon"
+keywords = ["gpu", "graphics", "metrics", "prometheus"]
+categories = ["development-tools::debugging", "graphics"]
+readme = "README.md"
 
 [dependencies]
 qmlib = { version = "2.0.0", path = "../qmlib" }
