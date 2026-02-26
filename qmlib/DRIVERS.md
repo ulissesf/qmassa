@@ -1,4 +1,4 @@
-## Driver support
+## qmlib Driver Support
 
 The table below shows the current drivers and features supported to collect
 GPU device and DRM client stats.
@@ -15,7 +15,7 @@ Testing is done on some Intel and AMD GPUs, but there's an expectation on
 kernel drivers exposing consistent support across GPUs. If you have a problem,
 please file an issue so we can debug it.
 
-## Driver options
+## qmlib Driver Options
 
 The tables in this section outline which drivers in qmlib can be passed
 extra options to control how or from where they report their stats.
