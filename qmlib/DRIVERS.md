@@ -30,8 +30,8 @@ extra options to control how or from where they report their stats.
 | Options for xe                 | Description                                |
 | ------------------------------ | ------------------------------------------ |
 | devslot=<PCI slot or sysname\> | Applies other options to a specific device |
-| engines=pmu                    | Engines usage reporting from perf PMU. Supports SR-IOV functions (PF, VF) and VFIO on Linux kernel 6.19+. |
-| freqs=pmu                      | Frequencies reporting from perf PMU        |
+| engines=pmu                    | Engines usage reporting from perf PMU (Linux kernel 6.16+). Supports SR-IOV functions (PF, VF) and VFIO on Linux kernel 6.19+. |
+| freqs=pmu                      | Frequencies reporting from perf PMU (Linux kernel 6.16+). |
 | power=msr                      | iGPU only: use MSR to report power instead of perf PMU |
 
 | Options for amdgpu             | Description                                |
