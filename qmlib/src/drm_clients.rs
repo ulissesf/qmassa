@@ -408,13 +408,16 @@ impl DrmClients
             if let Some(mut cliref) = DrmClients::map_has_client(ninfos,
                 &fdi.pci_dev, fdi.drm_minor, fdi.client_id) {
                 cliref.shared_procs.push((nproc.clone(), fdi.path));
-                debug!("INF: repeated drm client/fd info: proc={:?}, drm-minor={:?}, drm-client-id={:?}", nproc, fdi.drm_minor, fdi.client_id);
+                debug!("INF: repeated drm client/fd info: proc={:?}, \
+                    drm-minor={:?}, drm-client-id={:?}",
+                    nproc, fdi.drm_minor, fdi.client_id);
                 continue;
             }
 
             let pci_dev = fdi.pci_dev.clone();
             if let Some(mut cli) = DrmClients::map_remove_client(
                 &mut self.infos, &fdi.pci_dev, fdi.drm_minor, fdi.client_id) {
+                cli.shared_procs.clear();
                 cli.update(nproc.clone(), fdi);
                 DrmClients::map_insert_client(ninfos, pci_dev, cli);
             } else {
