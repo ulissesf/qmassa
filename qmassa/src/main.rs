@@ -256,7 +256,8 @@ fn main() -> Result<()>
     if env::var_os(env_logger::DEFAULT_FILTER_ENV).is_some() {
         let mut logger = env_logger::Builder::from_default_env();
 
-        if args.log_file.is_some() || io::stderr().is_terminal() {
+        if args.log_file.is_some() ||
+            (io::stderr().is_terminal() && !args.no_tui) {
             let mut fnstr: String;
             let fname: &Path;
 
