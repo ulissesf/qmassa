@@ -98,7 +98,7 @@ impl StatsCtrl
             let gg = gs.get_mut(&act_key).unwrap();
             gg.set(freq.act_freq as f64 * 1000000.0);
             let gg = gs.get_mut(&max_key).unwrap();
-            gg.set(freq.max_freq as f64 * 1000000.0);
+            gg.set(fql.maximum as f64 * 1000000.0);
         }
     }
 
