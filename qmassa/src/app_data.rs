@@ -216,7 +216,8 @@ impl AppDataClientStats
     fn update_stats(&mut self,
         eng_names: &Vec<String>, cinfo: &DrmClientInfo)
     {
-        limited_vec_push(&mut self.cpu_usage, cinfo.proc.cpu_utilization());
+        limited_vec_push(&mut self.cpu_usage,
+            cinfo.proc.borrow().cpu_utilization());
 
         for en in eng_names.iter() {
             if !self.eng_usage.contains_key(en) {
@@ -239,11 +240,13 @@ impl AppDataClientStats
             estats.insert(en.clone(), n_est);
         }
 
+        let proc_b = cinfo.proc.borrow();
+
         AppDataClientStats {
             clients: vec![(cinfo.drm_minor, cinfo.client_id)],
-            pid: cinfo.proc.pid,
-            comm: cinfo.proc.comm.clone(),
-            cmdline: cinfo.proc.cmdline.clone(),
+            pid: proc_b.pid,
+            comm: proc_b.comm.clone(),
+            cmdline: proc_b.cmdline.clone(),
             cpu_usage: VecDeque::new(),
             eng_usage: estats,
             mem_info: VecDeque::new(),

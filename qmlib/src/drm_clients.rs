@@ -83,15 +83,17 @@ impl DrmClientMemInfo
     }
 }
 
+pub type ProcInfoRef = Rc<RefCell<ProcInfo>>;
+
 #[derive(Debug)]
 pub struct DrmClientInfo
 {
     pub pci_dev: String,
     pub drm_minor: u32,
     pub client_id: u32,
-    pub proc: ProcInfo,
+    pub proc: ProcInfoRef,
     pub fdinfo_path: PathBuf,
-    pub shared_procs: Vec<(ProcInfo, PathBuf)>,
+    pub shared_fdinfos: Vec<PathBuf>,
     engs_last: HashMap<String, DrmEngine>,
     engs_delta: HashMap<String, DrmEngineDelta>,
     engs_updates: HashMap<String, u64>,
@@ -111,9 +113,9 @@ impl Default for DrmClientInfo
             pci_dev: String::new(),
             drm_minor: 0,
             client_id: 0,
-            proc: ProcInfo::default(),
+            proc: Rc::new(RefCell::new(ProcInfo::default())),
             fdinfo_path: PathBuf::new(),
-            shared_procs: Vec::new(),
+            shared_fdinfos: Vec::new(),
             engs_last: HashMap::new(),
             engs_delta: HashMap::new(),
             engs_updates: HashMap::new(),
@@ -215,16 +217,10 @@ impl DrmClientInfo
         false
     }
 
-    pub fn update(&mut self, pinfo: ProcInfo, fdi: DrmFdinfo)
+    pub fn update(&mut self, pinfo: ProcInfoRef, fdi: DrmFdinfo)
     {
         // handle process and fdinfo path updates
-        if self.proc != pinfo {
-            self.proc = pinfo;  // fd might be shared
-        }
-        if let Err(err) = self.proc.update() {
-            debug!("ERR: failed to update process info for {:?}: {:?}",
-                self.proc, err);
-        }
+        self.proc = pinfo;
         self.fdinfo_path = fdi.path;
 
         // handle new engines showing up in a client's DRM fdinfo
@@ -285,7 +281,7 @@ impl DrmClientInfo
         self.driver = Some(drv_wref);
     }
 
-    pub fn from(pinfo: ProcInfo, fdi: DrmFdinfo) -> DrmClientInfo
+    pub fn from(pinfo: ProcInfoRef, fdi: DrmFdinfo) -> DrmClientInfo
     {
         let mut cli = DrmClientInfo {
             pci_dev: fdi.pci_dev.clone(),
@@ -315,6 +311,7 @@ pub struct DrmClients
 {
     base_pid: String,
     infos: HashMap<String, DrmClientInfoMapRef>,
+    procs: HashMap<(u32, String, String), ProcInfoRef>,
 }
 
 impl DrmClients
@@ -390,28 +387,52 @@ impl DrmClients
         }
     }
 
+    fn proc_info_ref(&mut self, proc: &ProcInfo) -> ProcInfoRef
+    {
+        let key = (proc.pid, proc.comm.clone(), proc.cmdline.clone());
+        if !self.procs.contains_key(&key) {
+            self.procs.insert(key.clone(),
+                Rc::new(RefCell::new(proc.clone())));
+        }
+
+        let pref = self.procs.get(&key).unwrap();
+        if let Err(err) = pref.borrow_mut().update() {
+            debug!("ERR: failed to update process info for {:?}: {:?}",
+                pref.borrow(), err);
+        }
+
+        pref.clone()
+    }
+
+    fn procs_info_cleanup(&mut self)
+    {
+        self.procs.retain(|_, pref| Rc::strong_count(&pref) >= 2);
+    }
+
     fn process_fdinfos(&mut self,
         ninfos: &mut HashMap<String, DrmClientInfoMapRef>,
         nproc: &ProcInfo, fdinfos: Vec<DrmFdinfo>)
     {
+        let nproc_ref = self.proc_info_ref(nproc);
+
         for fdi in fdinfos {
             if let Some(mut cliref) = DrmClients::map_has_client(ninfos,
                 &fdi.pci_dev, fdi.drm_minor, fdi.client_id) {
-                cliref.shared_procs.push((nproc.clone(), fdi.path));
-                debug!("INF: repeated drm client/fd info: proc={:?}, \
+                debug!("INF: repeated DRM client: fdinfo={:?}, \
                     drm-minor={:?}, drm-client-id={:?}",
-                    nproc, fdi.drm_minor, fdi.client_id);
+                    fdi.path, fdi.drm_minor, fdi.client_id);
+                cliref.shared_fdinfos.push(fdi.path);
                 continue;
             }
 
             let pci_dev = fdi.pci_dev.clone();
             if let Some(mut cli) = DrmClients::map_remove_client(
                 &mut self.infos, &fdi.pci_dev, fdi.drm_minor, fdi.client_id) {
-                cli.shared_procs.clear();
-                cli.update(nproc.clone(), fdi);
+                cli.shared_fdinfos.clear();
+                cli.update(nproc_ref.clone(), fdi);
                 DrmClients::map_insert_client(ninfos, pci_dev, cli);
             } else {
-                let cli = DrmClientInfo::from(nproc.clone(), fdi);
+                let cli = DrmClientInfo::from(nproc_ref.clone(), fdi);
                 DrmClients::map_insert_client(ninfos, pci_dev, cli);
             }
         }
@@ -444,13 +465,18 @@ impl DrmClients
                 }
                 let fdinfos = fdinfos.unwrap();
 
-                // sort out DRM client infos based on DRM fdinfos
-                self.process_fdinfos(&mut ninfos, &nproc, fdinfos);
+                // process DRM client infos based on DRM fdinfos
+                if !fdinfos.is_empty() {
+                    self.process_fdinfos(&mut ninfos, &nproc, fdinfos);
+                }
             }
         }
 
         // update DRM client infos
         self.infos = ninfos;
+
+        // cleanup unused process info
+        self.procs_info_cleanup();
 
         Ok(())
     }
@@ -466,7 +492,8 @@ impl DrmClients
             // new process info
             let nproc = ProcInfo::from(&npid);
             if let Err(err) = nproc {
-                debug!("ERR: Couldn't get proc info for {:?}: {:?}", npid, err);
+                debug!("ERR: Couldn't get proc info for {:?}: {:?}",
+                    npid, err);
                 continue;
             }
             let nproc = nproc.unwrap();
@@ -480,8 +507,10 @@ impl DrmClients
             }
             let fdinfos = fdinfos.unwrap();
 
-            // sort out DRM client infos based on DRM fdinfos
-            self.process_fdinfos(&mut ninfos, &nproc, fdinfos);
+            // prcess DRM client infos based on DRM fdinfos
+            if !fdinfos.is_empty() {
+                self.process_fdinfos(&mut ninfos, &nproc, fdinfos);
+            }
 
             // add all child processes
             let chids = nproc.children_pids();
@@ -496,6 +525,9 @@ impl DrmClients
 
         // update DRM client infos
         self.infos = ninfos;
+
+        // cleanup unused process info
+        self.procs_info_cleanup();
 
         Ok(())
     }
@@ -520,6 +552,7 @@ impl DrmClients
         Ok(DrmClients {
             base_pid: at_pid.to_string(),
             infos: HashMap::new(),
+            procs: HashMap::new(),
         })
     }
 }

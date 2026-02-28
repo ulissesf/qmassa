@@ -245,25 +245,21 @@ impl ProcInfo
 
     pub fn from(npid: &String) -> Result<ProcInfo>
     {
-        let mut qmpi = ProcInfo {
+        let proc_dir = Path::new("/proc").join(npid.as_str());
+
+        let cstr = fs::read_to_string(proc_dir.join("comm"))?;
+        let comm = String::from(cstr.trim_end());
+
+        let cstr = fs::read_to_string(proc_dir.join("cmdline"))?;
+        let cmdline = String::from(&cstr.replace("\0", " "));
+
+        Ok(ProcInfo {
             pid: npid.parse()?,
-            comm: String::new(),
-            cmdline: String::new(),
-            proc_dir: Path::new("/proc").join(npid.as_str()),
+            comm,
+            cmdline,
+            proc_dir,
             ..Default::default()
-        };
-
-        let cpath = qmpi.proc_dir.join("comm");
-        let cstr = fs::read_to_string(&cpath)?;
-        qmpi.comm.push_str(cstr.trim_end());
-
-        let cpath = qmpi.proc_dir.join("cmdline");
-        let cstr = fs::read_to_string(&cpath)?;
-        qmpi.cmdline.push_str(&cstr.replace("\0", " "));
-
-        qmpi.update()?;
-
-        Ok(qmpi)
+        })
     }
 
     pub fn iter_proc_pids() -> Result<ProcPids>
