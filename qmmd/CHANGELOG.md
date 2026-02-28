@@ -1,5 +1,12 @@
 # qmmd Changelog
 
+## [v0.1.1](https://github.com/ulissesf/qmassa/releases/tag/qmmd-v0.1.1) - 2026-02-27
+
+### Fixes
+
+- Fix memleak when running with -f/--use-fdinfo option. (@ulissesf)
+- Use maximum frequency limit not the max runtime value. (@ulissesf)
+
 ## [v0.1.0](https://github.com/ulissesf/qmassa/releases/tag/qmmd-v0.1.0) - 2026-02-25
 
 ### Features
