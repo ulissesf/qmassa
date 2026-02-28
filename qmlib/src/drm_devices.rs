@@ -11,7 +11,7 @@ use serde::{Deserialize, Serialize};
 use udev;
 
 use crate::hwmon::Hwmon;
-use crate::drm_clients::{DrmClients, DrmClientInfo};
+use crate::drm_clients::{DrmClients, DrmClientInfoMap, DrmClientInfoMapRef};
 use crate::drm_drivers::{self, DrmDriver};
 
 
@@ -321,7 +321,7 @@ pub struct DrmDeviceInfo
     pub temps: Vec<DrmDeviceTemperature>,
     pub fans: Vec<DrmDeviceFan>,
     driver: Option<Rc<RefCell<dyn DrmDriver>>>,
-    drm_clis: Option<Rc<RefCell<Vec<DrmClientInfo>>>>,
+    drm_clis: Option<DrmClientInfoMapRef>,
 }
 
 impl Default for DrmDeviceInfo
@@ -378,7 +378,7 @@ impl DrmDeviceInfo
         engs
     }
 
-    pub fn clients(&self) -> Option<Weak<RefCell<Vec<DrmClientInfo>>>>
+    pub fn clients(&self) -> Option<Weak<RefCell<DrmClientInfoMap>>>
     {
         if let Some(vref) = &self.drm_clis {
             return Some(Rc::downgrade(&vref));
@@ -415,7 +415,7 @@ impl DrmDeviceInfo
             if let Some(vref) = &self.drm_clis {
                 let clis_b = vref.borrow();
 
-                for cli in clis_b.iter() {
+                for cli in clis_b.values() {
                     for en in cli.engines() {
                         let ut = cli.eng_utilization(en);
                         self.engs_utilization

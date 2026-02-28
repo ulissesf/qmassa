@@ -1,4 +1,4 @@
-use std::collections::{VecDeque, HashMap};
+use std::collections::{BTreeMap, HashMap, VecDeque};
 use std::cell::{RefCell, RefMut};
 use std::path::PathBuf;
 use std::rc::{Rc, Weak};
@@ -307,11 +307,14 @@ impl DrmClientInfo
     }
 }
 
+pub type DrmClientInfoMap = BTreeMap<(u32, u32), DrmClientInfo>;
+pub type DrmClientInfoMapRef = Rc<RefCell<DrmClientInfoMap>>;
+
 #[derive(Debug)]
 pub struct DrmClients
 {
     base_pid: String,
-    infos: HashMap<String, Rc<RefCell<Vec<DrmClientInfo>>>>,
+    infos: HashMap<String, DrmClientInfoMapRef>,
 }
 
 impl DrmClients
@@ -324,13 +327,12 @@ impl DrmClients
         }
         let mut vlst = self.infos.get_mut(dev).unwrap().borrow_mut();
 
-        for cliref in vlst.iter_mut() {
+        for cliref in vlst.values_mut() {
             cliref.set_driver(Weak::clone(&drv_wref));
         }
     }
 
-    pub fn device_clients(&self,
-        dev: &String) -> Option<Rc<RefCell<Vec<DrmClientInfo>>>>
+    pub fn device_clients(&self, dev: &String) -> Option<DrmClientInfoMapRef>
     {
         if let Some(vref) = self.infos.get(dev) {
             return Some(vref.clone());
@@ -339,69 +341,57 @@ impl DrmClients
         None
     }
 
-    fn map_has_client<'a>(map: &'a mut HashMap<String,
-        Rc<RefCell<Vec<DrmClientInfo>>>>, dev: &'a String,
+    fn map_has_client<'a>(
+        map: &'a mut HashMap<String, DrmClientInfoMapRef>,
+        dev: &'a String,
         minor: u32, id: u32) -> Option<RefMut<'a, DrmClientInfo>>
     {
         if !map.contains_key(dev) {
             return None;
         }
+
+        let key = (minor, id);
         let vlst = map.get_mut(dev).unwrap().borrow_mut();
-
-        let mut idx = 0;
-        for cliref in vlst.iter() {
-            if cliref.drm_minor == minor && cliref.client_id == id {
-                break;
-            }
-            idx += 1;
-        }
-
-        if idx >= vlst.len() {
+        if !vlst.contains_key(&key) {
             return None;
         }
 
-        Some(RefMut::map(vlst, |v| &mut v[idx]))
+        Some(RefMut::map(vlst, |v| v.get_mut(&key).unwrap()))
     }
 
-    fn map_remove_client(map: &mut HashMap<String,
-        Rc<RefCell<Vec<DrmClientInfo>>>>, dev: &String,
-        minor: u32, id: u32) -> Option<DrmClientInfo>
+    fn map_remove_client(
+        map: &mut HashMap<String, DrmClientInfoMapRef>,
+        dev: &String, minor: u32, id: u32) -> Option<DrmClientInfo>
     {
         if !map.contains_key(dev) {
             return None
         }
+
+        let key = (minor, id);
         let mut vlst = map.get(dev).unwrap().borrow_mut();
 
-        let mut idx = 0;
-        for cliref in vlst.iter() {
-            if cliref.drm_minor == minor && cliref.client_id == id {
-                break;
-            }
-            idx += 1;
-        }
-
-        if idx >= vlst.len() {
-            return None;
-        }
-
-        Some(vlst.swap_remove(idx))
+        vlst.remove(&key)
     }
 
-    fn map_insert_client(map: &mut HashMap<String,
-        Rc<RefCell<Vec<DrmClientInfo>>>>, dev: String, cli: DrmClientInfo)
+    fn map_insert_client(
+        map: &mut HashMap<String, DrmClientInfoMapRef>,
+        dev: String, cli: DrmClientInfo)
     {
+        let key = (cli.drm_minor, cli.client_id);
+
         if !map.contains_key(&dev) {
-            let mut vlst: Vec<DrmClientInfo> = Vec::new();
-            vlst.push(cli);
+            let mut vlst: BTreeMap<(u32, u32), DrmClientInfo> =
+                BTreeMap::new();
+            vlst.insert(key, cli);
             map.insert(dev, Rc::new(RefCell::new(vlst)));
         } else {
             let mut vref = map.get(&dev).unwrap().borrow_mut();
-            vref.push(cli);
+            vref.insert(key, cli);
         }
     }
 
     fn process_fdinfos(&mut self,
-        ninfos: &mut HashMap<String, Rc<RefCell<Vec<DrmClientInfo>>>>,
+        ninfos: &mut HashMap<String, DrmClientInfoMapRef>,
         nproc: &ProcInfo, fdinfos: Vec<DrmFdinfo>)
     {
         for fdi in fdinfos {
@@ -429,8 +419,7 @@ impl DrmClients
 
     fn scan_all_pids(&mut self) -> Result<()>
     {
-        let mut ninfos: HashMap<String,
-            Rc<RefCell<Vec<DrmClientInfo>>>> = HashMap::new();
+        let mut ninfos: HashMap<String, DrmClientInfoMapRef> = HashMap::new();
 
         let proc_iter = ProcInfo::iter_proc_pids();
         if let Err(err) = proc_iter {
@@ -468,8 +457,7 @@ impl DrmClients
 
     fn scan_pid_tree(&mut self) -> Result<()>
     {
-        let mut ninfos: HashMap<String,
-            Rc<RefCell<Vec<DrmClientInfo>>>> = HashMap::new();
+        let mut ninfos: HashMap<String, DrmClientInfoMapRef> = HashMap::new();
         let mut pidq = VecDeque::from([self.base_pid.clone(),]);
 
         while !pidq.is_empty() {
@@ -518,17 +506,6 @@ impl DrmClients
             self.scan_all_pids()?;
         } else {
             self.scan_pid_tree()?;
-        }
-
-        for vref in self.infos.values_mut() {
-            let mut vcli = vref.borrow_mut();
-            vcli.sort_by(|a, b| {
-                if a.drm_minor == b.drm_minor {
-                    a.client_id.cmp(&b.client_id)
-                } else {
-                    a.drm_minor.cmp(&b.drm_minor)
-                }
-            });
         }
 
         Ok(())

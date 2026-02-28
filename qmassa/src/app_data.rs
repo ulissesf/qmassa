@@ -1,10 +1,9 @@
 use core::fmt::Debug;
 use std::collections::{HashMap, HashSet, VecDeque};
-use std::cell::{RefCell, Ref};
+use std::cell::Ref;
 use std::cmp::max;
 use std::fs::File;
 use std::io::{BufRead, BufReader, Write};
-use std::rc::Rc;
 use std::time;
 
 use anyhow::{bail, Result};
@@ -17,7 +16,8 @@ use qmlib::drm_devices::{
     DrmDeviceFreqLimits, DrmDeviceFreqs, DrmDevicePower,
     DrmDeviceMemInfo, DrmDeviceType, DrmDeviceTemperature, DrmDeviceFan,
     DrmDeviceInfo, DrmDevices};
-use qmlib::drm_clients::{DrmClientMemInfo, DrmClientInfo};
+use qmlib::drm_clients::{
+    DrmClientMemInfo, DrmClientInfo, DrmClientInfoMap, DrmClientInfoMapRef};
 use qmlib::proc_info::ProcInfo;
 
 
@@ -370,7 +370,7 @@ impl AppDataDeviceState
     }
 
     fn update_stats(&mut self, dinfo: &DrmDeviceInfo,
-        cinfos_b: &Option<Ref<'_, Vec<DrmClientInfo>>>)
+        cinfos_b: &Option<Ref<'_, DrmClientInfoMap>>)
     {
         self.update_eng_names(dinfo);
 
@@ -378,14 +378,13 @@ impl AppDataDeviceState
 
         let mut ncstats: Vec<AppDataClientStats> = Vec::new();
         if let Some(clis_b) = cinfos_b {
-            for cinf in clis_b.iter() {
+            for cinf in clis_b.values() {
                 let mut ncli_st: AppDataClientStats;
-                if let Some(cli_st) = self.remove_client_stat(
-                    cinf.drm_minor, cinf.client_id) {
+                if let Some(cli_st) = self
+                    .remove_client_stat(cinf.drm_minor, cinf.client_id) {
                     ncli_st = cli_st;
                 } else {
-                    ncli_st = AppDataClientStats::from(
-                        &self.eng_names, cinf);
+                    ncli_st = AppDataClientStats::from(&self.eng_names, cinf);
                 }
 
                 ncli_st.update_stats(&self.eng_names, cinf);
@@ -741,8 +740,8 @@ impl AppData for AppDataLive
         for d in self.qmds.devices() {
             let dinfo = self.qmds.device_info(d).unwrap();
 
-            let o_up_ref: Option<Rc<RefCell<Vec<DrmClientInfo>>>>;
-            let mut cinfos_b: Option<Ref<'_, Vec<DrmClientInfo>>> = None;
+            let o_up_ref: Option<DrmClientInfoMapRef>;
+            let mut cinfos_b: Option<Ref<'_, DrmClientInfoMap>> = None;
             if let Some(cinfos_ref) = dinfo.clients() {
                 o_up_ref = cinfos_ref.upgrade();
                 if let Some(up_ref) = &o_up_ref {
