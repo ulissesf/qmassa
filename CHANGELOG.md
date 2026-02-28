@@ -1,5 +1,11 @@
 # Changelog
 
+## [v1.3.1](https://github.com/ulissesf/qmassa/releases/tag/v1.3.1) - 2026-02-27
+
+### Fixes
+
+- Fix memleak with growing shared procs info in DRM clients. (@ulissesf)
+
 ## [v1.3.0](https://github.com/ulissesf/qmassa/releases/tag/v1.3.0) - 2026-02-07
 
 ### Features
