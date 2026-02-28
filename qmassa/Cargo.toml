@@ -11,7 +11,7 @@ categories = ["command-line-utilities", "graphics"]
 readme = "README.md"
 
 [dependencies]
-qmlib = { version = "2.0.0", path = "../qmlib" }
+qmlib = { version = "2.0.1", path = "../qmlib" }
 anyhow = "1.0.101"
 clap = { version = "4.5.58", features = ["derive"] }
 crossterm = "0.29.0"
