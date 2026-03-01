@@ -8,7 +8,7 @@
 
 ## General description
 
-qmassa is a Rust terminal-based tool for displaying GPUs usage stats on Linux.
+qmassa is a Rust terminal-based tool for displaying GPUs stats on Linux.
 It aims to display as much device and DRM clients (processes using the
 GPU) information as possible. Command-line options and which user is running
 the tool control how much can be displayed.

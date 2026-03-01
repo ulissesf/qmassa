@@ -1,4 +1,4 @@
-# Rust tools to monitor GPU usage stats on Linux
+# Rust tools to monitor GPU stats on Linux
 
 ## Tools
 
