@@ -11,10 +11,10 @@ categories = ["development-tools::debugging", "graphics"]
 readme = "README.md"
 
 [dependencies]
-qmlib = { version = "2.0.1", path = "../qmlib" }
+qmlib = { version = "2.1.0", path = "../qmlib" }
 anyhow = "1.0.102"
-clap = { version = "4.5.60", features = ["derive"] }
-env_logger = "0.11.9"
+clap = { version = "4.6.0", features = ["derive"] }
+env_logger = "0.11.10"
 metrics = "0.24.3"
 metrics-exporter-prometheus = "0.18.1"
 log = "0.4.29"
