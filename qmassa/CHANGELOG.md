@@ -1,5 +1,17 @@
 # qmassa Changelog
 
+## [v2.0.0](https://github.com/ulissesf/qmassa/releases/tag/qmassa-v2.0.0) - 2026-04-12
+
+### Features
+
+ - qmassa now depends on qmlib crate. (@ulissesf)
+ - Move MSRV to 1.88 and update to latest version of dependencies. (@ulissesf)
+ - CLI option to get engines usage from sysfs on amdgpu. (@ulissesf)
+
+### Fixes
+
+ - Fix mem leak with growing shared procs in DRM clients. (@ulissesf)
+
 ## [v1.3.0](https://github.com/ulissesf/qmassa/releases/tag/v1.3.0) - 2026-02-07
 
 ### Features
