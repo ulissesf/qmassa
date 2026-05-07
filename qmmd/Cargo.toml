@@ -13,8 +13,8 @@ readme = "README.md"
 [dependencies]
 qmlib = { version = "2.1.0", path = "../qmlib" }
 anyhow = "1.0.102"
-clap = { version = "4.6.0", features = ["derive"] }
+clap = { version = "4.6.1", features = ["derive"] }
 env_logger = "0.11.10"
-metrics = "0.24.3"
-metrics-exporter-prometheus = "0.18.1"
+metrics = "0.24.5"
+metrics-exporter-prometheus = "0.18.3"
 log = "0.4.29"
