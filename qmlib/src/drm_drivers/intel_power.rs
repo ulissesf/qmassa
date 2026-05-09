@@ -1,11 +1,6 @@
 use core::fmt::Debug;
-use std::collections::HashMap;
-use std::path::Path;
-use std::fs::File;
-use std::os::fd::{RawFd, AsRawFd};
 use std::time;
 use std::mem;
-use std::io;
 
 use anyhow::{bail, Result};
 use libc;
@@ -13,6 +8,9 @@ use log::debug;
 
 use crate::perf_event::{
     perf_event_attr, PERF_SAMPLE_IDENTIFIER, PERF_FORMAT_GROUP, PerfEvent
+};
+use crate::msr::{
+    Msr, MSR_RAPL_POWER_UNIT, MSR_PKG_ENERGY_STATUS, MSR_PP1_ENERGY_STATUS
 };
 use crate::hwmon::Hwmon;
 use crate::drm_devices::DrmDevicePower;
@@ -215,108 +213,11 @@ impl DGpuPowerIntel
     }
 }
 
-// from kernel's msr-index.h
-const MSR_RAPL_POWER_UNIT: i64 = 0x00000606;
-const MSR_PKG_ENERGY_STATUS: i64 = 0x00000611;  // "energy-pkg"
-const MSR_PP1_ENERGY_STATUS: i64 = 0x00000641;  // "energy-gpu"
-
-#[derive(Debug)]
-struct MsrSum
-{
-    sum: u64,
-    last: u64,
-}
-
-#[derive(Debug)]
-struct MsrIntel
-{
-    _dn_file: File,
-    dn_fd: RawFd,
-    sums: HashMap<i64, MsrSum>,
-}
-
-impl MsrIntel
-{
-    fn read(&self, offset: i64) -> Result<u64>
-    {
-        let mut val: u64 = 0;
-        let val_ptr: *mut u64 = &mut val;
-        let val_vptr = val_ptr as *mut libc::c_void;
-        let size = mem::size_of::<u64>();
-
-        let ret = unsafe {
-            libc::pread(self.dn_fd, val_vptr, size, offset) };
-        if ret < 0 {
-            return Err(io::Error::last_os_error().into());
-        }
-        if ret as usize != mem::size_of::<u64>() {
-            bail!("Read wrong # bytes {:?} (expected {:?}) from MSR {:?}.",
-                ret, mem::size_of::<u64>(), offset);
-        }
-
-        Ok(val)
-    }
-
-    fn read_sum(&mut self, offset: i64) -> Result<u64>
-    {
-        if !self.sums.contains_key(&offset) {
-            self.sums.insert(offset, MsrSum { sum: 0, last: 0, });
-        }
-
-        let val = self.read(offset)?;
-        let msrsum = self.sums.get_mut(&offset).unwrap();
-
-        let last_val = msrsum.last;
-        msrsum.last = val & 0xffffffff;
-
-        let delta_val = ((val << 32) - (last_val << 32)) >> 32;
-        msrsum.sum += delta_val;
-
-        Ok(msrsum.sum)
-    }
-
-    fn probe(&self, offset: i64) -> bool
-    {
-        match self.read(offset) {
-            Err(_) => false,
-            _ => true
-        }
-    }
-
-    fn from(cpu: i32) -> Result<MsrIntel>
-    {
-        let fname = format!("/dev/cpu/{}/msr", cpu);
-        let file = File::open(fname)?;
-        let fd = file.as_raw_fd();
-
-        Ok(MsrIntel {
-            _dn_file: file,
-            dn_fd: fd,
-            sums: HashMap::new(),
-        })
-    }
-
-    fn is_capable() -> bool
-    {
-        if !Path::new("/dev/cpu/0/msr").exists() {
-            debug!("INF: couldn't find MSR device node.");
-            return false;
-        }
-
-        if unsafe { libc::geteuid() } != 0 {
-            debug!("INF: non-root user, no MSR device node access.");
-            return false;
-        }
-
-        true
-    }
-}
-
 #[derive(Debug)]
 pub struct IGpuPowerIntel
 {
     pf_evt: Option<PerfEvent>,
-    msr: Option<MsrIntel>,
+    msr: Option<Msr>,
     last_gpu_val: u64,
     last_pkg_val: u64,
     gpu_scale: f64,
@@ -415,14 +316,14 @@ impl IGpuPowerIntel
         Ok((pf_evt, gpu_scale, pkg_scale))
     }
 
-    fn new_rapl_msr() -> Result<(MsrIntel, f64, f64)>
+    fn new_rapl_msr() -> Result<(Msr, f64, f64)>
     {
-        if !MsrIntel::is_capable() {
+        if !Msr::is_capable() {
             bail!("Not capable of reading rapl power from MSR");
         }
 
-        let cpu = unsafe { libc::sched_getcpu() };
-        let msr = MsrIntel::from(cpu)?;
+        let cpu: i32 = unsafe { libc::sched_getcpu() };
+        let msr = Msr::from(cpu)?;
 
         if !msr.probe(MSR_RAPL_POWER_UNIT) ||
             !msr.probe(MSR_PKG_ENERGY_STATUS) ||
@@ -439,7 +340,7 @@ impl IGpuPowerIntel
     pub fn new(mut use_msr: bool) -> Result<Option<Box<dyn GpuPowerIntel>>>
     {
         let mut pf_evt: Option<PerfEvent> = None;
-        let mut msr: Option<MsrIntel> = None;
+        let mut msr: Option<Msr> = None;
         let mut gpu_scale: f64 = 0.0;
         let mut pkg_scale: f64 = 0.0;
 
@@ -463,7 +364,7 @@ impl IGpuPowerIntel
                 return Ok(None);
             }
 
-            let msr_obj: MsrIntel;
+            let msr_obj: Msr;
             (msr_obj, gpu_scale, pkg_scale) = msr_res.unwrap();
             msr = Some(msr_obj);
         }

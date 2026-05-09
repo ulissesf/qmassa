@@ -1,4 +1,5 @@
 mod perf_event;
+mod msr;
 mod hwmon;
 mod drm_drivers;
 mod drm_fdinfo;
