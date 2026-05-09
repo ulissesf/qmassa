@@ -355,42 +355,34 @@ impl DrmDriver for DrmDriverAmdgpu
         let fpath = self.dev_dir.join("pp_dpm_sclk");
         let sclk_str = fs::read_to_string(&fpath)?;
 
-        let mut fls = DrmDeviceFreqLimits::new();
+        let mut max_mhz: u64 = 0;
         for line in sclk_str.lines() {
-            let kv: Vec<_> = line.split(':').map(|it| it.trim()).collect();
-            if kv.len() < 2 {
-                warn!("Wrong line [{:?}] from {:?}, aborting.", line, fpath);
-                return Ok(Vec::new());
-            }
-            let k: u32 = kv[0].parse()?;
-            if k == 1 {
+            if line.ends_with('*') {
                 continue;
             }
-
-            let mut v = kv[1];
-            if v.ends_with(" *") {
-                v = &kv[1][..kv[1].len() - 2];
+            let kv: Vec<_> = line.split(':').map(|it| it.trim()).collect();
+            if kv.len() < 2 {
+                warn!("Wrong line [{:?}] from {:?}, skipping.", line, fpath);
+                continue;
             }
+            let v = kv[1];
             if !v.ends_with("Mhz") {
-                warn!("Wrong line [{:?}] from {:?}, aborting.", line, fpath);
-                return Ok(Vec::new());
+                warn!("Wrong line [{:?}] from {:?}, skipping.", line, fpath);
+                continue;
             }
-            v = &v[..v.len() - 3];
-
-            if k == 0 {
-                // FIXME: actual freq can go lower then minimum in sysfs file
-                fls.minimum = 0;
-            } else if k == 2 {
-                fls.maximum = v.parse()?;
-                // FIXME: actual freq can go much higher than max in sysfs file
-                fls.maximum += fls.maximum / 2;
-            } else {
-                fls.minimum = 0;
-                fls.maximum = 0;
-                warn!("Wrong line [{:?}] from {:?}, aborting.", line, fpath);
-                return Ok(Vec::new());
+            let mhz: u64 = v[..v.len() - 3].parse()?;
+            if mhz > max_mhz {
+                max_mhz = mhz;
             }
         }
+
+        let fls = DrmDeviceFreqLimits {
+            name: String::from("sclk"),
+            minimum: 0,
+            efficient: 0,
+            // FIXME: actual freq can go higher then max value in sysfs file
+            maximum: max_mhz + max_mhz / 2,
+        };
 
         Ok(vec![fls,])
     }
