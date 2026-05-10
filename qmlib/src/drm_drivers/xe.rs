@@ -17,11 +17,12 @@ use anyhow::{bail, Result};
 use libc::{self, Ioctl};
 use log::{debug, info, warn};
 
+use crate::msr::Msr;
 use crate::perf_event::{perf_event_attr, PERF_FORMAT_GROUP, PerfEvent};
 use crate::hwmon::Hwmon;
 use crate::drm_drivers::{
     DrmDriver, helpers::{drm_iowr, drm_ioctl, __IncompleteArrayField},
-    intel_common::IntelDriverOpts,
+    intel_common::{IGpuTempIntel, IntelDriverOpts},
     intel_power::{GpuPowerIntel, IGpuPowerIntel, DGpuPowerIntel},
 };
 use crate::drm_devices::{
@@ -660,6 +661,7 @@ pub struct DrmDriverXe
     dev_type: DrmDeviceType,
     power: Option<Box<dyn GpuPowerIntel>>,
     hwmon: Option<Hwmon>,
+    igpu_temp: Option<IGpuTempIntel>,
     engs_pmu: Option<XeEnginesPmu>,
     freqs_pmu: Option<XeFreqsPmu>,
 }
@@ -911,11 +913,23 @@ impl DrmDriver for DrmDriverXe
 
     fn temps(&mut self) -> Result<Vec<DrmDeviceTemperature>>
     {
-        if self.hwmon.is_none() {
-            return Ok(Vec::new());
+        // is it an iGPU with temp via MSR?
+        if let Some(igpu_temp) = &self.igpu_temp {
+            let temp = igpu_temp.pkg_temp_c()?;
+            return Ok(vec![
+                DrmDeviceTemperature {
+                    name: String::from("pkg"),
+                    temp,
+                }
+            ]);
         }
 
-        DrmDeviceTemperature::from_hwmon(self.hwmon.as_ref().unwrap())
+        // is it a dGPU with reporting via hwmon?
+        if self.hwmon.is_some() {
+            DrmDeviceTemperature::from_hwmon(self.hwmon.as_ref().unwrap())
+        } else {
+            Ok(Vec::new())
+        }
     }
 
     fn fans(&mut self) -> Result<Vec<DrmDeviceFan>>
@@ -952,6 +966,7 @@ impl DrmDriverXe
             dev_type,
             power: None,
             hwmon: None,
+            igpu_temp: None,
             engs_pmu: None,
             freqs_pmu: None,
         };
@@ -965,6 +980,16 @@ impl DrmDriverXe
                     &qmd.pci_dev, po.name());
             } else {
                 info!("{}: no rapl power reporting", &qmd.pci_dev);
+            }
+            if Msr::is_capable() {
+                match IGpuTempIntel::new() {
+                    Ok(igpu_temp) => {
+                        info!("{}: package temp via MSR", &qmd.pci_dev);
+                        xe.igpu_temp = Some(igpu_temp);
+                    },
+                    Err(e) => debug!("{}: ERR: MSR for temp failed: {:?}",
+                        &qmd.pci_dev, e),
+                }
             }
         } else if xe.dev_type.is_discrete() {
             let hwmon_res = Hwmon::from(dev_path.join("hwmon"));

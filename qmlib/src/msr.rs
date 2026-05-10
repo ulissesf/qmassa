@@ -14,6 +14,8 @@ use log::debug;
 pub const MSR_RAPL_POWER_UNIT: i64 = 0x00000606;
 pub const MSR_PKG_ENERGY_STATUS: i64 = 0x00000611;  // "energy-pkg"
 pub const MSR_PP1_ENERGY_STATUS: i64 = 0x00000641;  // "energy-gpu"
+pub const MSR_IA32_TEMPERATURE_TARGET: i64 = 0x000001a2;
+pub const MSR_IA32_PACKAGE_THERM_STATUS: i64 = 0x000001b1;
 
 #[derive(Debug)]
 struct MsrSum

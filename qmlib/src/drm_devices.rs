@@ -402,11 +402,8 @@ impl DrmDeviceInfo
             self.power = drv_b.power()?;
             self.mem_info = drv_b.mem_info()?;
             self.engs_utilization = drv_b.engs_utilization()?;
-
-            if self.dev_type.is_discrete() {
-                self.temps = drv_b.temps()?;
-                self.fans = drv_b.fans()?;
-            }
+            self.temps = drv_b.temps()?;
+            self.fans = drv_b.fans()?;
         }
 
         Ok(())

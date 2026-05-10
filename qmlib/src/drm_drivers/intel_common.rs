@@ -1,5 +1,13 @@
 use core::fmt::Debug;
 
+use anyhow::Result;
+use libc;
+
+use crate::msr::{
+    Msr, MSR_IA32_TEMPERATURE_TARGET, MSR_IA32_PACKAGE_THERM_STATUS
+};
+
+
 #[derive(Debug)]
 pub struct IntelDriverOpts
 {
@@ -78,3 +86,48 @@ impl IntelDriverOpts
     }
 }
 
+#[derive(Debug)]
+pub struct IGpuTempIntel
+{
+    msr: Msr,
+    tjmax: u32,
+}
+
+const TJMAX_DEFAULT: u32 = 100;
+
+impl IGpuTempIntel
+{
+    // Reads TjMax from MSR_IA32_TEMPERATURE_TARGET bits [23:16].
+    // Falls back to TJMAX_DEFAULT if the MSR is unavailable or returns zero.
+    fn read_tjmax(msr: &Msr) -> u32
+    {
+        match msr.read(MSR_IA32_TEMPERATURE_TARGET) {
+            Ok(val) => {
+                let tcc = ((val >> 16) & 0xFF) as u32;
+                if tcc == 0 { TJMAX_DEFAULT } else { tcc }
+            },
+            Err(_) => TJMAX_DEFAULT
+        }
+    }
+
+    // Returns package temp in Celsius using MSR_IA32_PACKAGE_THERM_STATUS.
+    // Formula: tjmax - DTS, where DTS is bits [22:16] (degrees below TjMax).
+    pub fn pkg_temp_c(&self) -> Result<f64>
+    {
+        let val = self.msr.read(MSR_IA32_PACKAGE_THERM_STATUS)?;
+        let dts = ((val >> 16) & 0xFF) as u32;
+        Ok(self.tjmax.saturating_sub(dts) as f64)
+    }
+
+    pub fn new() -> Result<IGpuTempIntel>
+    {
+        let cpu: i32 = unsafe { libc::sched_getcpu() };
+        let msr = Msr::from(cpu)?;
+        let tjmax = IGpuTempIntel::read_tjmax(&msr);
+
+        Ok(IGpuTempIntel {
+            msr,
+            tjmax,
+        })
+    }
+}
