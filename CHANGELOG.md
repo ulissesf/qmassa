@@ -1,5 +1,11 @@
 # Changelog
 
+## [v1.3.2](https://github.com/ulissesf/qmassa/releases/tag/v1.3.2) - 2026-05-10
+
+### Fixes
+
+- Fix amdgpu freq limits processing. (@ulissesf)
+
 ## [v1.3.1](https://github.com/ulissesf/qmassa/releases/tag/v1.3.1) - 2026-02-27
 
 ### Fixes
