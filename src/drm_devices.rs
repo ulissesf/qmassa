@@ -121,19 +121,6 @@ pub struct DrmDeviceFreqLimits
     pub maximum: u64,
 }
 
-impl DrmDeviceFreqLimits
-{
-    pub fn new() -> DrmDeviceFreqLimits
-    {
-        DrmDeviceFreqLimits {
-            name: String::new(),
-            minimum: 0,
-            efficient: 0,
-            maximum: 0,
-        }
-    }
-}
-
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DrmDeviceFreqs
 {
