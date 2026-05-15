@@ -409,6 +409,11 @@ impl DrmDeviceInfo
             }
         }
 
+        Ok(())
+    }
+
+    fn update_engs_utilization(&mut self)
+    {
         // if no driver was found or it doesn't provide engines usage data,
         // fall back to adding up utilization from DRM clients list
         if self.engs_utilization.is_empty() {
@@ -434,8 +439,6 @@ impl DrmDeviceInfo
                 }
             }
         }
-
-        Ok(())
     }
 
     pub fn has_driver(&self) -> bool
@@ -493,6 +496,12 @@ impl DrmDevices
 
     pub fn refresh(&mut self) -> Result<()>
     {
+        // assumes devices don't vanish, so just update their driver-specific
+        // dynamic information (e.g. mem info, engines, freqs, power, ...)
+        for di in self.infos.values_mut() {
+            di.refresh()?;
+        }
+
         // update DRM clients information (if possible)
         if let Some(clis) = &mut self.qmclis {
             clis.refresh()?;
@@ -506,10 +515,9 @@ impl DrmDevices
             }
         }
 
-        // assumes devices don't vanish, so just update their driver-specific
-        // dynamic information (e.g. mem info, engines, freqs, power, ...)
+        // check & update engs utilization from DRM clients if needed
         for di in self.infos.values_mut() {
-            di.refresh()?;
+            di.update_engs_utilization();
         }
 
         debug!("DRM Devices: {:#?}", self.infos);
