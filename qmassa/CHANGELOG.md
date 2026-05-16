@@ -1,5 +1,15 @@
 # qmassa Changelog
 
+## [v2.1.0](https://github.com/ulissesf/qmassa/releases/tag/qmassa-v2.1.0) - 2026-05-16
+
+### Features
+
+ - Report package temperature on Intel iGPU devices. (@ulissesf)
+
+### Fixes
+
+ - Fix crash in amdgpu freq limits processing. (@ulissesf)
+
 ## [v2.0.0](https://github.com/ulissesf/qmassa/releases/tag/qmassa-v2.0.0) - 2026-04-12
 
 ### Features

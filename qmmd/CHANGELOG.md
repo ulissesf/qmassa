@@ -1,5 +1,15 @@
 # qmmd Changelog
 
+## [v0.2.0](https://github.com/ulissesf/qmassa/releases/tag/qmmd-v0.2.0) - 2026-05-16
+
+### Features
+
+ - Report package temperature on Intel iGPU devices. (@ulissesf)
+
+### Fixes
+
+ - Fix crash in amdgpu freq limits processing. (@ulissesf)
+
 ## [v0.1.1](https://github.com/ulissesf/qmassa/releases/tag/qmmd-v0.1.1) - 2026-02-27
 
 ### Fixes
