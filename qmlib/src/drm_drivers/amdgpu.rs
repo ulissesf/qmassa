@@ -454,23 +454,24 @@ impl DrmDriver for DrmDriverAmdgpu
             return Ok(HashMap::new());
         }
 
-        let fpath = self.dev_dir.join("gpu_busy_percent");
-        let sval = fs::read_to_string(&fpath)?;
-        let gpu_val: f64 = sval.trim().parse()?;
+        // Each `*_busy_percent` sysfs file is optional: AMD APUs never expose
+        // `mem_busy_percent`, so a missing file must only skip that engine
+        // instead of aborting the whole refresh. Any other read or parse error
+        // still propagates.
+        let mut engs = HashMap::new();
+        for (key, file) in [
+            ("gpu", "gpu_busy_percent"),
+            ("vcn", "vcn_busy_percent"),
+            ("mem", "mem_busy_percent"),
+        ] {
+            if let Some(val) = DrmDriverAmdgpu::read_optional_percent(
+                &self.dev_dir, file)?
+            {
+                engs.insert(String::from(key), val);
+            }
+        }
 
-        let fpath = self.dev_dir.join("vcn_busy_percent");
-        let sval = fs::read_to_string(&fpath)?;
-        let vcn_val: f64 = sval.trim().parse()?;
-
-        let fpath = self.dev_dir.join("mem_busy_percent");
-        let sval = fs::read_to_string(&fpath)?;
-        let mem_val: f64 = sval.trim().parse()?;
-
-        Ok(HashMap::from([
-            (String::from("gpu"), gpu_val),
-            (String::from("vcn"), vcn_val),
-            (String::from("mem"), mem_val),
-        ]))
+        Ok(engs)
     }
 
     fn temps(&mut self) -> Result<Vec<DrmDeviceTemperature>>
@@ -494,6 +495,18 @@ impl DrmDriver for DrmDriverAmdgpu
 
 impl DrmDriverAmdgpu
 {
+    /// Read a `*_busy_percent` sysfs counter. Returns `Ok(None)` when the
+    /// file is absent (e.g. AMD APUs don't expose `mem_busy_percent`); any
+    /// other read or parse failure is returned as an error.
+    fn read_optional_percent(dev_dir: &Path, file: &str) -> Result<Option<f64>>
+    {
+        match fs::read_to_string(dev_dir.join(file)) {
+            Ok(s) => Ok(Some(s.trim().parse()?)),
+            Err(e) if e.kind() == io::ErrorKind::NotFound => Ok(None),
+            Err(e) => Err(e.into()),
+        }
+    }
+
     fn info_ioctl(dn_fd: RawFd,
         query_id: u32, data: u64, size: u32) -> Result<()>
     {
@@ -592,5 +605,42 @@ impl DrmDriverAmdgpu
         }
 
         Ok(Rc::new(RefCell::new(amdgpu)))
+    }
+}
+
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn scratch_dir(name: &str) -> PathBuf {
+        let mut p = std::env::temp_dir();
+        p.push(format!("qmlib_amdgpu_{}_{}", std::process::id(), name));
+        let _ = fs::remove_dir_all(&p);
+        fs::create_dir_all(&p).unwrap();
+        p
+    }
+
+    #[test]
+    fn missing_percent_file_is_skipped() {
+        let dir = scratch_dir("missing");
+        // gpu_busy_percent present -> parsed
+        fs::write(dir.join("gpu_busy_percent"), "42").unwrap();
+        assert_eq!(
+            DrmDriverAmdgpu::read_optional_percent(&dir, "gpu_busy_percent").unwrap(),
+            Some(42.0)
+        );
+        // mem_busy_percent absent (as on AMD APUs) -> None, no error
+        assert_eq!(
+            DrmDriverAmdgpu::read_optional_percent(&dir, "mem_busy_percent").unwrap(),
+            None
+        );
+    }
+
+    #[test]
+    fn unparseable_percent_value_errors() {
+        let dir = scratch_dir("badval");
+        fs::write(dir.join("gpu_busy_percent"), "not-a-number").unwrap();
+        assert!(DrmDriverAmdgpu::read_optional_percent(&dir, "gpu_busy_percent").is_err());
     }
 }
