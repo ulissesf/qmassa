@@ -454,23 +454,18 @@ impl DrmDriver for DrmDriverAmdgpu
             return Ok(HashMap::new());
         }
 
-        let fpath = self.dev_dir.join("gpu_busy_percent");
-        let sval = fs::read_to_string(&fpath)?;
-        let gpu_val: f64 = sval.trim().parse()?;
+        let mut engs = HashMap::new();
+        for (key, file) in [
+            ("gpu", "gpu_busy_percent"),
+            ("vcn", "vcn_busy_percent"),
+            ("mem", "mem_busy_percent"),
+        ] {
+            if let Ok(sval) = fs::read_to_string(self.dev_dir.join(file)) {
+                engs.insert(key.to_string(), sval.trim().parse()?);
+            }
+        }
 
-        let fpath = self.dev_dir.join("vcn_busy_percent");
-        let sval = fs::read_to_string(&fpath)?;
-        let vcn_val: f64 = sval.trim().parse()?;
-
-        let fpath = self.dev_dir.join("mem_busy_percent");
-        let sval = fs::read_to_string(&fpath)?;
-        let mem_val: f64 = sval.trim().parse()?;
-
-        Ok(HashMap::from([
-            (String::from("gpu"), gpu_val),
-            (String::from("vcn"), vcn_val),
-            (String::from("mem"), mem_val),
-        ]))
+        Ok(engs)
     }
 
     fn temps(&mut self) -> Result<Vec<DrmDeviceTemperature>>
