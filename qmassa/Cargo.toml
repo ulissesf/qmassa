@@ -11,16 +11,16 @@ categories = ["command-line-utilities", "graphics"]
 readme = "README.md"
 
 [dependencies]
-qmlib = { version = "2.2.0", path = "../qmlib" }
+qmlib = { version = "2.2.1", path = "../qmlib" }
 anyhow = "1.0.102"
 clap = { version = "4.6.1", features = ["derive"] }
 crossterm = "0.29.0"
 env_logger = "0.11.10"
 itertools = "0.14.0"
 libc = "0.2.186"
-log = "0.4.29"
+log = "0.4.33"
 plotters = { version = "0.3.7", default-features = false, features = ["line_series", "svg_backend"] }
-ratatui = "0.30.0"
+ratatui = "0.30.2"
 serde = { version = "1.0.228", features = ["derive"] }
-serde_json = "1.0.149"
-tui-scrollview = "0.6.4"
+serde_json = "1.0.150"
+tui-scrollview = "0.6.7"
