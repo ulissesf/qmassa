@@ -376,7 +376,7 @@ impl DrmClientScreen
         }
     }
 
-    fn render_meminfo_chart(&self, x_vals: &Vec<f64>, x_axis: Axis,
+    fn render_meminfo_chart(&self, x_vals: &[f64], x_axis: Axis,
         cli: &AppDataClientStats, frame: &mut Frame, area: Rect)
     {
         let mut sm_rss_vals = Vec::new();
@@ -463,7 +463,7 @@ impl DrmClientScreen
             area);
     }
 
-    fn render_engines_chart(&self, x_vals: &Vec<f64>, x_axis: Axis,
+    fn render_engines_chart(&self, x_vals: &[f64], x_axis: Axis,
         cli: &AppDataClientStats, frame: &mut Frame, area: Rect)
     {
         let mut eng_vals = Vec::new();
@@ -521,7 +521,7 @@ impl DrmClientScreen
             area);
     }
 
-    fn render_cpu_chart(&self, x_vals: &Vec<f64>, x_axis: Axis,
+    fn render_cpu_chart(&self, x_vals: &[f64], x_axis: Axis,
         cli: &AppDataClientStats, frame: &mut Frame, area: Rect)
     {
         let mut cpu_vals = Vec::new();

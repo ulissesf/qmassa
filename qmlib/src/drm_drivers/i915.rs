@@ -203,7 +203,7 @@ struct I915FreqsPmu
 impl I915FreqsPmu
 {
     // returns (requested, actual) freqs for a GT
-    fn freqs(&mut self, gt_nr: usize, data: &Vec<u64>) -> Result<(u64, u64)>
+    fn freqs(&mut self, gt_nr: usize, data: &[u64]) -> Result<(u64, u64)>
     {
         if gt_nr >= self.gts_data.len() {
             bail!("No freqs PMU set up for GT {:?}", gt_nr);

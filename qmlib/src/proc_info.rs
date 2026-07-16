@@ -243,9 +243,9 @@ impl ProcInfo
         Ok(())
     }
 
-    pub fn from(npid: &String) -> Result<ProcInfo>
+    pub fn from(npid: &str) -> Result<ProcInfo>
     {
-        let proc_dir = Path::new("/proc").join(npid.as_str());
+        let proc_dir = Path::new("/proc").join(npid);
 
         let cstr = fs::read_to_string(proc_dir.join("comm"))?;
         let comm = String::from(cstr.trim_end());

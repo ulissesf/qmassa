@@ -87,7 +87,7 @@ struct DeviceStatsState
 
 impl DeviceStatsState
 {
-    fn exec_next(&mut self, nr_charts: &Vec<u8>)
+    fn exec_next(&mut self, nr_charts: &[u8])
     {
         let nr_cur = nr_charts[self.sel as usize];
         if nr_cur > 1 && (self.sub_sel + 1) < nr_cur {
@@ -101,7 +101,7 @@ impl DeviceStatsState
         }
     }
 
-    fn exec_prev(&mut self, nr_charts: &Vec<u8>)
+    fn exec_prev(&mut self, nr_charts: &[u8])
     {
         let nr_cur = nr_charts[self.sel as usize];
         if nr_cur > 1 && self.sub_sel > 0 {
@@ -117,7 +117,7 @@ impl DeviceStatsState
         }
     }
 
-    fn exec_req(&mut self, nr_charts: &Vec<u8>)
+    fn exec_req(&mut self, nr_charts: &[u8])
     {
         if self.req_op < 0 {
             if nr_charts[self.sel as usize] == 0 {
@@ -609,7 +609,7 @@ impl MainScreen
             clis_sv, vis_clis_area, &mut state.stats_state);
     }
 
-    fn render_meminfo_chart(&self, x_vals: &Vec<f64>, x_axis: Axis,
+    fn render_meminfo_chart(&self, x_vals: &[f64], x_axis: Axis,
         dinfo: &AppDataDeviceState, frame: &mut Frame, area: Rect)
     {
         let is_dgfx = dinfo.dev_type.is_discrete();
@@ -669,7 +669,7 @@ impl MainScreen
             area);
     }
 
-    fn render_engines_chart(&self, x_vals: &Vec<f64>, x_axis: Axis,
+    fn render_engines_chart(&self, x_vals: &[f64], x_axis: Axis,
         dinfo: &AppDataDeviceState, frame: &mut Frame, area: Rect)
     {
         let mut eng_vals = Vec::new();
@@ -727,7 +727,7 @@ impl MainScreen
             area);
     }
 
-    fn render_power_chart(&self, x_vals: &Vec<f64>, x_axis: Axis,
+    fn render_power_chart(&self, x_vals: &[f64], x_axis: Axis,
         dinfo: &AppDataDeviceState, frame: &mut Frame, area: Rect)
     {
         let is_dgfx = dinfo.dev_type.is_discrete();
@@ -783,7 +783,7 @@ impl MainScreen
             area);
     }
 
-    fn render_freqs_chart(&self, x_vals: &Vec<f64>, x_axis: Axis,
+    fn render_freqs_chart(&self, x_vals: &[f64], x_axis: Axis,
         dinfo: &AppDataDeviceState, fq_sel: u8, frame: &mut Frame, area: Rect)
     {
         let fq_nr = fq_sel as usize;
@@ -860,7 +860,7 @@ impl MainScreen
             area);
     }
 
-    fn render_temps_chart(&self, x_vals: &Vec<f64>, x_axis: Axis,
+    fn render_temps_chart(&self, x_vals: &[f64], x_axis: Axis,
         dinfo: &AppDataDeviceState, nr_temps: usize,
         frame: &mut Frame, area: Rect)
     {
@@ -912,7 +912,7 @@ impl MainScreen
             area);
     }
 
-    fn render_fans_chart(&self, x_vals: &Vec<f64>, x_axis: Axis,
+    fn render_fans_chart(&self, x_vals: &[f64], x_axis: Axis,
         dinfo: &AppDataDeviceState, nr_fans: usize,
         frame: &mut Frame, area: Rect)
     {

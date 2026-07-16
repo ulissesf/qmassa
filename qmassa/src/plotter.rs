@@ -51,7 +51,7 @@ impl Plotter
 {
     fn plot_chart(&self, out_file: &str, title: &str,
         x_desc: &str, y_desc: &str, x_max: f64, y_max: f64,
-        datasets: &Vec<StatData>) -> Result<()>
+        datasets: &[StatData]) -> Result<()>
     {
         let root = SVGBackend::new(out_file, (1200, 720))
             .into_drawing_area();

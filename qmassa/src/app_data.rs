@@ -45,7 +45,7 @@ pub struct AppDataDeviceStats
 impl AppDataDeviceStats
 {
     fn update_stats(&mut self,
-        eng_names: &Vec<String>, dinfo: &DrmDeviceInfo)
+        eng_names: &[String], dinfo: &DrmDeviceInfo)
     {
         if dinfo.has_driver() {
             if dinfo.mem_info.is_some() {
@@ -76,7 +76,7 @@ impl AppDataDeviceStats
         }
     }
 
-    fn new(eng_names: &Vec<String>) -> AppDataDeviceStats
+    fn new(eng_names: &[String]) -> AppDataDeviceStats
     {
         let mut estats = HashMap::new();
         for en in eng_names.iter() {
@@ -214,7 +214,7 @@ impl AppDataClientStats
     }
 
     fn update_stats(&mut self,
-        eng_names: &Vec<String>, cinfo: &DrmClientInfo)
+        eng_names: &[String], cinfo: &DrmClientInfo)
     {
         limited_vec_push(&mut self.cpu_usage,
             cinfo.proc.borrow().cpu_utilization());
@@ -231,7 +231,7 @@ impl AppDataClientStats
         self.is_active = cinfo.is_active();
     }
 
-    fn from(eng_names: &Vec<String>,
+    fn from(eng_names: &[String],
         cinfo: &DrmClientInfo) -> AppDataClientStats
     {
         let mut estats = HashMap::new();
@@ -398,7 +398,7 @@ impl AppDataDeviceState
         self.clis_stats = ncstats;
     }
 
-    fn fname_from(devnode: &String) -> &str
+    fn fname_from(devnode: &str) -> &str
     {
         // assumes devnodes don't end in "/"
         match devnode.rfind("/") {
@@ -502,7 +502,7 @@ pub trait AppData
 
     fn devices(&self) -> &Vec<AppDataDeviceState>;
 
-    fn get_device(&self, dev: &String) -> Option<&AppDataDeviceState>;
+    fn get_device(&self, dev: &str) -> Option<&AppDataDeviceState>;
 
     fn refresh(&mut self) -> Result<bool>;
 }
@@ -548,7 +548,7 @@ impl AppData for AppDataJson
         &state.devs_state
     }
 
-    fn get_device(&self, dev: &String) -> Option<&AppDataDeviceState>
+    fn get_device(&self, dev: &str) -> Option<&AppDataDeviceState>
     {
         let state = self.states.front().unwrap();
 
@@ -724,7 +724,7 @@ impl AppData for AppDataLive
         &self.state.devs_state
     }
 
-    fn get_device(&self, dev: &String) -> Option<&AppDataDeviceState>
+    fn get_device(&self, dev: &str) -> Option<&AppDataDeviceState>
     {
         for ds in self.state.devs_state.iter() {
             if ds.pci_dev == *dev {

@@ -537,7 +537,7 @@ impl DrmDevices
         }
     }
 
-    fn vendor_name(vendor_id: &String) -> String
+    fn vendor_name(vendor_id: &str) -> String
     {
         if let Ok(hwdb) = udev::Hwdb::new() {
             let id = u32::from_str_radix(vendor_id, 16).unwrap();
@@ -549,10 +549,10 @@ impl DrmDevices
             }
         }
 
-        vendor_id.clone()
+        vendor_id.to_owned()
     }
 
-    fn device_name(vendor_id: &String, device_id: &String) -> String
+    fn device_name(vendor_id: &str, device_id: &str) -> String
     {
         if let Ok(hwdb) = udev::Hwdb::new() {
             let vid = u32::from_str_radix(vendor_id, 16).unwrap();
@@ -565,7 +565,7 @@ impl DrmDevices
             }
         }
 
-        device_id.clone()
+        device_id.to_owned()
     }
 
     fn devices_from_udev(

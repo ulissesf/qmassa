@@ -15,7 +15,7 @@ pub struct StatsCtrl
 
 impl StatsCtrl
 {
-    fn update_meminfo(dn: &String,
+    fn update_meminfo(dn: &str,
         di: &DrmDeviceInfo, gs: &mut HashMap<String, Gauge>)
     {
         let mi = di.mem_info.as_ref().unwrap();
@@ -24,7 +24,7 @@ impl StatsCtrl
         let smem_tot = String::from("smem-total");
         if !gs.contains_key(&smem_used) {
             let labels = vec![
-                ("device", dn.clone()),
+                ("device", dn.to_owned()),
                 ("mem_type", String::from("smem")),
             ];
             gs.insert(smem_used.clone(),
@@ -43,7 +43,7 @@ impl StatsCtrl
             let vram_tot = String::from("vram-total");
             if !gs.contains_key(&vram_used) {
                 let labels = vec![
-                    ("device", dn.clone()),
+                    ("device", dn.to_owned()),
                     ("mem_type", String::from("vram")),
                 ];
                 gs.insert(vram_used.clone(),
@@ -59,14 +59,14 @@ impl StatsCtrl
         }
     }
 
-    fn update_engines(dn: &String,
+    fn update_engines(dn: &str,
         di: &DrmDeviceInfo, gs: &mut HashMap<String, Gauge>)
     {
         for en in di.engines().iter() {
             let eng_key = format!("engine-{}", en);
             if !gs.contains_key(&eng_key) {
                 let labels = vec![
-                    ("device", dn.clone()),
+                    ("device", dn.to_owned()),
                     ("engine", en.clone())
                 ];
                 gs.insert(eng_key.clone(),
@@ -78,7 +78,7 @@ impl StatsCtrl
         }
     }
 
-    fn update_freqs(dn: &String,
+    fn update_freqs(dn: &str,
         di: &DrmDeviceInfo, gs: &mut HashMap<String, Gauge>)
     {
         for (fql, freq) in di.freq_limits.iter().zip(di.freqs.iter()) {
@@ -86,7 +86,7 @@ impl StatsCtrl
             let max_key = format!("max-freq-{}", fql.name);
             if !gs.contains_key(&act_key) {
                 let labels = vec![
-                    ("device", dn.clone()),
+                    ("device", dn.to_owned()),
                     ("freq_id", fql.name.clone())
                 ];
                 gs.insert(act_key.clone(),
@@ -102,7 +102,7 @@ impl StatsCtrl
         }
     }
 
-    fn update_power(dn: &String,
+    fn update_power(dn: &str,
         di: &DrmDeviceInfo, gs: &mut HashMap<String, Gauge>)
     {
         let pwr = di.power.as_ref().unwrap();
@@ -110,7 +110,7 @@ impl StatsCtrl
         let gpu_key = String::from("power-gpu");
         if !gs.contains_key(&gpu_key) {
             let labels = vec![
-                ("device", dn.clone()),
+                ("device", dn.to_owned()),
                 ("domain", String::from("gpu")),
             ];
             gs.insert(gpu_key.clone(),
@@ -123,7 +123,7 @@ impl StatsCtrl
         let pkg_key = String::from("power-pkg");
         if !gs.contains_key(&pkg_key) {
             let labels = vec![
-                ("device", dn.clone()),
+                ("device", dn.to_owned()),
                 ("domain", String::from("package")),
             ];
             gs.insert(pkg_key.clone(),
@@ -134,14 +134,14 @@ impl StatsCtrl
         gg.set(pwr.pkg_cur_power);
     }
 
-    fn update_temps(dn: &String,
+    fn update_temps(dn: &str,
         di: &DrmDeviceInfo, gs: &mut HashMap<String, Gauge>)
     {
         for tmp in di.temps.iter() {
             let tmp_key = format!("temp-{}", tmp.name);
             if !gs.contains_key(&tmp_key) {
                 let labels = vec![
-                    ("device", dn.clone()),
+                    ("device", dn.to_owned()),
                     ("sensor", tmp.name.clone())
                 ];
                 gs.insert(tmp_key.clone(),
@@ -153,14 +153,14 @@ impl StatsCtrl
         }
     }
 
-    fn update_fans(dn: &String,
+    fn update_fans(dn: &str,
         di: &DrmDeviceInfo, gs: &mut HashMap<String, Gauge>)
     {
         for fan in di.fans.iter() {
             let fan_key = format!("fan-{}", fan.name);
             if !gs.contains_key(&fan_key) {
                 let labels = vec![
-                    ("device", dn.clone()),
+                    ("device", dn.to_owned()),
                     ("fan_id", fan.name.clone())
                 ];
                 gs.insert(fan_key.clone(),

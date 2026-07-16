@@ -131,7 +131,7 @@ const DRM_IOCTL_XE_DEVICE_QUERY: Ioctl = drm_iowr!(DRM_XE_DEVICE_QUERY,
 // SR-IOV and PMU helpers
 //
 
-fn xe_sriov_pf_dev_from(pci_dev: &str, dev_path: &PathBuf) -> Result<String>
+fn xe_sriov_pf_dev_from(pci_dev: &str, dev_path: &Path) -> Result<String>
 {
     let pf_path = dev_path.join("physfn");
     if !pf_path.is_symlink() {
@@ -144,7 +144,7 @@ fn xe_sriov_pf_dev_from(pci_dev: &str, dev_path: &PathBuf) -> Result<String>
         .to_string())
 }
 
-fn xe_pmu_source_from(pci_dev: &str, dev_path: &PathBuf) -> Result<String>
+fn xe_pmu_source_from(pci_dev: &str, dev_path: &Path) -> Result<String>
 {
     if !PerfEvent::is_capable() {
         bail!("No PMU support");
@@ -161,7 +161,7 @@ fn xe_pmu_source_from(pci_dev: &str, dev_path: &PathBuf) -> Result<String>
     Ok(src)
 }
 
-fn xe_sriov_fn_from(pci_dev: &str, dev_path: &PathBuf) -> Result<u64>
+fn xe_sriov_fn_from(pci_dev: &str, dev_path: &Path) -> Result<u64>
 {
     if dev_path.join("sriov_admin").is_dir() {
         // PF fn is 0
@@ -320,7 +320,7 @@ impl XeEnginesPmu
         Ok(engs_ut)
     }
 
-    fn from(pci_dev: &str, dev_path: &PathBuf,
+    fn from(pci_dev: &str, dev_path: &Path,
         dn_fd: RawFd, src: &str) -> Result<XeEnginesPmu>
     {
         let sriov_fn = xe_sriov_fn_from(pci_dev, dev_path);
@@ -405,7 +405,7 @@ struct XeFreqsPmu
 impl XeFreqsPmu
 {
     // returns (requested, actual) freqs for a GT
-    fn freqs(&mut self, gt_nr: usize, data: &Vec<u64>) -> Result<(u64, u64)>
+    fn freqs(&mut self, gt_nr: usize, data: &[u64]) -> Result<(u64, u64)>
     {
         if gt_nr >= self.gts_data.len() {
             bail!("No freqs PMU set up for GT {:?}", gt_nr);
@@ -436,7 +436,7 @@ impl XeFreqsPmu
         Ok(data)
     }
 
-    fn from(base_gts_dir: &PathBuf, src: &str) -> Result<XeFreqsPmu>
+    fn from(base_gts_dir: &Path, src: &str) -> Result<XeFreqsPmu>
     {
         let mut pf_evt = PerfEvent::from_pmu(src)?;
         let mut gts_data = Vec::new();
@@ -489,7 +489,7 @@ impl XeFreqsPmu
     }
 }
 
-fn xe_dev_type_from(dn_fd: RawFd, dev_path: &PathBuf) -> Result<DrmDeviceType>
+fn xe_dev_type_from(dn_fd: RawFd, dev_path: &Path) -> Result<DrmDeviceType>
 {
     // find virtualization fn, if any
     let virt_fn = if dev_path.join("vfio-dev").is_dir() {
