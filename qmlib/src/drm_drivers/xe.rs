@@ -288,11 +288,12 @@ impl XeEnginesPmu
         let data = self.pf_evt.read(1 + self.nr_evts)?;
         self.nr_updates += 1;
 
-        for cn in 0..self.nr_engs {
+        for (engs, cname) in self.engs_data.iter_mut()
+            .zip(xe_engine_class_name.iter()).take(self.nr_engs) {
             let mut acum_active = 0;
             let mut acum_total = 0;
 
-            for epd in self.engs_data[cn].iter_mut() {
+            for epd in engs.iter_mut() {
                 let curr_active = data[1 + epd.base_idx];
                 let curr_total = data[1 + epd.base_idx + 1];
 
@@ -311,10 +312,10 @@ impl XeEnginesPmu
             };
             if eut > 100.0 {
                 warn!("Engine {:?} utilization at {:?}%, \
-                    clamped to 100%.", xe_engine_class_name[cn], eut);
+                    clamped to 100%.", cname, eut);
                 eut = 100.0;
             }
-            engs_ut.insert(xe_engine_class_name[cn].to_string(), eut);
+            engs_ut.insert(cname.to_string(), eut);
         }
 
         Ok(engs_ut)

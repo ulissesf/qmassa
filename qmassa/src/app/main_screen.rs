@@ -578,10 +578,10 @@ impl MainScreen
             clis_sv_area);
 
         if !cinfos.is_empty() {
-            let mut row_nr = 0;
             let clis_area = Layout::vertical(constrs).split(clis_sv_area);
-            for (cli, area) in cinfos.iter().zip(clis_area.iter()) {
-               if row_nr == state.sel_row {
+            for (row_nr, (cli, area)) in
+                cinfos.iter().zip(clis_area.iter()).enumerate() {
+               if row_nr == state.sel_row as usize {
                     clis_sv.render_widget(Block::new()
                         .borders(Borders::NONE)
                         .style(Style::new().on_light_blue()),
@@ -597,8 +597,6 @@ impl MainScreen
                     cli, &eng_widths, &mut clis_sv, engines_area);
                 clis_sv.render_widget(self.client_cpu_usage(cli), cpu_area);
                 clis_sv.render_widget(self.client_cmd(cli), cmd_area);
-
-                row_nr += 1;
             }
         }
 
@@ -682,28 +680,27 @@ impl MainScreen
             let mut idx = 0;
             if est.len() < nr_vals {
                 idx = nr_vals - est.len();
-                for i in 0..idx {
-                    nlst.push((x_vals[i], 0.0));
+                for xval in x_vals.iter().take(idx) {
+                    nlst.push((*xval, 0.0));
                 }
             }
-            for i in idx..nr_vals {
-                nlst.push((x_vals[i], est[i-idx]));
+            for (xval, ev) in x_vals[idx..nr_vals].iter().zip(est.iter()) {
+                nlst.push((*xval, *ev));
             }
 
             eng_vals.push(nlst);
         }
 
         let mut datasets = Vec::new();
-        let mut color_idx = 1;
 
-        for (en, ed) in dinfo.eng_names.iter().zip(eng_vals.iter()) {
+        for (color_idx, (en, ed)) in
+            dinfo.eng_names.iter().zip(eng_vals.iter()).enumerate() {
             datasets.push(Dataset::default()
                 .name(en.to_uppercase())
                 .marker(symbols::Marker::Braille)
-                .style(Color::Indexed(color_idx))
+                .style(Color::Indexed(color_idx as u8 + 1))
                 .graph_type(GraphType::Line)
                 .data(ed));
-            color_idx += 1;
         }
 
         let y_bounds = [0.0, 100.0];
@@ -878,17 +875,16 @@ impl MainScreen
         }
 
         let mut datasets = Vec::new();
-        let mut color_idx = 1;
         let last_tmps = dinfo.dev_stats.temps.back().unwrap();
 
-        for (tmp, td) in last_tmps.iter().zip(tmp_vals.iter()) {
+        for (color_idx, (tmp, td)) in
+            last_tmps.iter().zip(tmp_vals.iter()).enumerate() {
             datasets.push(Dataset::default()
                 .name(format!("TP-{}", &tmp.name.to_uppercase()))
                 .marker(symbols::Marker::Braille)
-                .style(Color::Indexed(color_idx))
+                .style(Color::Indexed(color_idx as u8 + 1))
                 .graph_type(GraphType::Line)
                 .data(td));
-            color_idx += 1;
         }
 
         let y_bounds = [miny, maxy];
@@ -930,17 +926,16 @@ impl MainScreen
         }
 
         let mut datasets = Vec::new();
-        let mut color_idx = 1;
         let last_fans = dinfo.dev_stats.fans.back().unwrap();
 
-        for (fan, fd) in last_fans.iter().zip(fan_vals.iter()) {
+        for (color_idx, (fan, fd)) in
+            last_fans.iter().zip(fan_vals.iter()).enumerate() {
             datasets.push(Dataset::default()
                 .name(format!("FAN-{}", &fan.name.to_uppercase()))
                 .marker(symbols::Marker::Braille)
-                .style(Color::Indexed(color_idx))
+                .style(Color::Indexed(color_idx as u8 + 1))
                 .graph_type(GraphType::Line)
                 .data(fd));
-            color_idx += 1;
         }
 
         let y_bounds = [miny, maxy];

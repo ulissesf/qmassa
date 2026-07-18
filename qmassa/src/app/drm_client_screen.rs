@@ -390,25 +390,24 @@ impl DrmClientScreen
         let mut idx = 0;
         if cli.mem_info.len() < nr_vals {
             idx = nr_vals - cli.mem_info.len();
-            for i in 0..idx {
-                sm_rss_vals.push((x_vals[i], 0.0));
-                sm_used_vals.push((x_vals[i], 0.0));
+            for xval in x_vals.iter().take(idx) {
+                sm_rss_vals.push((*xval, 0.0));
+                sm_used_vals.push((*xval, 0.0));
                 if self.sel.is_dgfx {
-                    vr_rss_vals.push((x_vals[i], 0.0));
-                    vr_used_vals.push((x_vals[i], 0.0));
+                    vr_rss_vals.push((*xval, 0.0));
+                    vr_used_vals.push((*xval, 0.0));
                 }
             }
         }
-        for i in idx..nr_vals {
-            let mi = &cli.mem_info[i-idx];
-
-            sm_rss_vals.push((x_vals[i], mi.smem_rss as f64));
-            sm_used_vals.push((x_vals[i], mi.smem_used as f64));
+        for (xval, mi) in x_vals[idx..nr_vals].iter()
+            .zip(cli.mem_info.iter()) {
+            sm_rss_vals.push((*xval, mi.smem_rss as f64));
+            sm_used_vals.push((*xval, mi.smem_used as f64));
             maxy = max(maxy, mi.smem_used);
 
             if self.sel.is_dgfx {
-                vr_rss_vals.push((x_vals[i], mi.vram_rss as f64));
-                vr_used_vals.push((x_vals[i], mi.vram_used as f64));
+                vr_rss_vals.push((*xval, mi.vram_rss as f64));
+                vr_used_vals.push((*xval, mi.vram_used as f64));
                 maxy = max(maxy, mi.vram_used);
             }
         }
@@ -475,28 +474,27 @@ impl DrmClientScreen
             let mut idx = 0;
             if est.len() < nr_vals {
                 idx = nr_vals - est.len();
-                for i in 0..idx {
-                    nlst.push((x_vals[i], 0.0));
+                for xval in x_vals.iter().take(idx) {
+                    nlst.push((*xval, 0.0));
                 }
             }
-            for i in idx..nr_vals {
-                nlst.push((x_vals[i], est[i-idx]));
+            for (xval, ev) in x_vals[idx..nr_vals].iter().zip(est.iter()) {
+                nlst.push((*xval, *ev));
             }
 
             eng_vals.push(nlst);
         }
 
         let mut datasets = Vec::new();
-        let mut color_idx = 1;
 
-        for (en, ed) in cli.eng_usage.keys().sorted().zip(eng_vals.iter()) {
+        for (color_idx, (en, ed)) in
+            cli.eng_usage.keys().sorted().zip(eng_vals.iter()).enumerate() {
             datasets.push(Dataset::default()
                 .name(en.to_uppercase())
                 .marker(symbols::Marker::Braille)
-                .style(Color::Indexed(color_idx))
+                .style(Color::Indexed(color_idx as u8 + 1))
                 .graph_type(GraphType::Line)
                 .data(ed));
-            color_idx += 1;
         }
 
         let y_bounds = [0.0, 100.0];
@@ -530,14 +528,14 @@ impl DrmClientScreen
         let mut idx = 0;
         if cli.cpu_usage.len() < nr_vals {
             idx = nr_vals - cli.cpu_usage.len();
-            for i in 0..idx {
-                cpu_vals.push((x_vals[i], 0.0));
+            for xval in x_vals.iter().take(idx) {
+                cpu_vals.push((*xval, 0.0));
             }
         }
-        for i in idx..nr_vals {
-            let val = cli.cpu_usage[i-idx];
-            cpu_vals.push((x_vals[i], val));
-            max_y = f64::max(max_y, val);
+        for (xval, val) in x_vals[idx..nr_vals].iter()
+            .zip(cli.cpu_usage.iter()) {
+            cpu_vals.push((*xval, *val));
+            max_y = f64::max(max_y, *val);
         }
         let max_y = f64::max(100.0, max_y);
         let datasets = vec![

@@ -152,11 +152,12 @@ impl I915EnginesPmu
         self.last_update = time::Instant::now();
         self.nr_updates += 1;
 
-        for cn in 0..self.nr_engs {
+        for (engs, cname) in self.engs_data.iter_mut()
+            .zip(i915_engine_class_name.iter()).take(self.nr_engs) {
             let mut acum_active = 0;
             let mut acum_total = 0;
 
-            for epd in self.engs_data[cn].iter_mut() {
+            for epd in engs.iter_mut() {
                 let curr_active = data[1 + epd.idx];
 
                 if self.nr_updates >= 2  {
@@ -173,10 +174,10 @@ impl I915EnginesPmu
             };
             if eut > 100.0 {
                 warn!("Engine {:?} utilization at {:?}%, \
-                    clamped to 100%.", i915_engine_class_name[cn], eut);
+                    clamped to 100%.", cname, eut);
                 eut = 100.0;
             }
-            engs_ut.insert(i915_engine_class_name[cn].to_string(), eut);
+            engs_ut.insert(cname.to_string(), eut);
         }
 
         Ok(engs_ut)
