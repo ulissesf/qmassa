@@ -48,16 +48,14 @@ impl AppDataDeviceStats
         eng_names: &[String], dinfo: &DrmDeviceInfo)
     {
         if dinfo.has_driver() {
-            if dinfo.mem_info.is_some() {
-                let nmi = dinfo.mem_info.as_ref().unwrap().clone();
-                limited_vec_push(&mut self.mem_info, nmi);
+            if let Some(mi) = &dinfo.mem_info {
+                limited_vec_push(&mut self.mem_info, mi.clone());
             }
             if !dinfo.freqs.is_empty() {
                 limited_vec_push(&mut self.freqs, dinfo.freqs.clone());
             }
-            if dinfo.power.is_some() {
-                let np = dinfo.power.as_ref().unwrap().clone();
-                limited_vec_push(&mut self.power, np);
+            if let Some(pwr) = &dinfo.power {
+                limited_vec_push(&mut self.power, pwr.clone());
             }
             if !dinfo.temps.is_empty() {
                 limited_vec_push(&mut self.temps, dinfo.temps.clone());

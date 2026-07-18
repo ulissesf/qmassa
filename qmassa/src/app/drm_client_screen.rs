@@ -115,9 +115,8 @@ impl Screen for DrmClientScreen
         } else {
             vec![Constraint::Fill(1); 2]
         };
-        let rows = if self.sel.client_key.is_some() {
-            let (drm_minor, client_id) =
-                self.sel.client_key.as_ref().unwrap();
+        let rows = if let Some((drm_minor, client_id)) =
+            self.sel.client_key.as_ref() {
             vec![Row::new([
                 Line::from(vec![
                     "PID: ".white().bold(),
@@ -169,10 +168,10 @@ impl Screen for DrmClientScreen
             by_pid = di.find_pid_client_stats(self.sel.pid);
         }
 
-        let sel_cli = if self.sel.client_key.is_none() {
-            by_pid.as_ref()
+        let sel_cli = if let Some(ck) = self.sel.client_key {
+            di.find_client_stats(self.sel.pid, ck)
         } else {
-            di.find_client_stats(self.sel.pid, self.sel.client_key.unwrap())
+            by_pid.as_ref()
         };
         if sel_cli.is_none() {
             let line = Line::from(vec![

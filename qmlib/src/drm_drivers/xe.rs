@@ -625,22 +625,19 @@ impl DrmDriverXeVfio
         let mut engs_pmu = None;
 
         let pmu_src_res = xe_pmu_source_from(&qmd.pci_dev, &dev_path);
-        if pmu_src_res.is_err() {
-            debug!("{}: ERR: failed to find PMU source: {:?}",
-                &qmd.pci_dev, pmu_src_res);
-        } else {
-            let pmu_src = pmu_src_res.unwrap();
-
+        if let Ok(pmu_src) = &pmu_src_res {
             let res = XeEnginesPmu::from(
-                &qmd.pci_dev, &dev_path, fd, &pmu_src);
+                &qmd.pci_dev, &dev_path, fd, pmu_src);
             info!("{}: engines PMU init: {}",
                 &qmd.pci_dev, if res.is_ok() { "OK" } else { "FAILED" });
-            if res.is_err() {
+            if let Err(err) = &res {
                 debug!("{}: ERR: failed to enable engines PMU: {:?}",
-                    &qmd.pci_dev, res);
-            } else {
-                engs_pmu = Some(res.unwrap());
+                    &qmd.pci_dev, err);
             }
+            engs_pmu = res.ok();
+        } else {
+            debug!("{}: ERR: failed to find PMU source: {:?}",
+                &qmd.pci_dev, pmu_src_res);
         }
 
         let xe_vfio = DrmDriverXeVfio {
@@ -797,7 +794,10 @@ impl DrmDriver for DrmDriverXe
             let fstr = fs::read_to_string(&fpath)?;
             let max_val: u64 = fstr.trim_end().parse()?;
 
-            let (cur_val, act_val) = if self.freqs_pmu.is_none() {
+            let (cur_val, act_val) = if let Some(fpmu) =
+                self.freqs_pmu.as_mut() {
+                fpmu.freqs(nr, freqs_data.as_ref().unwrap())?
+            } else {
                 let fpath = freqs_dir.join("cur_freq");
                 let fstr = fs::read_to_string(&fpath)?;
                 let c_val: u64 = fstr.trim_end().parse()?;
@@ -807,10 +807,6 @@ impl DrmDriver for DrmDriverXe
                 let a_val: u64 = fstr.trim_end().parse()?;
 
                 (c_val, a_val)
-            } else {
-                self.freqs_pmu
-                    .as_mut().unwrap()
-                    .freqs(nr, freqs_data.as_ref().unwrap())?
             };
 
             let fpath = throttle_dir.join("reason_pl1");
@@ -925,8 +921,8 @@ impl DrmDriver for DrmDriverXe
         }
 
         // is it a dGPU with reporting via hwmon?
-        if self.hwmon.is_some() {
-            DrmDeviceTemperature::from_hwmon(self.hwmon.as_ref().unwrap())
+        if let Some(hwmon) = &self.hwmon {
+            DrmDeviceTemperature::from_hwmon(hwmon)
         } else {
             Ok(Vec::new())
         }
@@ -934,11 +930,11 @@ impl DrmDriver for DrmDriverXe
 
     fn fans(&mut self) -> Result<Vec<DrmDeviceFan>>
     {
-        if self.hwmon.is_none() {
-            return Ok(Vec::new());
+        if let Some(hwmon) = &self.hwmon {
+            DrmDeviceFan::from_hwmon(hwmon)
+        } else {
+            Ok(Vec::new())
         }
-
-        DrmDeviceFan::from_hwmon(self.hwmon.as_ref().unwrap())
     }
 }
 
@@ -1017,23 +1013,21 @@ impl DrmDriverXe
                     &qmd.pci_dev, &dev_path, xe.dn_fd, &pmu_src);
                 info!("{}: engines PMU init: {}",
                     &qmd.pci_dev, if res.is_ok() { "OK" } else { "FAILED" });
-                if res.is_err() {
+                if let Err(err) = &res {
                     debug!("{}: ERR: failed to enable engines PMU: {:?}",
-                        &qmd.pci_dev, res);
-                } else {
-                    xe.engs_pmu = Some(res.unwrap());
+                        &qmd.pci_dev, err);
                 }
+                xe.engs_pmu = res.ok();
             }
             if drv_opts.has_freqs_pmu() {
                 let res = XeFreqsPmu::from(&xe.base_gts_dir, &pmu_src);
                 info!("{}: freqs PMU init: {}",
                     &qmd.pci_dev, if res.is_ok() { "OK" } else { "FAILED" });
-                if res.is_err() {
+                if let Err(err) = &res {
                     debug!("{}: ERR: failed to enable freqs PMU: {:?}",
-                        &qmd.pci_dev, res);
-                } else {
-                    xe.freqs_pmu = Some(res.unwrap());
+                        &qmd.pci_dev, err);
                 }
+                xe.freqs_pmu = res.ok();
             }
         }
 

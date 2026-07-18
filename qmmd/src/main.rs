@@ -109,10 +109,8 @@ fn main() -> Result<()>
     info!("Starting: v{}, {:?}", env!("CARGO_PKG_VERSION"), &args);
 
     // process devslots and driver options
-    let slots_str: &str;
     let mut slots_lst: Vec<&str> = Vec::new();
-    if args.dev_slots.is_some() {
-        slots_str = args.dev_slots.as_ref().unwrap();
+    if let Some(slots_str) = &args.dev_slots {
         slots_lst = slots_str.split(',').collect();
     }
 
@@ -125,8 +123,8 @@ fn main() -> Result<()>
         drv_opts.insert("amdgpu", vec!["engines=sysfs",]);
     }
 
-    if args.drv_options.is_some() {
-        for dopt in args.drv_options.as_ref().unwrap().iter() {
+    if let Some(drv_options) = &args.drv_options {
+        for dopt in drv_options.iter() {
             if let Some((drv, opts)) = dopt.split_once('=') {
                 drv_opts.entry(drv)
                     .and_modify(|vo| vo.push(opts))

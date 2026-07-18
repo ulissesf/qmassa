@@ -470,8 +470,8 @@ impl DrmDriver for DrmDriverAmdgpu
 
     fn temps(&mut self) -> Result<Vec<DrmDeviceTemperature>>
     {
-        if self.hwmon.is_some() {
-            DrmDeviceTemperature::from_hwmon(self.hwmon.as_ref().unwrap())
+        if let Some(hwmon) = &self.hwmon {
+            DrmDeviceTemperature::from_hwmon(hwmon)
         } else {
             Ok(Vec::new())
         }
@@ -479,8 +479,8 @@ impl DrmDriver for DrmDriverAmdgpu
 
     fn fans(&mut self) -> Result<Vec<DrmDeviceFan>>
     {
-        if self.hwmon.is_some() {
-            DrmDeviceFan::from_hwmon(self.hwmon.as_ref().unwrap())
+        if let Some(hwmon) = &self.hwmon {
+            DrmDeviceFan::from_hwmon(hwmon)
         } else {
             Ok(Vec::new())
         }

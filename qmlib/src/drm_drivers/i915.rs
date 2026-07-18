@@ -329,7 +329,10 @@ impl DrmDriver for DrmDriveri915
             let fstr = fs::read_to_string(&fpath)?;
             let max_val: u64 = fstr.trim_end().parse()?;
 
-            let (cur_val, act_val) = if self.freqs_pmu.is_none() {
+            let (cur_val, act_val) = if let Some(fpmu) =
+                self.freqs_pmu.as_mut() {
+                fpmu.freqs(nr, freqs_data.as_ref().unwrap())?
+            } else {
                 let fpath = freqs_dir.join("rps_cur_freq_mhz");
                 let fstr = fs::read_to_string(&fpath)?;
                 let c_val: u64 = fstr.trim_end().parse()?;
@@ -339,10 +342,6 @@ impl DrmDriver for DrmDriveri915
                 let a_val: u64 = fstr.trim_end().parse()?;
 
                 (c_val, a_val)
-            } else {
-                self.freqs_pmu
-                    .as_mut().unwrap()
-                    .freqs(nr, freqs_data.as_ref().unwrap())?
             };
 
             let fpath = freqs_dir.join("throttle_reason_pl1");
@@ -460,8 +459,8 @@ impl DrmDriver for DrmDriveri915
         }
 
         // is it a dGPU with reporting via hwmon?
-        if self.hwmon.is_some() {
-            DrmDeviceTemperature::from_hwmon(self.hwmon.as_ref().unwrap())
+        if let Some(hwmon) = &self.hwmon {
+            DrmDeviceTemperature::from_hwmon(hwmon)
         } else {
             Ok(Vec::new())
         }
@@ -469,11 +468,11 @@ impl DrmDriver for DrmDriveri915
 
     fn fans(&mut self) -> Result<Vec<DrmDeviceFan>>
     {
-        if self.hwmon.is_none() {
-            return Ok(Vec::new());
+        if let Some(hwmon) = &self.hwmon {
+            DrmDeviceFan::from_hwmon(hwmon)
+        } else {
+            Ok(Vec::new())
         }
-
-        DrmDeviceFan::from_hwmon(self.hwmon.as_ref().unwrap())
     }
 }
 
