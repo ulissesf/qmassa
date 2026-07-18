@@ -10,9 +10,7 @@ use std::thread;
 use std::time;
 
 use anyhow::{bail, Context, Result};
-use env_logger;
 use clap::{ArgAction, Args, Parser, Subcommand};
-use libc;
 use log::info;
 use serde::{Deserialize, Serialize};
 

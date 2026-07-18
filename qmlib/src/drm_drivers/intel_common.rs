@@ -1,7 +1,6 @@
 use core::fmt::Debug;
 
 use anyhow::Result;
-use libc;
 
 use crate::msr::{
     Msr, MSR_IA32_TEMPERATURE_TARGET, MSR_IA32_PACKAGE_THERM_STATUS

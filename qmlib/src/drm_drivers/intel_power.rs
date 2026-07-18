@@ -3,7 +3,6 @@ use std::time;
 use std::mem;
 
 use anyhow::{bail, Result};
-use libc;
 use log::debug;
 
 use crate::perf_event::{

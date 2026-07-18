@@ -6,7 +6,6 @@ use std::fs;
 
 use anyhow::Result;
 use log::{debug, warn};
-use libc;
 
 use crate::drm_fdinfo::DrmFdinfo;
 use crate::drm_devices::sysname_from_drm_minor;

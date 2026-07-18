@@ -11,7 +11,6 @@ use std::path::Path;
 
 use anyhow::{bail, Result};
 use log::debug;
-use libc;
 
 
 // based on rust-bindgen on Linux kernel v6.12+ uapi perf_event.h

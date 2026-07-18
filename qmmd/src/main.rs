@@ -8,7 +8,6 @@ use std::time;
 
 use anyhow::{bail, Context, Result};
 use clap::{ArgAction, Parser};
-use env_logger;
 use log::info;
 use metrics_exporter_prometheus::PrometheusBuilder;
 

@@ -5,10 +5,8 @@ use std::path::Path;
 use std::rc::{Rc, Weak};
 
 use anyhow::{bail, Result};
-use libc;
 use log::{debug, info, warn};
 use serde::{Deserialize, Serialize};
-use udev;
 
 use crate::hwmon::Hwmon;
 use crate::drm_clients::{DrmClients, DrmClientInfoMap, DrmClientInfoMapRef};

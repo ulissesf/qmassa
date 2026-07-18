@@ -9,7 +9,6 @@ use std::time;
 use anyhow::{bail, Result};
 use log::{error, info};
 use serde::{Deserialize, Serialize};
-use serde_json;
 
 use crate::CliArgs;
 use qmlib::drm_devices::{

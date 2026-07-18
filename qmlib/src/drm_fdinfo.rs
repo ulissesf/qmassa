@@ -5,7 +5,6 @@ use std::time;
 use std::fs;
 
 use anyhow::Result;
-use libc;
 use log::debug;
 
 use crate::drm_devices::DRM_DEVNODE_MAJOR;

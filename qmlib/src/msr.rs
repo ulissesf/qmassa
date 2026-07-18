@@ -6,7 +6,6 @@ use std::mem;
 use std::io;
 
 use anyhow::{bail, Result};
-use libc;
 use log::debug;
 
 
