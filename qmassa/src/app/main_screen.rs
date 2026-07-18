@@ -650,9 +650,9 @@ impl MainScreen
 
         let y_bounds = [miny as f64, maxy as f64];
         let y_labels = vec![
-            Span::raw(format!("{}", App::short_mem_string(miny))),
-            Span::raw(format!("{}", App::short_mem_string((miny + maxy) / 2))),
-            Span::raw(format!("{}", App::short_mem_string(maxy))),
+            Span::raw(App::short_mem_string(miny)),
+            Span::raw(App::short_mem_string((miny + maxy) / 2)),
+            Span::raw(App::short_mem_string(maxy)),
         ];
         let y_axis = Axis::default()
             .title("Mem Used")

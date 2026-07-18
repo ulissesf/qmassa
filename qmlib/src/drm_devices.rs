@@ -207,7 +207,7 @@ impl DrmDeviceTemperature
             }
 
             let name = if sensor.label.is_empty() {
-                format!("{}", &sensor.stype["temp".len()..])
+                sensor.stype["temp".len()..].to_string()
             } else {
                 sensor.label.clone()
             };
@@ -244,7 +244,7 @@ impl DrmDeviceFan
             }
 
             let name = if sensor.label.is_empty() {
-                format!("{}", &sensor.stype["fan".len()..])
+                sensor.stype["fan".len()..].to_string()
             } else {
                 sensor.label.clone()
             };
