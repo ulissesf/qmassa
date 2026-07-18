@@ -601,8 +601,8 @@ impl DrmDevices
 
                     let rev_str = pdev.attribute_value("revision")
                         .unwrap().to_str().unwrap();
-                    revision = if rev_str.starts_with("0x") {
-                        String::from(&rev_str[2..])
+                    revision = if let Some(rev) = rev_str.strip_prefix("0x") {
+                        String::from(rev)
                     } else {
                         String::from(rev_str)
                     };

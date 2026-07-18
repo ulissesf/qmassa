@@ -258,32 +258,23 @@ impl DrmFdinfo
                 info.pci_dev.push_str(v);
             } else if k.starts_with("drm-client-id") {
                 info.client_id = v.parse()?;
-            } else if k.starts_with("drm-engine-capacity-") {
-                let en = &k["drm-engine-capacity-".len()..];
+            } else if let Some(en) = k.strip_prefix("drm-engine-capacity-") {
                 info.update_engine(EngKvType::KvCapacity, en, v)?;
-            } else if k.starts_with("drm-engine-") {
-                let en = &k["drm-engine-".len()..];
+            } else if let Some(en) = k.strip_prefix("drm-engine-") {
                 info.update_engine(EngKvType::KvTime, en, v)?;
-            } else if k.starts_with("drm-cycles-") {
-                let en = &k["drm-cycles-".len()..];
+            } else if let Some(en) = k.strip_prefix("drm-cycles-") {
                 info.update_engine(EngKvType::KvCycles, en, v)?;
-            } else if k.starts_with("drm-total-cycles-") {
-                let en = &k["drm-total-cycles-".len()..];
+            } else if let Some(en) = k.strip_prefix("drm-total-cycles-") {
                 info.update_engine(EngKvType::KvTotCycles, en, v)?;
-            } else if k.starts_with("drm-total-") {
-                let mrn = &k["drm-total-".len()..];
+            } else if let Some(mrn) = k.strip_prefix("drm-total-") {
                 info.update_mem_region(MemRegKvType::KvTotal, mrn, v)?;
-            } else if k.starts_with("drm-shared-") {
-                let mrn = &k["drm-shared-".len()..];
+            } else if let Some(mrn) = k.strip_prefix("drm-shared-") {
                 info.update_mem_region(MemRegKvType::KvShared, mrn, v)?;
-            } else if k.starts_with("drm-resident-") {
-                let mrn = &k["drm-resident-".len()..];
+            } else if let Some(mrn) = k.strip_prefix("drm-resident-") {
                 info.update_mem_region(MemRegKvType::KvResident, mrn, v)?;
-            } else if k.starts_with("drm-purgeable-") {
-                let mrn = &k["drm-purgeable-".len()..];
+            } else if let Some(mrn) = k.strip_prefix("drm-purgeable-") {
                 info.update_mem_region(MemRegKvType::KvPurgeable, mrn, v)?;
-            } else if k.starts_with("drm-active-") {
-                let mrn = &k["drm-active-".len()..];
+            } else if let Some(mrn) = k.strip_prefix("drm-active-") {
                 info.update_mem_region(MemRegKvType::KvActive, mrn, v)?;
             }
         }

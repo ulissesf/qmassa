@@ -69,8 +69,8 @@ impl IntelDriverOpts
             let mut want_opts = IntelDriverOpts { opts: 0, };
 
             for opt in sep_opts.iter() {
-                if opt.starts_with("devslot=") {
-                    devslot = &opt["devslot=".len()..];
+                if let Some(ds) = opt.strip_prefix("devslot=") {
+                    devslot = ds;
                 } else {
                     want_opts.set_bit_for(opt);
                 }
