@@ -33,6 +33,14 @@ impl DrmEnginesAcum
     }
 }
 
+impl Default for DrmEnginesAcum
+{
+    fn default() -> DrmEnginesAcum
+    {
+        DrmEnginesAcum::new()
+    }
+}
+
 #[derive(Debug)]
 pub struct DrmEngineDelta
 {
@@ -50,6 +58,14 @@ impl DrmEngineDelta
             delta_cycles: 0,
             delta_total_cycles: 0,
         }
+    }
+}
+
+impl Default for DrmEngineDelta
+{
+    fn default() -> DrmEngineDelta
+    {
+        DrmEngineDelta::new()
     }
 }
 
@@ -80,6 +96,14 @@ impl DrmClientMemInfo
             vram_used: 0,
             vram_rss: 0,
         }
+    }
+}
+
+impl Default for DrmClientMemInfo
+{
+    fn default() -> DrmClientMemInfo
+    {
+        DrmClientMemInfo::new()
     }
 }
 

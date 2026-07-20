@@ -110,6 +110,14 @@ impl DrmDeviceThrottleReasons
     }
 }
 
+impl Default for DrmDeviceThrottleReasons
+{
+    fn default() -> DrmDeviceThrottleReasons
+    {
+        DrmDeviceThrottleReasons::new()
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DrmDeviceFreqLimits
 {
@@ -129,6 +137,14 @@ impl DrmDeviceFreqLimits
             efficient: 0,
             maximum: 0,
         }
+    }
+}
+
+impl Default for DrmDeviceFreqLimits
+{
+    fn default() -> DrmDeviceFreqLimits
+    {
+        DrmDeviceFreqLimits::new()
     }
 }
 
@@ -153,6 +169,14 @@ impl DrmDeviceFreqs
             max_freq: 0,
             throttle_reasons: DrmDeviceThrottleReasons::new(),
         }
+    }
+}
+
+impl Default for DrmDeviceFreqs
+{
+    fn default() -> DrmDeviceFreqs
+    {
+        DrmDeviceFreqs::new()
     }
 }
 
@@ -182,6 +206,14 @@ impl DrmDeviceMemInfo
             vram_total: 0,
             vram_used: 0,
         }
+    }
+}
+
+impl Default for DrmDeviceMemInfo
+{
+    fn default() -> DrmDeviceMemInfo
+    {
+        DrmDeviceMemInfo::new()
     }
 }
 
