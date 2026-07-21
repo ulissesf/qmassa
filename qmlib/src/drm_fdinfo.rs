@@ -22,10 +22,10 @@ pub struct DrmEngine
 
 enum EngKvType
 {
-    KvTime,
-    KvCapacity,
-    KvCycles,
-    KvTotCycles,
+    Time,
+    Capacity,
+    Cycles,
+    TotCycles,
 }
 
 impl Default for DrmEngine
@@ -75,11 +75,11 @@ pub struct DrmMemRegion
 
 enum MemRegKvType
 {
-    KvTotal,
-    KvShared,
-    KvResident,
-    KvPurgeable,
-    KvActive,
+    Total,
+    Shared,
+    Resident,
+    Purgeable,
+    Active,
 }
 
 impl DrmMemRegion
@@ -149,17 +149,17 @@ impl DrmFdinfo
         let eng = self.engines.get_mut(eng_name).unwrap();
 
         match kv_type {
-            EngKvType::KvCapacity => {
+            EngKvType::Capacity => {
                 eng.capacity = val.parse()?;
             },
-            EngKvType::KvTime => {
+            EngKvType::Time => {
                 let dt: Vec<&str> = val.split_whitespace().collect();
                 eng.time = dt[0].parse()?;  // ignore dt[1] == "ns"
             },
-            EngKvType::KvCycles => {
+            EngKvType::Cycles => {
                 eng.cycles = val.parse()?;
             },
-            EngKvType::KvTotCycles => {
+            EngKvType::TotCycles => {
                 eng.total_cycles = val.parse()?;
             },
         }
@@ -192,19 +192,19 @@ impl DrmFdinfo
         }
 
         match kv_type {
-            MemRegKvType::KvTotal => {
+            MemRegKvType::Total => {
                mrg.total = nr * mul;
             },
-            MemRegKvType::KvShared => {
+            MemRegKvType::Shared => {
                mrg.shared = nr * mul;
             },
-            MemRegKvType::KvResident => {
+            MemRegKvType::Resident => {
                mrg.resident = nr * mul;
             },
-            MemRegKvType::KvPurgeable => {
+            MemRegKvType::Purgeable => {
                mrg.purgeable = nr * mul;
             },
-            MemRegKvType::KvActive => {
+            MemRegKvType::Active => {
                mrg.active = nr * mul;
             },
         }
@@ -244,23 +244,23 @@ impl DrmFdinfo
             } else if k.starts_with("drm-client-id") {
                 info.client_id = v.parse()?;
             } else if let Some(en) = k.strip_prefix("drm-engine-capacity-") {
-                info.update_engine(EngKvType::KvCapacity, en, v)?;
+                info.update_engine(EngKvType::Capacity, en, v)?;
             } else if let Some(en) = k.strip_prefix("drm-engine-") {
-                info.update_engine(EngKvType::KvTime, en, v)?;
+                info.update_engine(EngKvType::Time, en, v)?;
             } else if let Some(en) = k.strip_prefix("drm-cycles-") {
-                info.update_engine(EngKvType::KvCycles, en, v)?;
+                info.update_engine(EngKvType::Cycles, en, v)?;
             } else if let Some(en) = k.strip_prefix("drm-total-cycles-") {
-                info.update_engine(EngKvType::KvTotCycles, en, v)?;
+                info.update_engine(EngKvType::TotCycles, en, v)?;
             } else if let Some(mrn) = k.strip_prefix("drm-total-") {
-                info.update_mem_region(MemRegKvType::KvTotal, mrn, v)?;
+                info.update_mem_region(MemRegKvType::Total, mrn, v)?;
             } else if let Some(mrn) = k.strip_prefix("drm-shared-") {
-                info.update_mem_region(MemRegKvType::KvShared, mrn, v)?;
+                info.update_mem_region(MemRegKvType::Shared, mrn, v)?;
             } else if let Some(mrn) = k.strip_prefix("drm-resident-") {
-                info.update_mem_region(MemRegKvType::KvResident, mrn, v)?;
+                info.update_mem_region(MemRegKvType::Resident, mrn, v)?;
             } else if let Some(mrn) = k.strip_prefix("drm-purgeable-") {
-                info.update_mem_region(MemRegKvType::KvPurgeable, mrn, v)?;
+                info.update_mem_region(MemRegKvType::Purgeable, mrn, v)?;
             } else if let Some(mrn) = k.strip_prefix("drm-active-") {
-                info.update_mem_region(MemRegKvType::KvActive, mrn, v)?;
+                info.update_mem_region(MemRegKvType::Active, mrn, v)?;
             }
         }
 
