@@ -428,7 +428,7 @@ impl DrmDeviceInfo
                 for (en, tot) in self.engs_utilization.iter_mut() {
                     if *tot > 100.0 {
                         warn!("{}: engine {:?} utilization at {:?}, clamped to 100%.",
-                            &self.pci_dev, en, tot);
+                            self.pci_dev, en, tot);
                         *tot = 100.0;
                     }
                 }
@@ -666,12 +666,12 @@ impl DrmDevices
         for (dname, dinfo) in vfio_devs.into_iter() {
             if qmds.infos.contains_key(&dname) {
                 warn!("Found {:?} on both DRM and VFIO, ignoring VFIO.",
-                    &dname);
+                    dname);
                 continue;
             }
             if !dinfo.is_drm_vfio() {
                 debug!("INF: VFIO device {:?} not for DRM physfn, ignoring.",
-                    &dname);
+                    dname);
                 continue;
             }
             qmds.infos.insert(dname, dinfo);
@@ -692,9 +692,9 @@ impl DrmDevices
                 "New device: pci_dev={}, vendor_id={}, vendor={:?}, \
                 device_id={}, device={:?}, revision={}, drv_name={}, \
                 dev_type={:?}, dev_nodes={:?}",
-                &dinf.pci_dev, &dinf.vendor_id, &dinf.vendor,
-                &dinf.device_id, &dinf.device, &dinf.revision,
-                &dinf.drv_name, &dinf.dev_type, &dinf.dev_nodes
+                dinf.pci_dev, dinf.vendor_id, dinf.vendor,
+                dinf.device_id, dinf.device, dinf.revision,
+                dinf.drv_name, dinf.dev_type, dinf.dev_nodes
             );
         }
 

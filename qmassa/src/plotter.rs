@@ -240,56 +240,56 @@ impl Plotter
 
             if plot_meminfo {
                 let out_file = format!("{}-{}-meminfo.svg",
-                    &self.out_prefix, &di.pci_dev);
+                    self.out_prefix, di.pci_dev);
                 let mi = di.dev_stats.mem_info.back().unwrap();
                 let y_max = max(mi.smem_total, mi.vram_total) as f64 /
                     (1024.0 * 1024.0);
                 self.plot_chart(
-                    &out_file, &format!("{} - Memory Info", &di.pci_dev),
+                    &out_file, &format!("{} - Memory Info", di.pci_dev),
                     "Time (s)", "Memory used (MiB)",
                     x_max, y_max, &meminfo)?;
             }
             if plot_engines {
                 let out_file = format!("{}-{}-engines.svg",
-                    &self.out_prefix, &di.pci_dev);
+                    self.out_prefix, di.pci_dev);
                 self.plot_chart(
-                    &out_file, &format!("{} - Engines Usage", &di.pci_dev),
+                    &out_file, &format!("{} - Engines Usage", di.pci_dev),
                     "Time (s)", "Usage (%)",
                     x_max, 100.0, &engines)?;
             }
             if plot_freqs {
                 for (nr, fl) in di.freq_limits.iter().enumerate() {
                     let out_file = format!("{}-{}-freqs-{}.svg",
-                        &self.out_prefix, &di.pci_dev, &fl.name);
+                        self.out_prefix, di.pci_dev, fl.name);
                     self.plot_chart(
                         &out_file,
                         &format!("{} - {} Frequencies",
-                            &di.pci_dev, &fl.name.to_uppercase()),
+                            di.pci_dev, fl.name.to_uppercase()),
                         "Time (s)", "Frequency (MHz)",
                         x_max, fl.maximum as f64, &freqs[nr])?;
                 }
             }
             if plot_power {
                 let out_file = format!("{}-{}-power.svg",
-                    &self.out_prefix, &di.pci_dev);
+                    self.out_prefix, di.pci_dev);
                 self.plot_chart(
-                    &out_file, &format!("{} - Power Usage", &di.pci_dev),
+                    &out_file, &format!("{} - Power Usage", di.pci_dev),
                     "Time (s)", "Power (W)",
                     x_max, max_power, &power)?;
             }
             if plot_temps {
                 let out_file = format!("{}-{}-temps.svg",
-                    &self.out_prefix, &di.pci_dev);
+                    self.out_prefix, di.pci_dev);
                 self.plot_chart(
-                    &out_file, &format!("{} - Temperatures", &di.pci_dev),
+                    &out_file, &format!("{} - Temperatures", di.pci_dev),
                     "Time (s)", "Temperature (C)",
                     x_max, max_temp, &temps)?;
             }
             if plot_fans {
                 let out_file = format!("{}-{}-fans.svg",
-                    &self.out_prefix, &di.pci_dev);
+                    self.out_prefix, di.pci_dev);
                 self.plot_chart(
-                    &out_file, &format!("{} - Fans", &di.pci_dev),
+                    &out_file, &format!("{} - Fans", di.pci_dev),
                     "Time (s)", "Speed (RPM)",
                     x_max, max_fan, &fans)?;
             }

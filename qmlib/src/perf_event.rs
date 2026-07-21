@@ -1011,13 +1011,13 @@ impl PerfEvent
 
         let values = param_str.strip_prefix("config:");
         if values.is_none() {
-            bail!("Invalid param {:?} in file {:?}", param_str, &ffn);
+            bail!("Invalid param {:?} in file {:?}", param_str, ffn);
         }
         let values = values.unwrap();
 
         let vals_tup = values.split_once('-');
         if vals_tup.is_none() {
-            bail!("Invalid param {:?} in file {:?}", param_str, &ffn);
+            bail!("Invalid param {:?} in file {:?}", param_str, ffn);
         }
 
         let (shift_str, _) = vals_tup.unwrap();

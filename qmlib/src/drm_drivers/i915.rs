@@ -527,12 +527,12 @@ impl DrmDriveri915
         let mut idx = 0;
 
         for eng in engs_info.iter() {
-            let evt_name = format!("{}-busy", &eng.name);
+            let evt_name = format!("{}-busy", eng.name);
 
             let evt_unit = pf_evt.event_unit(&evt_name)?;
             if evt_unit != "ns" {
                 bail!("Event {:?} with unexpected unit {:?} vs \"ns\"",
-                    &evt_name, &evt_unit);
+                    evt_name, evt_unit);
             }
 
             pf_attr.config = pf_evt
@@ -638,7 +638,7 @@ impl DrmDriveri915
         let src = src.replace(":", "_");
 
         if !PerfEvent::has_source(&src) {
-            bail!("No PMU source {:?}", &src);
+            bail!("No PMU source {:?}", src);
         }
 
         Ok(src)
@@ -764,18 +764,18 @@ impl DrmDriveri915
             i915.power = IGpuPowerIntel::from(drv_opts.has_power_msr())?;
             if let Some(po) = &i915.power {
                 info!("{}: rapl power reporting from: {}",
-                    &qmd.pci_dev, po.name());
+                    qmd.pci_dev, po.name());
             } else {
-                info!("{}: no rapl power reporting", &qmd.pci_dev);
+                info!("{}: no rapl power reporting", qmd.pci_dev);
             }
             if Msr::is_capable() {
                 match IGpuTempIntel::new() {
                     Ok(igpu_temp) => {
-                        info!("{}: package temp via MSR", &qmd.pci_dev);
+                        info!("{}: package temp via MSR", qmd.pci_dev);
                         i915.igpu_temp = Some(igpu_temp);
                     },
                     Err(e) => debug!("{}: ERR: MSR for temp failed: {:?}",
-                        &qmd.pci_dev, e),
+                        qmd.pci_dev, e),
                 }
             }
         } else if i915.dev_type.is_discrete() {
@@ -786,9 +786,9 @@ impl DrmDriveri915
                 i915.hwmon = hwmon;
             } else {
                 debug!("{}: ERR: no Hwmon support on dGPU: {:?}",
-                    &qmd.pci_dev, hwmon_res);
+                    qmd.pci_dev, hwmon_res);
             }
-            info!("{}: Hwmon power reporting: {}", &qmd.pci_dev,
+            info!("{}: Hwmon power reporting: {}", qmd.pci_dev,
                 if i915.power.is_some() { "OK" } else { "FAILED" });
         }
 
@@ -796,7 +796,7 @@ impl DrmDriveri915
             DrmDriveri915::pmu_evt_source(&qmd.pci_dev, &i915.dev_type);
         if pmu_src_res.is_err() {
             debug!("{}: ERR: failed to find PMU source: {:?}",
-                &qmd.pci_dev, pmu_src_res);
+                qmd.pci_dev, pmu_src_res);
         }
         let pmu_src = pmu_src_res.unwrap_or(String::new());
 
@@ -804,19 +804,19 @@ impl DrmDriveri915
             if drv_opts.has_engs_pmu() {
                 let res = i915.init_engines_pmu(&pmu_src, &cpath);
                 info!("{}: engines PMU init: {}",
-                    &qmd.pci_dev, if res.is_ok() { "OK" } else { "FAILED" });
+                    qmd.pci_dev, if res.is_ok() { "OK" } else { "FAILED" });
                 if res.is_err() {
                     debug!("{}: ERR: failed to enable engines PMU: {:?}",
-                        &qmd.pci_dev, res);
+                        qmd.pci_dev, res);
                 }
             }
             if drv_opts.has_freqs_pmu() {
                 let res = i915.init_freqs_pmu(&pmu_src);
                 info!("{}: freqs PMU init: {}",
-                    &qmd.pci_dev, if res.is_ok() { "OK" } else { "FAILED" });
+                    qmd.pci_dev, if res.is_ok() { "OK" } else { "FAILED" });
                 if res.is_err() {
                     debug!("{}: ERR: failed to enable freqs PMU: {:?}",
-                        &qmd.pci_dev, res);
+                        qmd.pci_dev, res);
                 }
             }
         }

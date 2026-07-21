@@ -218,7 +218,7 @@ impl StatsCtrl
                 let labels = vec![
                     ("device", di.pci_dev.clone()),
                     ("pci_id",
-                        format!("{}:{}", &di.vendor_id, &di.device_id)),
+                        format!("{}:{}", di.vendor_id, di.device_id)),
                     ("vendor_name", di.vendor.clone()),
                     ("device_name", di.device.clone()),
                     ("revision", di.revision.clone()),

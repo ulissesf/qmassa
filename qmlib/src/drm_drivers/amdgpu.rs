@@ -582,7 +582,7 @@ impl DrmDriverAmdgpu
                 amdgpu.hwmon = hwmon;
             } else {
                 debug!("{}: ERR: no Hwmon support on dGPU: {:?}",
-                    &qmd.pci_dev, hwmon_res);
+                    qmd.pci_dev, hwmon_res);
             }
         }
 

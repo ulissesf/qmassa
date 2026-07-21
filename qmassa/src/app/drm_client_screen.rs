@@ -262,7 +262,7 @@ impl DrmClientScreen
         let label_line = Line::from(label)
             .alignment(Alignment::Left)
             .style(Style::new().magenta().bold());
-        let cmd_line = Line::from(format!("[{}] {}", &cli.comm, &cli.cmdline))
+        let cmd_line = Line::from(format!("[{}] {}", cli.comm, cli.cmdline))
             .alignment(Alignment::Left)
             .style(Style::new().white());
 

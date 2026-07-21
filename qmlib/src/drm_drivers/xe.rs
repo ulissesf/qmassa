@@ -155,7 +155,7 @@ fn xe_pmu_source_from(pci_dev: &str, dev_path: &Path) -> Result<String>
     let src = src.replace(":", "_");
 
     if !PerfEvent::has_source(&src) {
-        bail!("No PMU source {:?}", &src);
+        bail!("No PMU source {:?}", src);
     }
 
     Ok(src)
@@ -615,7 +615,7 @@ impl DrmDriverXeVfio
         let cname_res = DrmDriverXeVfio::find_card_dir(
             &dev_path.join("physfn").join("drm"));
         if cname_res.is_none() {
-            bail!("{}: no DRM card for VFIO physfn, aborting.", &qmd.pci_dev);
+            bail!("{}: no DRM card for VFIO physfn, aborting.", qmd.pci_dev);
         }
         let cname = cname_res.unwrap();
 
@@ -630,15 +630,15 @@ impl DrmDriverXeVfio
             let res = XeEnginesPmu::from(
                 &qmd.pci_dev, &dev_path, fd, pmu_src);
             info!("{}: engines PMU init: {}",
-                &qmd.pci_dev, if res.is_ok() { "OK" } else { "FAILED" });
+                qmd.pci_dev, if res.is_ok() { "OK" } else { "FAILED" });
             if let Err(err) = &res {
                 debug!("{}: ERR: failed to enable engines PMU: {:?}",
-                    &qmd.pci_dev, err);
+                    qmd.pci_dev, err);
             }
             engs_pmu = res.ok();
         } else {
             debug!("{}: ERR: failed to find PMU source: {:?}",
-                &qmd.pci_dev, pmu_src_res);
+                qmd.pci_dev, pmu_src_res);
         }
 
         let xe_vfio = DrmDriverXeVfio {
@@ -974,18 +974,18 @@ impl DrmDriverXe
             xe.power = IGpuPowerIntel::from(drv_opts.has_power_msr())?;
             if let Some(po) = &xe.power {
                 info!("{}: rapl power reporting from: {}",
-                    &qmd.pci_dev, po.name());
+                    qmd.pci_dev, po.name());
             } else {
-                info!("{}: no rapl power reporting", &qmd.pci_dev);
+                info!("{}: no rapl power reporting", qmd.pci_dev);
             }
             if Msr::is_capable() {
                 match IGpuTempIntel::new() {
                     Ok(igpu_temp) => {
-                        info!("{}: package temp via MSR", &qmd.pci_dev);
+                        info!("{}: package temp via MSR", qmd.pci_dev);
                         xe.igpu_temp = Some(igpu_temp);
                     },
                     Err(e) => debug!("{}: ERR: MSR for temp failed: {:?}",
-                        &qmd.pci_dev, e),
+                        qmd.pci_dev, e),
                 }
             }
         } else if xe.dev_type.is_discrete() {
@@ -995,16 +995,16 @@ impl DrmDriverXe
                 xe.hwmon = hwmon;
             } else {
                 debug!("{}: ERR: no Hwmon support on dGPU: {:?}",
-                    &qmd.pci_dev, hwmon_res);
+                    qmd.pci_dev, hwmon_res);
             }
-            info!("{}: Hwmon power reporting: {}", &qmd.pci_dev,
+            info!("{}: Hwmon power reporting: {}", qmd.pci_dev,
                 if xe.power.is_some() { "OK" } else { "FAILED" });
         }
 
         let pmu_src_res = xe_pmu_source_from(&qmd.pci_dev, &dev_path);
         if pmu_src_res.is_err() {
             debug!("{}: ERR: failed to find PMU source: {:?}",
-                &qmd.pci_dev, pmu_src_res);
+                qmd.pci_dev, pmu_src_res);
         }
         let pmu_src = pmu_src_res.unwrap_or(String::new());
 
@@ -1013,20 +1013,20 @@ impl DrmDriverXe
                 let res = XeEnginesPmu::from(
                     &qmd.pci_dev, &dev_path, xe.dn_fd, &pmu_src);
                 info!("{}: engines PMU init: {}",
-                    &qmd.pci_dev, if res.is_ok() { "OK" } else { "FAILED" });
+                    qmd.pci_dev, if res.is_ok() { "OK" } else { "FAILED" });
                 if let Err(err) = &res {
                     debug!("{}: ERR: failed to enable engines PMU: {:?}",
-                        &qmd.pci_dev, err);
+                        qmd.pci_dev, err);
                 }
                 xe.engs_pmu = res.ok();
             }
             if drv_opts.has_freqs_pmu() {
                 let res = XeFreqsPmu::from(&xe.base_gts_dir, &pmu_src);
                 info!("{}: freqs PMU init: {}",
-                    &qmd.pci_dev, if res.is_ok() { "OK" } else { "FAILED" });
+                    qmd.pci_dev, if res.is_ok() { "OK" } else { "FAILED" });
                 if let Err(err) = &res {
                     debug!("{}: ERR: failed to enable freqs PMU: {:?}",
-                        &qmd.pci_dev, err);
+                        qmd.pci_dev, err);
                 }
                 xe.freqs_pmu = res.ok();
             }

@@ -423,7 +423,7 @@ impl MainScreen
 
     fn client_cmd(&self, cli: &AppDataClientStats) -> Line<'_>
     {
-        Line::from(format!("[{}] {}", &cli.comm, &cli.cmdline))
+        Line::from(format!("[{}] {}", cli.comm, cli.cmdline))
             .alignment(Alignment::Left)
             .style(Style::new().white())
     }
@@ -880,7 +880,7 @@ impl MainScreen
         for (color_idx, (tmp, td)) in
             last_tmps.iter().zip(tmp_vals.iter()).enumerate() {
             datasets.push(Dataset::default()
-                .name(format!("TP-{}", &tmp.name.to_uppercase()))
+                .name(format!("TP-{}", tmp.name.to_uppercase()))
                 .marker(symbols::Marker::Braille)
                 .style(Color::Indexed(color_idx as u8 + 1))
                 .graph_type(GraphType::Line)
@@ -931,7 +931,7 @@ impl MainScreen
         for (color_idx, (fan, fd)) in
             last_fans.iter().zip(fan_vals.iter()).enumerate() {
             datasets.push(Dataset::default()
-                .name(format!("FAN-{}", &fan.name.to_uppercase()))
+                .name(format!("FAN-{}", fan.name.to_uppercase()))
                 .marker(symbols::Marker::Braille)
                 .style(Color::Indexed(color_idx as u8 + 1))
                 .graph_type(GraphType::Line)
@@ -1175,7 +1175,7 @@ impl MainScreen
                 let label = if fql.name.is_empty() {
                     format!("FRQ-{}", fq_nr)
                 } else {
-                    format!("FRQ-{}", &fql.name.to_uppercase())
+                    format!("FRQ-{}", fql.name.to_uppercase())
                 };
                 hdrs_lst.push(Line::from(label)
                     .alignment(Alignment::Center)
@@ -1220,7 +1220,7 @@ impl MainScreen
                     break;
                 }
                 // headers
-                let label = format!("TP-{}", &tmp.name.to_uppercase());
+                let label = format!("TP-{}", tmp.name.to_uppercase());
                 let tp_len = label.len();
                 hdrs_lst_ref.push(Line::from(label)
                     .alignment(if tp_len > tp_width {
@@ -1368,7 +1368,7 @@ impl MainScreen
             title_str = dinfo.pci_dev.clone();
         }
         if !dinfo.revision.is_empty() {
-            title_str = format!("{} (rev {})", &title_str, &dinfo.revision);
+            title_str = format!("{} (rev {})", title_str, dinfo.revision);
         }
         let dev_title_len = title_str.len() + 2;
         let dev_title = Line::from(vec![
@@ -1397,7 +1397,7 @@ impl MainScreen
         if let Some(base_pid) = pid_opt {
             if !base_pid.is_empty() {
                 clis_title_str.push_str(
-                    &format!("(PID tree at {}) ", &base_pid));
+                    &format!("(PID tree at {}) ", base_pid));
             }
         }
         let clis_title = Line::from(clis_title_str)

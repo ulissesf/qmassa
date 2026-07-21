@@ -648,7 +648,7 @@ impl AppDataJson
         let args: CliArgs = serde_json::from_str(&buf)?;
 
         info!("Opened JSON {:?}: version {}, arguments {:?}",
-            json_fname, &version, &args);
+            json_fname, version, args);
 
         Ok(AppDataJson {
             args,

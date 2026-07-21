@@ -278,7 +278,7 @@ fn main() -> Result<()>
         logger.init();
     }
 
-    info!("Starting: v{}, {:?}", env!("CARGO_PKG_VERSION"), &args);
+    info!("Starting: v{}, {:?}", env!("CARGO_PKG_VERSION"), args);
 
     if let Some(cmd) = args.command {
         match cmd {

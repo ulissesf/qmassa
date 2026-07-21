@@ -179,7 +179,7 @@ impl ProcInfo
                 }
                 finfo.pci_dev = sysname.unwrap();
                 debug!("INF: found sysname {:?} for DRM fdinfo {:?}.",
-                    &finfo.pci_dev, fipath);
+                    finfo.pci_dev, fipath);
             }
 
             res.push(finfo);
