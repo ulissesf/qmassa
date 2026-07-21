@@ -68,8 +68,8 @@ impl AppDataDeviceStats
             if !self.eng_usage.contains_key(en) {
                 self.eng_usage.insert(en.clone(), VecDeque::new());
             }
-            let mut est = self.eng_usage.get_mut(en).unwrap();
-            limited_vec_push(&mut est, dinfo.eng_utilization(en));
+            let est = self.eng_usage.get_mut(en).unwrap();
+            limited_vec_push(est, dinfo.eng_utilization(en));
         }
     }
 
@@ -220,8 +220,8 @@ impl AppDataClientStats
             if !self.eng_usage.contains_key(en) {
                 self.eng_usage.insert(en.clone(), VecDeque::new());
             }
-            let mut est = self.eng_usage.get_mut(en).unwrap();
-            limited_vec_push(&mut est, cinfo.eng_utilization(en));
+            let est = self.eng_usage.get_mut(en).unwrap();
+            limited_vec_push(est, cinfo.eng_utilization(en));
         }
         limited_vec_push(&mut self.mem_info, cinfo.mem_info());
 
@@ -750,7 +750,7 @@ impl AppData for AppDataLive
             }
 
             let mut ndst: AppDataDeviceState;
-            if let Some(dst) = self.state.remove_device(&d) {
+            if let Some(dst) = self.state.remove_device(d) {
                 ndst = dst;
             } else {
                 ndst = AppDataDeviceState::from(dinfo);
