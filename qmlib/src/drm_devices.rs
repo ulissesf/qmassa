@@ -34,18 +34,12 @@ impl DrmDeviceType
 {
     pub fn is_discrete(&self) -> bool
     {
-        match self {
-            DrmDeviceType::Discrete(_) => true,
-            _ => false
-        }
+        matches!(self, DrmDeviceType::Discrete(_))
     }
 
     pub fn is_integrated(&self) -> bool
     {
-        match self {
-            DrmDeviceType::Integrated(_) => true,
-            _ => false
-        }
+        matches!(self, DrmDeviceType::Integrated(_))
     }
 
     pub fn to_string(&self) -> String
