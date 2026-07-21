@@ -1054,7 +1054,7 @@ impl PerfEvent
         let sfn = Path::new(QM_PERF_SRC_DIR)
             .join(&self.src)
             .join("events")
-            .join(&format!("{}.scale", evt));
+            .join(format!("{}.scale", evt));
 
         let scale: f64 = fs::read_to_string(&sfn)?.trim().parse()?;
 
@@ -1066,7 +1066,7 @@ impl PerfEvent
         let ufn = Path::new(QM_PERF_SRC_DIR)
             .join(&self.src)
             .join("events")
-            .join(&format!("{}.unit", evt));
+            .join(format!("{}.unit", evt));
 
         let unit = fs::read_to_string(&ufn)?.trim().to_string();
 
