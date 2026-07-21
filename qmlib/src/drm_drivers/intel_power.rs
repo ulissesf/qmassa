@@ -38,10 +38,12 @@ struct SensorSet
     pkg_item: String,
 }
 
+type PwrFunc = fn(&mut DGpuPowerIntel, hwmon: &Hwmon) -> Result<DrmDevicePower>;
+
 #[derive(Debug)]
 pub struct DGpuPowerIntel
 {
-    pwr_func: fn(&mut DGpuPowerIntel, hwmon: &Hwmon) -> Result<DrmDevicePower>,
+    pwr_func: PwrFunc,
     pwr_sensors: SensorSet,
     last_gpu_val: u64,
     last_pkg_val: u64,
@@ -125,10 +127,7 @@ impl DGpuPowerIntel
 
     fn find_power_method(
         hwmon: &Hwmon
-    ) -> Option<(
-        fn(&mut DGpuPowerIntel, hwmon: &Hwmon) -> Result<DrmDevicePower>,
-        SensorSet
-    )>
+    ) -> Option<(PwrFunc, SensorSet)>
     {
         let mut gpu_sensor = "";
         let mut pkg_sensor = "";

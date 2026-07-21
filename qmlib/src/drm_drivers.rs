@@ -92,7 +92,10 @@ impl Debug for dyn DrmDriver
     }
 }
 
-const ALL_DRIVERS: &[(&str, fn(&DrmDeviceInfo, Option<&Vec<&str>>) -> Result<Rc<RefCell<dyn DrmDriver>>>)] = &[
+type DrvNewFunc =
+    fn(&DrmDeviceInfo, Option<&Vec<&str>>) -> Result<Rc<RefCell<dyn DrmDriver>>>;
+
+const ALL_DRIVERS: &[(&str, DrvNewFunc)] = &[
     ("xe", DrmDriverXe::from),
     ("i915", DrmDriveri915::from),
     ("amdgpu", DrmDriverAmdgpu::from),
