@@ -336,7 +336,7 @@ impl IGpuPowerIntel
         Ok((msr, scale, scale))
     }
 
-    pub fn new(mut use_msr: bool) -> Result<Option<Box<dyn GpuPowerIntel>>>
+    pub fn from(mut use_msr: bool) -> Result<Option<Box<dyn GpuPowerIntel>>>
     {
         let mut pf_evt: Option<PerfEvent> = None;
         let mut msr: Option<Msr> = None;

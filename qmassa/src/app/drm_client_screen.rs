@@ -621,7 +621,7 @@ impl DrmClientScreen
         }
     }
 
-    pub fn new(model: Rc<RefCell<dyn AppData>>,
+    pub fn from(model: Rc<RefCell<dyn AppData>>,
         sel: DrmClientSelected) -> Box<dyn Screen>
     {
         Box::new(DrmClientScreen {

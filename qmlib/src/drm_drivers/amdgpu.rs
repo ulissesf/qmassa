@@ -529,7 +529,7 @@ impl DrmDriverAmdgpu
         Ok(qmdt)
     }
 
-    pub fn new(qmd: &DrmDeviceInfo,
+    pub fn from(qmd: &DrmDeviceInfo,
         opts: Option<&Vec<&str>>) -> Result<Rc<RefCell<dyn DrmDriver>>>
     {
         let mut dn: &str = "";

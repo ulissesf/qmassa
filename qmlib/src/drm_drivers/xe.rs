@@ -603,7 +603,7 @@ impl DrmDriverXeVfio
         None
     }
 
-    pub fn new(qmd: &DrmDeviceInfo,
+    pub fn from(qmd: &DrmDeviceInfo,
         _opts: Option<&Vec<&str>>) -> Result<Rc<RefCell<dyn DrmDriver>>>
     {
         let mut vpath = String::from("/sys/class/vfio-dev/");
@@ -941,7 +941,7 @@ impl DrmDriver for DrmDriverXe
 
 impl DrmDriverXe
 {
-    pub fn new(qmd: &DrmDeviceInfo,
+    pub fn from(qmd: &DrmDeviceInfo,
         opts_vec: Option<&Vec<&str>>) -> Result<Rc<RefCell<dyn DrmDriver>>>
     {
         let file = File::open(&qmd.dev_nodes[0].devnode)?;
@@ -971,7 +971,7 @@ impl DrmDriverXe
         let drv_opts = IntelDriverOpts::from(&qmd.pci_dev, opts_vec);
 
         if xe.dev_type.is_integrated() {
-            xe.power = IGpuPowerIntel::new(drv_opts.has_power_msr())?;
+            xe.power = IGpuPowerIntel::from(drv_opts.has_power_msr())?;
             if let Some(po) = &xe.power {
                 info!("{}: rapl power reporting from: {}",
                     &qmd.pci_dev, po.name());

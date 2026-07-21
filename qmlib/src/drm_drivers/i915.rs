@@ -732,7 +732,7 @@ impl DrmDriveri915
         Ok(qmdt)
     }
 
-    pub fn new(qmd: &DrmDeviceInfo,
+    pub fn from(qmd: &DrmDeviceInfo,
         opts_vec: Option<&Vec<&str>>) -> Result<Rc<RefCell<dyn DrmDriver>>>
     {
         let file = File::open(&qmd.dev_nodes[0].devnode)?;
@@ -761,7 +761,7 @@ impl DrmDriveri915
         let drv_opts = IntelDriverOpts::from(&qmd.pci_dev, opts_vec);
 
         if i915.dev_type.is_integrated() {
-            i915.power = IGpuPowerIntel::new(drv_opts.has_power_msr())?;
+            i915.power = IGpuPowerIntel::from(drv_opts.has_power_msr())?;
             if let Some(po) = &i915.power {
                 info!("{}: rapl power reporting from: {}",
                     &qmd.pci_dev, po.name());

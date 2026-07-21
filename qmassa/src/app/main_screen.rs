@@ -340,7 +340,7 @@ impl Screen for MainScreen
                 let mut st = self.clis_state.borrow_mut();
                 let sel_opt = st.sel_client.take();
                 if let Some(sel) = sel_opt {
-                    let nscr = DrmClientScreen::new(self.model.clone(), sel);
+                    let nscr = DrmClientScreen::from(self.model.clone(), sel);
                     return Some(ScreenAction::Enter(nscr));
                 }
             },
@@ -1427,7 +1427,7 @@ impl MainScreen
             area);
     }
 
-    pub fn new(model: Rc<RefCell<dyn AppData>>) -> Box<dyn Screen>
+    pub fn from(model: Rc<RefCell<dyn AppData>>) -> Box<dyn Screen>
     {
         Box::new(MainScreen {
             model,

@@ -272,7 +272,7 @@ impl App
 
     pub fn run(&mut self) -> Result<()>
     {
-        let main_scr = MainScreen::new(self.model.clone());
+        let main_scr = MainScreen::from(self.model.clone());
         self.screens.enter(main_scr);
 
         let mut terminal = ratatui::init();
