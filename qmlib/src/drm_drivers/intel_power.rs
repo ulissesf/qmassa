@@ -207,7 +207,7 @@ impl DGpuPowerIntel
             last_update: time::Instant::now(),
         };
 
-        return Ok(Some(Box::new(pwr)));
+        Ok(Some(Box::new(pwr)))
     }
 }
 
