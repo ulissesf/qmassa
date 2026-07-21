@@ -45,7 +45,7 @@ impl Iterator for ProcPids
                 continue;
             }
 
-            let nproc = ProcInfo::from(&fp.to_string());
+            let nproc = ProcInfo::from(fp);
             if let Err(err) = nproc {
                 debug!("ERR: skipping pid {:?}: {:?}", fp, err);
                 continue;
