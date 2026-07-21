@@ -268,7 +268,7 @@ impl DrmDriver for DrmDriveri915
 
     fn dev_type(&mut self) -> Result<DrmDeviceType>
     {
-        Ok(self.dev_type.clone())
+        Ok(self.dev_type)
     }
 
     fn mem_info(&mut self) -> Result<Option<DrmDeviceMemInfo>>

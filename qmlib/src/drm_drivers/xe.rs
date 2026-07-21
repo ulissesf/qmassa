@@ -570,7 +570,7 @@ impl DrmDriver for DrmDriverXeVfio
 
     fn dev_type(&mut self) -> Result<DrmDeviceType>
     {
-        Ok(self.dev_type.clone())
+        Ok(self.dev_type)
     }
 
     fn engs_utilization(&mut self) -> Result<HashMap<String, f64>>
@@ -673,7 +673,7 @@ impl DrmDriver for DrmDriverXe
 
     fn dev_type(&mut self) -> Result<DrmDeviceType>
     {
-        Ok(self.dev_type.clone())
+        Ok(self.dev_type)
     }
 
     fn mem_info(&mut self) -> Result<Option<DrmDeviceMemInfo>>
