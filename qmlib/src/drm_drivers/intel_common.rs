@@ -44,14 +44,14 @@ impl IntelDriverOpts
     {
         for (iopt_str, iopt_mask) in INTEL_DRV_OPTS.iter() {
             if opt == *iopt_str {
-                self.opts = self.opts | iopt_mask;
+                self.opts |= iopt_mask;
             }
         }
     }
 
     fn set_bits_from(&mut self, other: &IntelDriverOpts)
     {
-        self.opts = self.opts | other.opts;
+        self.opts |= other.opts;
     }
 
     pub fn from(pci_dev: &str,
