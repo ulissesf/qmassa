@@ -263,7 +263,7 @@ fn main() -> Result<()>
                 fnstr = env::current_exe()
                     .expect("Failed to get current process name")
                     .file_name().unwrap().to_str().unwrap().to_string();
-                fnstr.push_str("-");
+                fnstr.push('-');
                 fnstr.push_str(&process::id().to_string());
                 fnstr.push_str(".log");
 

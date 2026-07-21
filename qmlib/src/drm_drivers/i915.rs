@@ -632,7 +632,7 @@ impl DrmDriveri915
 
         let mut src = String::from("i915");
         if dtype.is_discrete() {
-            src.push_str("_");
+            src.push('_');
             src.push_str(pci_dev);
         }
         let src = src.replace(":", "_");
