@@ -310,14 +310,8 @@ impl AppDataDeviceState
     pub fn find_client_stats(&self,
         pid: u32, client_key: (u32, u32)) -> Option<&AppDataClientStats>
     {
-        for cst in self.clis_stats.iter() {
-            if cst.is_single_client() &&
-                cst.pid == pid && cst.client_key() == client_key {
-                return Some(cst);
-            }
-        }
-
-        None
+        self.clis_stats.iter().find(|&cst| cst.is_single_client() &&
+            cst.pid == pid && cst.client_key() == client_key)
     }
 
     pub fn clients_stats(&self) -> Vec<&AppDataClientStats>
@@ -549,13 +543,7 @@ impl AppData for AppDataJson
     {
         let state = self.states.front().unwrap();
 
-        for ds in state.devs_state.iter() {
-            if ds.pci_dev == *dev {
-                return Some(ds);
-            }
-        }
-
-        None
+        state.devs_state.iter().find(|&ds| ds.pci_dev == *dev)
     }
 
     fn refresh(&mut self) -> Result<bool>
@@ -723,13 +711,7 @@ impl AppData for AppDataLive
 
     fn get_device(&self, dev: &str) -> Option<&AppDataDeviceState>
     {
-        for ds in self.state.devs_state.iter() {
-            if ds.pci_dev == *dev {
-                return Some(ds);
-            }
-        }
-
-        None
+        self.state.devs_state.iter().find(|&ds| ds.pci_dev == *dev)
     }
 
     fn refresh(&mut self) -> Result<bool>
