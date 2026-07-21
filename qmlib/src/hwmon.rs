@@ -115,7 +115,6 @@ impl Hwmon
     fn find_path(root_dir: &PathBuf) -> Result<Option<PathBuf>>
     {
         let hwmon_path = fs::read_dir(root_dir)?
-            .into_iter()
             .filter(|r| r.is_ok())
             .map(|r| r.unwrap().path())
             .find(|r| r.file_name().unwrap()
