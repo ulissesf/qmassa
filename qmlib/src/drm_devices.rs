@@ -379,10 +379,9 @@ impl DrmDeviceInfo
 {
     pub fn eng_utilization(&self, eng: &String) -> f64
     {
-        if !self.engs_utilization.is_empty() {
-            if self.engs_utilization.contains_key(eng) {
-                return self.engs_utilization[eng];
-            }
+        if !self.engs_utilization.is_empty()
+            && self.engs_utilization.contains_key(eng) {
+            return self.engs_utilization[eng];
         }
 
         0.0
