@@ -1091,7 +1091,7 @@ impl PerfEvent
                     kv[1].trim_start_matches("0x"), 16)?;
             }
 
-            if keys.iter().any(|&k| k == key) {
+            if keys.contains(&key) {
                 configs.insert(key.to_string(), val);
             }
         }

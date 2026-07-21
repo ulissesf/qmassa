@@ -102,7 +102,7 @@ impl Plotter
         for idx in 0..nr_devices {
             let di = &self.jsondata.states().back().unwrap().devs_state[idx];
             if !self.dev_slots.is_empty() &&
-                !self.dev_slots.iter().any(|ds| di.pci_dev == *ds) {
+                !self.dev_slots.contains(&di.pci_dev) {
                 continue;
             }
 
