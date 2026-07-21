@@ -45,7 +45,7 @@ impl Iterator for ProcPids
             }
 
             let fp = fpath.file_name().unwrap().to_str().unwrap();
-            if !fp.chars().next().unwrap().is_digit(10) {
+            if !fp.chars().next().unwrap().is_ascii_digit() {
                 continue;
             }
 
@@ -108,7 +108,7 @@ impl ProcInfo
 {
     pub fn is_valid_pid(pid: &str) -> bool
     {
-        if !pid.chars().next().unwrap().is_digit(10) {
+        if !pid.chars().next().unwrap().is_ascii_digit() {
             return false;
         }
 
