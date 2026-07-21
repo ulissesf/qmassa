@@ -146,12 +146,12 @@ impl Plotter
             }
             if plot_freqs {
                 for _ in di.freq_limits.iter() {
-                    let mut nv = Vec::new();
-                    nv.push(StatData::new("MIN"));
-                    nv.push(StatData::new("MAX"));
-                    nv.push(StatData::new("REQ"));
-                    nv.push(StatData::new("ACT"));
-                    freqs.push(nv);
+                    freqs.push(vec![
+                        StatData::new("MIN"),
+                        StatData::new("MAX"),
+                        StatData::new("REQ"),
+                        StatData::new("ACT"),
+                    ]);
                 }
             }
             if plot_power {
