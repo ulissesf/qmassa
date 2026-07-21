@@ -427,7 +427,7 @@ impl AppDataDeviceState
                 String::new()
             },
             revision: dinfo.revision.clone(),
-            dev_type: dinfo.dev_type.clone(),
+            dev_type: dinfo.dev_type,
             drv_name: dinfo.drv_name.clone(),
             dev_nodes: dnodes,
             eng_names: enames,
