@@ -62,7 +62,7 @@ impl DrmEngine
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct DrmMemRegion
 {
     pub name: String,
@@ -80,21 +80,6 @@ enum MemRegKvType
     KvResident,
     KvPurgeable,
     KvActive,
-}
-
-impl Default for DrmMemRegion
-{
-    fn default() -> DrmMemRegion
-    {
-        DrmMemRegion {
-            name: String::new(),
-            total: 0,
-            shared: 0,
-            resident: 0,
-            purgeable: 0,
-            active: 0,
-        }
-    }
 }
 
 impl DrmMemRegion
