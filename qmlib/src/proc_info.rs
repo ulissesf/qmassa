@@ -28,11 +28,7 @@ impl Iterator for ProcPids
     fn next(&mut self) -> Option<Self::Item>
     {
         loop {
-            let nval = self.proc_iter.next();
-            if nval.is_none() {
-                return None;
-            }
-            let nval = nval.unwrap();
+            let nval = self.proc_iter.next()?;
 
             if let Err(err) = nval {
                 return Some(Err(err.into()));
