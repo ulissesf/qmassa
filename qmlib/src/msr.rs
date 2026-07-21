@@ -55,9 +55,7 @@ impl Msr
 
     pub fn read_sum(&mut self, offset: i64) -> Result<u64>
     {
-        if !self.sums.contains_key(&offset) {
-            self.sums.insert(offset, MsrSum { sum: 0, last: 0, });
-        }
+        self.sums.entry(offset).or_insert(MsrSum { sum: 0, last: 0, });
 
         let val = self.read(offset)?;
         let msrsum = self.sums.get_mut(&offset).unwrap();

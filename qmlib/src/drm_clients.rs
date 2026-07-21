@@ -400,15 +400,9 @@ impl DrmClients
     {
         let key = (cli.drm_minor, cli.client_id);
 
-        if !map.contains_key(&dev) {
-            let mut vlst: BTreeMap<(u32, u32), DrmClientInfo> =
-                BTreeMap::new();
-            vlst.insert(key, cli);
-            map.insert(dev, Rc::new(RefCell::new(vlst)));
-        } else {
-            let mut vref = map.get(&dev).unwrap().borrow_mut();
-            vref.insert(key, cli);
-        }
+        let vref = map.entry(dev).or_insert_with(||
+            Rc::new(RefCell::new(BTreeMap::new())));
+        vref.borrow_mut().insert(key, cli);
     }
 
     fn proc_info_ref(&mut self, proc: &ProcInfo) -> ProcInfoRef
