@@ -50,7 +50,7 @@ pub struct Plotter
 impl Plotter
 {
     fn plot_chart(&self, out_file: &str, title: &str,
-        x_desc: &str, y_desc: &str, x_max: f64, y_max: f64,
+        y_desc: &str, x_max: f64, y_max: f64,
         datasets: &[StatData]) -> Result<()>
     {
         let root = SVGBackend::new(out_file, (1200, 720))
@@ -65,7 +65,7 @@ impl Plotter
             .build_cartesian_2d(0.0..x_max, 0.0..y_max)?;
         chart
             .configure_mesh()
-            .x_desc(x_desc)
+            .x_desc("Time (s)")
             .y_desc(y_desc)
             .draw()?;
 
@@ -246,7 +246,7 @@ impl Plotter
                     (1024.0 * 1024.0);
                 self.plot_chart(
                     &out_file, &format!("{} - Memory Info", di.pci_dev),
-                    "Time (s)", "Memory used (MiB)",
+                    "Memory used (MiB)",
                     x_max, y_max, &meminfo)?;
             }
             if plot_engines {
@@ -254,7 +254,7 @@ impl Plotter
                     self.out_prefix, di.pci_dev);
                 self.plot_chart(
                     &out_file, &format!("{} - Engines Usage", di.pci_dev),
-                    "Time (s)", "Usage (%)",
+                    "Usage (%)",
                     x_max, 100.0, &engines)?;
             }
             if plot_freqs {
@@ -265,7 +265,7 @@ impl Plotter
                         &out_file,
                         &format!("{} - {} Frequencies",
                             di.pci_dev, fl.name.to_uppercase()),
-                        "Time (s)", "Frequency (MHz)",
+                        "Frequency (MHz)",
                         x_max, fl.maximum as f64, &freqs[nr])?;
                 }
             }
@@ -274,7 +274,7 @@ impl Plotter
                     self.out_prefix, di.pci_dev);
                 self.plot_chart(
                     &out_file, &format!("{} - Power Usage", di.pci_dev),
-                    "Time (s)", "Power (W)",
+                    "Power (W)",
                     x_max, max_power, &power)?;
             }
             if plot_temps {
@@ -282,7 +282,7 @@ impl Plotter
                     self.out_prefix, di.pci_dev);
                 self.plot_chart(
                     &out_file, &format!("{} - Temperatures", di.pci_dev),
-                    "Time (s)", "Temperature (C)",
+                    "Temperature (C)",
                     x_max, max_temp, &temps)?;
             }
             if plot_fans {
@@ -290,7 +290,7 @@ impl Plotter
                     self.out_prefix, di.pci_dev);
                 self.plot_chart(
                     &out_file, &format!("{} - Fans", di.pci_dev),
-                    "Time (s)", "Speed (RPM)",
+                    "Speed (RPM)",
                     x_max, max_fan, &fans)?;
             }
         }
