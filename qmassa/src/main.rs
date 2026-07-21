@@ -191,16 +191,15 @@ fn run_notui(mut appdata: AppDataLive) -> Result<()>
 
 fn run_default_cmd(args: CliArgs) -> Result<()>
 {
-    let base_pid: String;
-    if args.pid.is_some() {
-        base_pid = args.pid.clone().unwrap();
+    let base_pid: String = if let Some(pid) = &args.pid {
+        pid.clone()
     } else {
         // base_pid is not set, pick value depending on user:
         //   root       => "1", to scan process tree for whole system
         //   non-root   => "", all processes with accessible info are scanned
         let euid: u32 = unsafe { libc::geteuid() };
-        base_pid = if euid == 0 { String::from("1") } else { String::from("") };
-    }
+        if euid == 0 { String::from("1") } else { String::from("") }
+    };
     let no_tui = args.no_tui;
 
     let mut slots_lst: Vec<&str> = Vec::new();

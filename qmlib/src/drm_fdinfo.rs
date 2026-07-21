@@ -158,12 +158,10 @@ impl DrmFdinfo
 
     fn update_engine(&mut self, kv_type: EngKvType, eng_name: &str, val: &str) -> Result<()>
     {
-        let eng: &mut DrmEngine;
-
         if !self.engines.contains_key(eng_name) {
             self.engines.insert(eng_name.to_string(), DrmEngine::new(eng_name));
         }
-        eng = self.engines.get_mut(eng_name).unwrap();
+        let eng = self.engines.get_mut(eng_name).unwrap();
 
         match kv_type {
             EngKvType::KvCapacity => {
@@ -196,12 +194,10 @@ impl DrmFdinfo
 
     fn update_mem_region(&mut self, kv_type: MemRegKvType, mr_name: &str, val: &str) -> Result<()>
     {
-        let mrg: &mut DrmMemRegion;
-
         if !self.mem_regions.contains_key(mr_name) {
             self.mem_regions.insert(mr_name.to_string(), DrmMemRegion::new(mr_name));
         }
-        mrg = self.mem_regions.get_mut(mr_name).unwrap();
+        let mrg = self.mem_regions.get_mut(mr_name).unwrap();
 
         let dt: Vec<&str> = val.split_whitespace().collect();
         let nr: u64 = dt[0].parse()?;
