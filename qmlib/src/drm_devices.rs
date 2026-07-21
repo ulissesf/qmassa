@@ -392,8 +392,7 @@ impl DrmDeviceInfo
         let mut engs = Vec::new();
 
         if !self.engs_utilization.is_empty() {
-            engs = self.engs_utilization.keys()
-                .map(|nm| nm.clone())
+            engs = self.engs_utilization.keys().cloned()
                 .collect();
             engs.sort();
         }
