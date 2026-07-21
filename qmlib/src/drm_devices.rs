@@ -307,7 +307,7 @@ impl DeviceNodeInfo
         }
 
         Ok(DeviceNodeInfo {
-            devnode: devnode,
+            devnode,
             major: mj,
             minor: mn,
         })
