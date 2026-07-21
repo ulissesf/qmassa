@@ -73,7 +73,7 @@ impl Plotter
             let color = Palette99::pick(idx).mix(0.9);
             chart
                 .draw_series(LineSeries::new(
-                    ds.points.iter().map(|&pt| pt),
+                    ds.points.iter().copied(),
                     color.stroke_width(3)))?
                 .label(&ds.label)
                 .legend(move |(x, y)| Rectangle::new([(x, y - 5),
