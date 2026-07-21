@@ -563,7 +563,7 @@ impl DrmDriverAmdgpu
             let devslot_str =
                 format!("devslot={},engines=sysfs", qmd.pci_dev);
             if opts_vec.iter()
-                .any(|opt| *opt == &devslot_str || *opt == "engines=sysfs") {
+                .any(|opt| *opt == devslot_str || *opt == "engines=sysfs") {
                 amdgpu.engs_sysfs = true;
             }
         }
