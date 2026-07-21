@@ -424,7 +424,7 @@ impl DrmClients
 
     fn procs_info_cleanup(&mut self)
     {
-        self.procs.retain(|_, pref| Rc::strong_count(&pref) >= 2);
+        self.procs.retain(|_, pref| Rc::strong_count(pref) >= 2);
     }
 
     fn process_fdinfos(&mut self,

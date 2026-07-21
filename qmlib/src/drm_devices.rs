@@ -411,7 +411,7 @@ impl DrmDeviceInfo
     pub fn clients(&self) -> Option<Weak<RefCell<DrmClientInfoMap>>>
     {
         if let Some(vref) = &self.drm_clis {
-            return Some(Rc::downgrade(&vref));
+            return Some(Rc::downgrade(vref));
         }
 
         None
