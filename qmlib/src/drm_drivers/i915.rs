@@ -798,7 +798,7 @@ impl DrmDriveri915
             debug!("{}: ERR: failed to find PMU source: {:?}",
                 qmd.pci_dev, pmu_src_res);
         }
-        let pmu_src = pmu_src_res.unwrap_or(String::new());
+        let pmu_src = pmu_src_res.unwrap_or_default();
 
         if !pmu_src.is_empty() {
             if drv_opts.has_engs_pmu() {
