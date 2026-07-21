@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 use std::cell::RefCell;
+use std::fmt;
 use std::fs;
 use std::path::Path;
 use std::rc::{Rc, Weak};
@@ -41,34 +42,33 @@ impl DrmDeviceType
     {
         matches!(self, DrmDeviceType::Integrated(_))
     }
+}
 
-    pub fn to_string(&self) -> String
+impl fmt::Display for DrmDeviceType
+{
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result
     {
-        let mut ret = String::new();
-
         let sriovfn = match *self {
             DrmDeviceType::Discrete(sfn) => {
-                ret.push_str("Discrete");
+                write!(f, "Discrete")?;
                 sfn
             },
             DrmDeviceType::Integrated(sfn) => {
-                ret.push_str("Integrated");
+                write!(f, "Integrated")?;
                 sfn
             },
             DrmDeviceType::Unknown => {
-                ret.push_str("Unknown");
+                write!(f, "Unknown")?;
                 VirtFn::NoVirt
             }
         };
 
         match sriovfn {
-            VirtFn::SriovPF => ret.push_str(" (PF)"),
-            VirtFn::SriovVF => ret.push_str(" (VF)"),
-            VirtFn::VFIO => ret.push_str(" (VFIO)"),
-            _ => {}
+            VirtFn::SriovPF => write!(f, " (PF)"),
+            VirtFn::SriovVF => write!(f, " (VF)"),
+            VirtFn::VFIO => write!(f, " (VFIO)"),
+            _ => Ok(()),
         }
-
-        ret
     }
 }
 
