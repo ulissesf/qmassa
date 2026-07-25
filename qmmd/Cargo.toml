@@ -1,6 +1,6 @@
 [package]
 name = "qmmd"
-version = "0.2.0"
+version = "0.2.1"
 edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
@@ -11,10 +11,13 @@ categories = ["development-tools::debugging", "graphics"]
 readme = "README.md"
 
 [dependencies]
-qmlib = { version = "2.2.1", path = "../qmlib" }
+qmlib = { version = "2.2.2", path = "../qmlib" }
 anyhow = "1.0.104"
 clap = { version = "4.6.4", features = ["derive"] }
 env_logger = "0.11.11"
 metrics = "0.24.6"
 metrics-exporter-prometheus = "0.18.3"
 log = "0.4.33"
+
+[lints]
+workspace = true

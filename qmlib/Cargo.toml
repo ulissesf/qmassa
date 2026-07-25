@@ -1,6 +1,6 @@
 [package]
 name = "qmlib"
-version = "2.2.1"
+version = "2.2.2"
 edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
@@ -14,3 +14,6 @@ log = "0.4.33"
 nix = { version = "0.30.1", features = ["ioctl"] }
 serde = { version = "1.0.229", features = ["derive"] }
 udev = { version = "0.9.3", features = ["hwdb"] }
+
+[lints]
+workspace = true

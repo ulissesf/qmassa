@@ -1597,7 +1597,7 @@ dependencies = [
 
 [[package]]
 name = "qmassa"
-version = "2.1.0"
+version = "2.1.1"
 dependencies = [
  "anyhow",
  "clap",
@@ -1616,7 +1616,7 @@ dependencies = [
 
 [[package]]
 name = "qmlib"
-version = "2.2.1"
+version = "2.2.2"
 dependencies = [
  "anyhow",
  "libc",
@@ -1628,7 +1628,7 @@ dependencies = [
 
 [[package]]
 name = "qmmd"
-version = "0.2.0"
+version = "0.2.1"
 dependencies = [
  "anyhow",
  "clap",

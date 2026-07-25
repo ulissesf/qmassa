@@ -1,6 +1,6 @@
 [package]
 name = "qmassa"
-version = "2.1.0"
+version = "2.1.1"
 edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
@@ -11,7 +11,7 @@ categories = ["command-line-utilities", "graphics"]
 readme = "README.md"
 
 [dependencies]
-qmlib = { version = "2.2.1", path = "../qmlib" }
+qmlib = { version = "2.2.2", path = "../qmlib" }
 anyhow = "1.0.104"
 clap = { version = "4.6.4", features = ["derive"] }
 crossterm = "0.29.0"
@@ -24,3 +24,6 @@ ratatui = "0.30.2"
 serde = { version = "1.0.229", features = ["derive"] }
 serde_json = "1.0.151"
 tui-scrollview = "0.6.7"
+
+[lints]
+workspace = true

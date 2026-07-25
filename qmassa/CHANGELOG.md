@@ -1,5 +1,11 @@
 # qmassa Changelog
 
+## [v2.1.1](https://github.com/ulissesf/qmassa/releases/tag/qmassa-v2.1.1) - 2026-07-25
+
+### Fixes
+
+ - Fix all clippy warnings. (@ulissesf)
+
 ## [v2.1.0](https://github.com/ulissesf/qmassa/releases/tag/qmassa-v2.1.0) - 2026-05-16
 
 ### Features
