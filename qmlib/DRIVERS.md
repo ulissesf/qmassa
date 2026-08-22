@@ -9,6 +9,7 @@ GPU device and DRM client stats.
 | i915   | :white_check_mark: | :white_check_mark: | :white_check_mark: (via DRM fdinfo or perf PMU) | :white_check_mark: (via sysfs or perf PMU) | :white_check_mark: (iGPUs: via perf PMU or MSR, dGPUs: via hwmon) | :white_check_mark: | :white_check_mark: (dGPUs via hwmon, iGPUs report whole package temp) | :white_check_mark: (only dGPUs via hwmon) |
 | amdgpu | :white_check_mark: | :white_check_mark: | :white_check_mark: (via DRM fdinfo) | :white_check_mark: (via sysfs) | :white_check_mark: (only dGPUs via hwmon) | :white_check_mark: (Linux kernel 6.13+) | :white_check_mark: (only dGPUs via hwmon) | :white_check_mark: (only dGPUs via hwmon) |
 | xe-vfio-pci | :white_check_mark: |  | :white_check_mark: (via perf PMU) |  |  |  |  |  |
+| nvidia | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: |  | :white_check_mark: | :white_check_mark: |
 | *      |  |  | :white_check_mark: (via DRM fdinfo) |  |  | :white_check_mark: (only "memory" region in DRM fdinfo) |  |  |
 
 Testing is done on some Intel and AMD GPUs, but there's an expectation on
@@ -38,6 +39,10 @@ extra options to control how or from where they report their stats.
 | ------------------------------ | ------------------------------------------ |
 | devslot=<PCI slot or sysname\> | Applies other options to a specific device |
 | engines=sysfs                  | Engines usage reporting from sysfs (*_busy_percent files) |
+
+| Options for nvidia             | Description                                |
+| ------------------------------ | ------------------------------------------ |
+| nvml_lib=<path\>               | Provides custom NVML library path          |
 
 ## Kernel driver limitations/gaps
 

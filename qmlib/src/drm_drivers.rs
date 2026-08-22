@@ -22,6 +22,10 @@ mod i915;
 use i915::DrmDriveri915;
 mod amdgpu;
 use amdgpu::DrmDriverAmdgpu;
+#[cfg(feature = "nvidia")]
+mod nvidia;
+#[cfg(feature = "nvidia")]
+use nvidia::DrmDriverNvidia;
 
 
 pub trait DrmDriver
@@ -110,6 +114,15 @@ pub fn driver_from(qmd: &DrmDeviceInfo,
             let drv = drv_newfunc(qmd, opts)?;
             return Ok(Some(drv));
         }
+    }
+
+    // kept out of ALL_DRIVERS so qmlib compiles (and works for every other
+    // vendor) with the "nvidia" feature, and its nvml-wrapper dependency,
+    // disabled entirely
+    #[cfg(feature = "nvidia")]
+    if qmd.drv_name == "nvidia" {
+        let drv = DrmDriverNvidia::from(qmd, opts)?;
+        return Ok(Some(drv));
     }
 
     Ok(None)
