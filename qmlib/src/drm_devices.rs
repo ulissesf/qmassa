@@ -704,13 +704,23 @@ impl DrmDevices
         // initialize drivers and log devices found
         for dinf in qmds.infos.values_mut() {
             let dopts = drv_opts.get(dinf.drv_name.as_str());
-            if let Some(drv_ref) = drm_drivers::driver_from(dinf, dopts)? {
-                let dref = drv_ref.clone();
-                let mut drv_b = dref.borrow_mut();
 
-                dinf.dev_type = drv_b.dev_type()?;
-                dinf.freq_limits = drv_b.freq_limits()?;
-                dinf.driver = Some(drv_ref);
+            // a driver backend can fail to initialize -- don't
+            // let that abort discovery of every other device
+            match drm_drivers::driver_from(dinf, dopts) {
+                Ok(Some(drv_ref)) => {
+                    let dref = drv_ref.clone();
+                    let mut drv_b = dref.borrow_mut();
+
+                    dinf.dev_type = drv_b.dev_type()?;
+                    dinf.freq_limits = drv_b.freq_limits()?;
+                    dinf.driver = Some(drv_ref);
+                },
+                Ok(None) => (),
+                Err(err) => {
+                    warn!("{}: no {:?} driver support: {:?}",
+                        dinf.pci_dev, dinf.drv_name, err);
+                },
             }
             info!(
                 "New device: pci_dev={}, vendor_id={}, vendor={:?}, \
