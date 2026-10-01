@@ -9,8 +9,8 @@ description = "qmassa's GPU stats library"
 
 [dependencies]
 anyhow = "1.0.104"
-libc = "0.2.189"
-log = "0.4.33"
+libc = "0.2.190"
+log = "0.4.34"
 nix = { version = "0.30.1", features = ["ioctl"] }
 nvml-wrapper = { version = "0.12.1", optional = true }
 serde = { version = "1.0.229", features = ["derive"] }
