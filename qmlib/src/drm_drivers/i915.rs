@@ -665,9 +665,9 @@ impl DrmDriveri915
             return Err(io::Error::last_os_error().into());
         }
 
-        if dqi.length as usize <= 0 {
+        if dqi.length <= 0 {
             warn!("i915 memregions query ioctl() with {:?} length, skipping.",
-                dqi.length as usize);
+                dqi.length);
             return Ok(DrmDeviceMemInfo::new());
         }
 
