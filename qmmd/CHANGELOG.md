@@ -1,5 +1,15 @@
 # qmmd Changelog
 
+## [v0.3.0](https://github.com/ulissesf/qmassa/releases/tag/qmmd-v0.3.0) - 2026-10-13
+
+### Features
+
+ - Add NVIDIA support via NVML. (@ulissesf)
+
+### Fixes
+
+ - Fix panic on old kernels when querying i915 memregions. (@nemosupremo)
+
 ## [v0.2.1](https://github.com/ulissesf/qmassa/releases/tag/qmmd-v0.2.1) - 2026-07-25
 
 ### Fixes

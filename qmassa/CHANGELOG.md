@@ -1,5 +1,15 @@
 # qmassa Changelog
 
+## [v2.2.0](https://github.com/ulissesf/qmassa/releases/tag/qmassa-v2.2.0) - 2026-10-13
+
+### Features
+
+ - Add NVIDIA support via NVML. (@ulissesf)
+
+### Fixes
+
+ - Fix panic on old kernels when querying i915 memregions. (@nemosupremo)
+
 ## [v2.1.1](https://github.com/ulissesf/qmassa/releases/tag/qmassa-v2.1.1) - 2026-07-25
 
 ### Fixes
